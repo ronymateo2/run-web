@@ -23,52 +23,81 @@ export function ExerciseDetailScreen() {
   const totalSets = exercise?.sets ?? 3;
   const isTimeBased = !!exercise?.duration_s && !exercise?.reps;
 
+  const metricValue = isTimeBased ? exercise?.duration_s : exercise?.reps;
+  const metricUnit = isTimeBased ? "s" : "rep";
+
   return (
     <div className="screen screen-dark" style={{ position: "relative" }}>
-      <div className="screen-body" style={{ paddingBottom: 100, paddingTop: 24, display: "flex", flexDirection: "column", flex: 1 }}>
+      <div className="screen-body" style={{
+        paddingBottom: 100, paddingTop: 24,
+        display: "flex", flexDirection: "column", flex: 1,
+      }}>
         {/* Header */}
-        <div className="row between" style={{ alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center" }}>
           <button
             onClick={() => navigate(-1)}
             style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}
           >
             <Ico.chevL s={22} c="var(--bone)" />
           </button>
-          <span className="eyebrow" style={{ color: "rgba(237,230,214,0.55)" }}>
-            {totalSets} series
-          </span>
-          <div style={{ width: 30 }} />
         </div>
 
         {/* Exercise name */}
-        <div style={{ textAlign: "center", marginTop: 48 }}>
+        <div style={{ textAlign: "center", marginTop: 40 }}>
           <div className="title-xl serif" style={{ color: "#F5F0E8", lineHeight: 1.05 }}>
             {exercise?.name ?? "Ejercicio"}
           </div>
           {exercise?.detail && (
-            <div className="body" style={{ color: "rgba(245,240,232,0.80)", marginTop: 12, lineHeight: 1.55 }}>
+            <div className="body" style={{
+              color: "rgba(245,240,232,0.70)", marginTop: 14, lineHeight: 1.6,
+              maxWidth: 480, marginLeft: "auto", marginRight: "auto",
+            }}>
               {exercise.detail}
             </div>
           )}
         </div>
 
-        {/* Objective card */}
-        <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 48, flexWrap: "wrap" }}>
-          <div style={{
-            background: "rgba(245,240,232,0.10)", border: "1px solid rgba(245,240,232,0.20)",
-            borderRadius: 20, padding: "24px 48px", textAlign: "center",
-          }}>
-            <div style={{ fontSize: 12, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.10em", color: "rgba(245,240,232,0.60)" }}>
-              {isTimeBased ? "segundos" : "repeticiones"}
+        {/* Metric — series × reps/time */}
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 24 }}>
+          {metricValue != null ? (
+            <div style={{
+              background: "rgba(245,240,232,0.09)",
+              border: "1px solid rgba(245,240,232,0.18)",
+              borderRadius: 24,
+              padding: "28px 56px",
+              textAlign: "center",
+            }}>
+              <div style={{
+                fontSize: 11, fontFamily: "var(--font-mono)",
+                textTransform: "uppercase", letterSpacing: "0.12em",
+                color: "rgba(245,240,232,0.50)", marginBottom: 10,
+              }}>
+                objetivo
+              </div>
+              <div style={{
+                fontFamily: "var(--font-mono)", color: "#F5F0E8",
+                lineHeight: 1, fontWeight: 500,
+                display: "flex", alignItems: "baseline", gap: 6, justifyContent: "center",
+              }}>
+                <span style={{ fontSize: 52 }}>{totalSets}</span>
+                <span style={{ fontSize: 28, color: "rgba(245,240,232,0.45)", fontWeight: 400 }}>×</span>
+                <span style={{ fontSize: 52 }}>{metricValue}</span>
+                <span style={{ fontSize: 20, color: "rgba(245,240,232,0.55)", fontWeight: 400, alignSelf: "flex-end", paddingBottom: 4 }}>
+                  {metricUnit}
+                </span>
+              </div>
+              <div style={{
+                fontSize: 11, fontFamily: "var(--font-mono)",
+                textTransform: "uppercase", letterSpacing: "0.10em",
+                color: "rgba(245,240,232,0.35)", marginTop: 10,
+              }}>
+                {isTimeBased ? "series × segundos" : "series × repeticiones"}
+              </div>
             </div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 64, color: "#F5F0E8", lineHeight: 1, marginTop: 8, fontWeight: 500 }}>
-              {isTimeBased ? exercise?.duration_s : exercise?.reps}
-            </div>
-          </div>
+          ) : null}
         </div>
 
         {/* CTA */}
-        <div style={{ flex: 1 }} />
         <div style={{ marginBottom: 8 }}>
           <button className="btn-pill" onClick={() => setShowLog(true)}>
             Registrar ejercicio <Ico.check s={16} c="#fff" />
