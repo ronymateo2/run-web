@@ -57,41 +57,43 @@ export function ExerciseDetailScreen() {
           )}
         </div>
 
-        {/* Metric — series × reps/time */}
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 24 }}>
+        {/* Metric — two chips */}
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 32, marginBottom: 32 }}>
           {metricValue != null ? (
-            <div style={{
-              background: "rgba(245,240,232,0.09)",
-              border: "1px solid rgba(245,240,232,0.18)",
-              borderRadius: 24,
-              padding: "28px 56px",
-              textAlign: "center",
-            }}>
+            <div style={{ display: "flex", gap: 12 }}>
+              {/* Series chip */}
               <div style={{
-                fontSize: 11, fontFamily: "var(--font-mono)",
-                textTransform: "uppercase", letterSpacing: "0.12em",
-                color: "rgba(245,240,232,0.50)", marginBottom: 10,
+                background: "rgba(245,240,232,0.09)",
+                border: "1px solid rgba(245,240,232,0.15)",
+                borderRadius: 20,
+                padding: "24px 36px",
+                textAlign: "center",
+                minWidth: 100,
               }}>
-                objetivo
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 52, color: "#F5F0E8", lineHeight: 1, fontWeight: 500 }}>
+                  {totalSets}
+                </div>
+                <div style={{ fontSize: 13, color: "rgba(245,240,232,0.55)", marginTop: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.04em" }}>
+                  series
+                </div>
               </div>
+
+              {/* Reps / time chip */}
               <div style={{
-                fontFamily: "var(--font-mono)", color: "#F5F0E8",
-                lineHeight: 1, fontWeight: 500,
-                display: "flex", alignItems: "baseline", gap: 6, justifyContent: "center",
+                background: "rgba(245,240,232,0.09)",
+                border: "1px solid rgba(245,240,232,0.15)",
+                borderRadius: 20,
+                padding: "24px 36px",
+                textAlign: "center",
+                minWidth: 100,
               }}>
-                <span style={{ fontSize: 52 }}>{totalSets}</span>
-                <span style={{ fontSize: 28, color: "rgba(245,240,232,0.45)", fontWeight: 400 }}>×</span>
-                <span style={{ fontSize: 52 }}>{metricValue}</span>
-                <span style={{ fontSize: 20, color: "rgba(245,240,232,0.55)", fontWeight: 400, alignSelf: "flex-end", paddingBottom: 4 }}>
-                  {metricUnit}
-                </span>
-              </div>
-              <div style={{
-                fontSize: 11, fontFamily: "var(--font-mono)",
-                textTransform: "uppercase", letterSpacing: "0.10em",
-                color: "rgba(245,240,232,0.35)", marginTop: 10,
-              }}>
-                {isTimeBased ? "series × segundos" : "series × repeticiones"}
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 52, color: "#F5F0E8", lineHeight: 1, fontWeight: 500 }}>
+                  {metricValue}
+                  <span style={{ fontSize: 22, color: "rgba(245,240,232,0.60)", fontWeight: 400, marginLeft: 3 }}>{metricUnit}</span>
+                </div>
+                <div style={{ fontSize: 13, color: "rgba(245,240,232,0.55)", marginTop: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.04em" }}>
+                  {isTimeBased ? "segundos" : "repeticiones"}
+                </div>
               </div>
             </div>
           ) : null}
