@@ -1,5 +1,3 @@
-import { TabBar } from "../components/TabBar";
-
 export function LearnScreen() {
   return (
     <div className="screen">
@@ -22,7 +20,6 @@ export function LearnScreen() {
           </div>
         </div>
       </div>
-      <TabBar />
     </div>
   );
 }

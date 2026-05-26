@@ -1,4 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
+import { motion } from "motion/react";
 import { House, Person, Footprints, BookOpen, UserCircle } from "@phosphor-icons/react";
 
 type Tab = "today" | "body" | "path" | "learn" | "profile";
@@ -25,6 +26,13 @@ export function TabBar() {
             className={`tab${active ? " is-active" : ""}`}
             onClick={() => navigate(tab.path)}
           >
+            {active && (
+              <motion.div
+                layoutId="tab-indicator"
+                className="tab-indicator"
+                transition={{ type: "spring", stiffness: 500, damping: 35 }}
+              />
+            )}
             <span className="tab-ico">{tab.icon(active)}</span>
             {tab.label}
           </button>

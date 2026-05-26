@@ -1,8 +1,13 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { AnimatePresence, motion } from "motion/react";
 import { useAuth } from "./AuthContext";
+import { TabBar } from "../components/TabBar";
+
+const TABBAR_ROUTES = ["/today", "/body", "/path", "/learn", "/profile"];
 
 export function ProtectedRoute() {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -21,5 +26,23 @@ export function ProtectedRoute() {
   }
 
   if (!user) return <Navigate to="/login" replace />;
-  return <Outlet />;
+
+  const showTabBar = TABBAR_ROUTES.includes(location.pathname);
+
+  return (
+    <>
+      <AnimatePresence>
+        <motion.div
+          key={location.pathname}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          style={{ position: "absolute", inset: 0, minHeight: "100dvh" }}
+        >
+          <Outlet />
+        </motion.div>
+      </AnimatePresence>
+      {showTabBar && <TabBar />}
+    </>
+  );
 }

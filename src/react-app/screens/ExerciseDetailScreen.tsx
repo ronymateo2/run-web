@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "motion/react";
 import { useDb } from "../hooks/useDb";
 import { useAuth } from "../auth/AuthContext";
 import { useSync } from "../hooks/useSync";
@@ -147,15 +148,17 @@ export function ExerciseDetailScreen() {
 
         {/* CTA buttons */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 8 }}>
-          <button
+          <motion.button
             className="btn-pill"
             onClick={handleQuickSave}
             disabled={saving || !exercise}
+            whileTap={!saving && exercise ? { scale: 0.97 } : {}}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
             style={{ opacity: saving || !exercise ? 0.6 : 1 }}
           >
             {saving ? "Guardando..." : "Registrar todo como el plan"}
             {!saving && <Ico.check s={16} c="var(--bone)" />}
-          </button>
+          </motion.button>
           <button
             onClick={() => setShowLog("edit")}
             disabled={!exercise}
@@ -175,19 +178,22 @@ export function ExerciseDetailScreen() {
         </div>
       </div>
 
-      {showLog && exercise && (
-        <ExerciseLogSheet
-          exerciseId={exercise.id}
-          exerciseName={exercise.name}
-          sets={totalSets}
-          plannedReps={exercise.reps}
-          plannedDurationS={exercise.duration_s}
-          sessionDate={localToday(user?.timezone)}
-          mode={showLog}
-          onSave={() => navigate("/today", { replace: true })}
-          onClose={() => setShowLog(false)}
-        />
-      )}
+      <AnimatePresence>
+        {showLog && exercise && (
+          <ExerciseLogSheet
+            key="sheet"
+            exerciseId={exercise.id}
+            exerciseName={exercise.name}
+            sets={totalSets}
+            plannedReps={exercise.reps}
+            plannedDurationS={exercise.duration_s}
+            sessionDate={localToday(user?.timezone)}
+            mode={showLog}
+            onSave={() => navigate("/today", { replace: true })}
+            onClose={() => setShowLog(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

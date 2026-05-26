@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { motion } from "motion/react";
 import { Ico } from "./icons";
 
 interface Props {
@@ -17,10 +18,12 @@ interface Props {
 export function ExerciseRow({ id, name, sets, reps, duration_s, mins, done, phase, accent = "var(--ink-2)" }: Props) {
   const navigate = useNavigate();
   return (
-    <div
+    <motion.div
       className="card"
       data-exercise-id={id}
-      style={{ padding: 14, display: "flex", alignItems: "center", gap: 14, cursor: "pointer" }}
+      whileTap={{ scale: 0.975 }}
+      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+      style={{ padding: 14, display: "flex", alignItems: "center", gap: 14, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
       onClick={() => {
         sessionStorage.setItem("lastExerciseId", id);
         navigate(`/today/exercise/${id}`);
@@ -64,6 +67,6 @@ export function ExerciseRow({ id, name, sets, reps, duration_s, mins, done, phas
         )}
         {mins && <span className="num body-sm" style={{ color: "var(--ink-3)" }}>≈ {mins} min</span>}
       </div>
-    </div>
+    </motion.div>
   );
 }

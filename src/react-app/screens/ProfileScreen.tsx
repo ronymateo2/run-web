@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { TabBar } from "../components/TabBar";
 import { Ico } from "../components/icons";
 import { COMMON_TIMEZONES, detectTimezone } from "../utils/timezone";
 
@@ -162,7 +161,6 @@ export function ProfileScreen() {
         </div>
       </div>
 
-      <TabBar />
     </div>
   );
 }

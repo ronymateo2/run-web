@@ -2,6 +2,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
+  --ease-spring: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-bounce: cubic-bezier(0.32, 0.72, 0, 1);
   --bg: #F5F2EC;
   --bg-2: #EFEBE2;
   --card: #FFFFFF;
@@ -132,9 +134,22 @@ body {
   background: none;
   border: none;
   padding: 0;
+  position: relative;
+  transition: transform 0.12s var(--ease-spring);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
+.tab:active { transform: scale(0.86); }
 .tab.is-active { color: var(--ink); }
 .tab .tab-ico { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
+.tab-indicator {
+  position: absolute;
+  inset: 4px 0;
+  border-radius: 14px;
+  background: rgba(31,58,46,0.08);
+  pointer-events: none;
+  z-index: -1;
+}
 
 /* Layout helpers */
 .row { display: flex; align-items: center; }
@@ -168,9 +183,27 @@ body {
   border: none;
   cursor: pointer;
   width: 100%;
+  transition: transform 0.12s var(--ease-spring), opacity 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.btn-pill:active:not(:disabled) {
+  transform: scale(0.97);
+  opacity: 0.88;
 }
 .btn-pill.alt { background: var(--clay); color: #fff; }
 .btn-pill.ghost { background: transparent; border: 1px solid var(--line-2); color: var(--ink); }
+
+/* Interactive card tap feedback */
+.card-tap {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: transform 0.12s var(--ease-spring), box-shadow 0.12s ease;
+}
+.card-tap:active {
+  transform: scale(0.985);
+  box-shadow: var(--shadow-1);
+}
 
 /* Animations */
 @keyframes pulseSlow {

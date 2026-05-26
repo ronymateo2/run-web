@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { localToday } from "../utils/timezone";
 import { useDb } from "../hooks/useDb";
-import { TabBar } from "../components/TabBar";
 import { BodyFigure, type HeatMap } from "../components/BodyFigure";
 import { NudgeSST } from "../components/NudgeSST";
 import { Ico } from "../components/icons";
@@ -203,7 +202,6 @@ export function CuerpoScreen() {
         <NudgeSST state={sstState} lastScore={data?.sstResult?.pain_score} />
       </div>
 
-      <TabBar />
     </div>
   );
 }

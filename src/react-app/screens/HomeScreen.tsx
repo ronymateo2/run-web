@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "motion/react";
 import { useAuth } from "../auth/AuthContext";
 import { localToday, localDayName } from "../utils/timezone";
 import { useDb } from "../hooks/useDb";
-import { TabBar } from "../components/TabBar";
+
 import { ExerciseRow } from "../components/ExerciseRow";
 import { NudgeSST } from "../components/NudgeSST";
 import { BodyFigure } from "../components/BodyFigure";
@@ -90,7 +91,6 @@ export function HomeScreen() {
         <div className="screen-body" style={{ paddingTop: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <span className="body-sm">Cargando…</span>
         </div>
-        <TabBar />
       </div>
     );
   }
@@ -146,9 +146,11 @@ export function HomeScreen() {
         </div>
 
         {/* Pain check-in hero card */}
-        <div
+        <motion.div
           className="card mt-20 is-hero"
-          style={{ padding: "14px 14px 16px", position: "relative", overflow: "hidden", cursor: "pointer" }}
+          whileTap={{ scale: 0.985 }}
+          transition={{ type: "spring", stiffness: 400, damping: 25 }}
+          style={{ padding: "14px 14px 16px", position: "relative", overflow: "hidden", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
           onClick={() => navigate("/today/checkin")}
         >
           <div className="eyebrow">
@@ -187,7 +189,7 @@ export function HomeScreen() {
               Registrar dolor <Ico.arrow s={14} />
             </button>
           )}
-        </div>
+        </motion.div>
 
         {/* Today's exercises — one block per focus injury */}
         {focusBlocks.map((block) => {
@@ -201,7 +203,13 @@ export function HomeScreen() {
                 <div className="label num">{blockDone} / {block.exercises.length} hechos</div>
               </div>
               <div className="bar mt-8" style={{ background: "rgba(31,58,46,0.08)" }}>
-                <div className="bar-fill" style={{ width: `${block.exercises.length ? (blockDone / block.exercises.length) * 100 : 0}%`, background: "var(--ink)" }} />
+                <motion.div
+                  className="bar-fill"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${block.exercises.length ? (blockDone / block.exercises.length) * 100 : 0}%` }}
+                  transition={{ duration: 0.55, ease: [0.25, 0.46, 0.45, 0.94], delay: 0.1 }}
+                  style={{ background: "var(--ink)" }}
+                />
               </div>
               <div className="col gap-10 mt-16">
                 {block.exercises.map((e) => (
@@ -236,7 +244,6 @@ export function HomeScreen() {
         <NudgeSST state={sstState} lastScore={sstResult?.pain_score} preferred={sstDue} />
       </div>
 
-      <TabBar />
     </div>
   );
 }

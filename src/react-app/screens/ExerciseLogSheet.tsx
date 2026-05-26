@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
 import { useSync } from "../hooks/useSync";
@@ -230,22 +231,41 @@ export function ExerciseLogSheet({
       position: "absolute", inset: 0, zIndex: 200,
       display: "flex", flexDirection: "column", justifyContent: "flex-end",
     }}>
-      <div
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.22 }}
         style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)" }}
         onClick={showDone ? onSave : onClose}
       />
 
-      <div style={{
-        position: "relative", background: "var(--bg)", borderRadius: "24px 24px 0 0",
-        padding: "20px 16px 40px", zIndex: 1,
-        maxHeight: "90vh", display: "flex", flexDirection: "column",
-        paddingBottom: "max(40px, var(--sab, 0px) + 24px)",
-      }}>
+      <motion.div
+        initial={{ y: "100%" }}
+        animate={{ y: 0 }}
+        exit={{ y: "100%" }}
+        transition={{ duration: 0.38, ease: [0.32, 0.72, 0, 1] }}
+        style={{
+          position: "relative", background: "var(--bg)", borderRadius: "24px 24px 0 0",
+          padding: "20px 16px 0", zIndex: 1,
+          maxHeight: "90dvh", display: "flex", flexDirection: "column",
+          paddingBottom: "max(40px, calc(var(--sab, 0px) + 24px))",
+        }}
+      >
         <div style={{ width: 36, height: 4, borderRadius: 999, background: "var(--line-2)", margin: "0 auto 16px" }} />
+
+        <AnimatePresence mode="wait" initial={false}>
 
         {/* === COMPLETION VIEW === */}
         {showDone && (
-          <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
+          <motion.div
+            key="done"
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+            style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}
+          >
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
               <div style={{ fontSize: 17, fontWeight: 600, color: "var(--ink)" }}>
                 {completionEntries.length} series × {defaultValue}{unit}
@@ -308,12 +328,19 @@ export function ExerciseLogSheet({
                 {completionEntries.length} de {sets} series
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* === DETAIL VIEW (editing a single set) === */}
         {!showDone && editingIndex !== null && editingEntry !== null && (
-          <div style={{ display: "flex", flexDirection: "column", flex: 1, overflowY: "auto" }}>
+          <motion.div
+            key={`edit-${editingIndex}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16 }}
+            style={{ display: "flex", flexDirection: "column", flex: 1, overflowY: "auto" }}
+          >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
               <button
                 onClick={handleBack}
@@ -442,12 +469,19 @@ export function ExerciseLogSheet({
                 Marcar como no completada
               </button>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* === LIST VIEW === */}
         {!showDone && editingIndex === null && (
-          <>
+          <motion.div
+            key="list"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16 }}
+            style={{ display: "flex", flexDirection: "column", flex: 1 }}
+          >
             <div style={{ marginBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                 <div>
@@ -558,9 +592,11 @@ export function ExerciseLogSheet({
                 {filledCount > 0 && <Ico.arrow s={16} c="var(--bone)" />}
               </button>
             </div>
-          </>
+          </motion.div>
         )}
-      </div>
+
+        </AnimatePresence>
+      </motion.div>
     </div>
   );
 }

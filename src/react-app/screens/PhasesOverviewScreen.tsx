@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
-import { TabBar } from "../components/TabBar";
 import { Plant, Leaf, Flower, Tree } from "@phosphor-icons/react";
 import { Ico } from "../components/icons";
 import { getActiveInjuries, getPhasesForInjury, getCurrentPhase, getCriteria, computePhaseProgress, type Injury, type Phase, type PhaseCriteria } from "../../db/queries/injuries";
@@ -185,7 +184,6 @@ export function PhasesOverviewScreen() {
         </button>
       </div>
 
-      <TabBar />
     </div>
   );
 }
