@@ -12,7 +12,7 @@ import { getActiveInjuries, getTodayFocusInjuries, getCurrentPhase, type Injury,
 import { getExercisesForPhase, getTodayLogs, type Exercise, type ExerciseLog } from "../../db/queries/exercises";
 import { getTodayCheckin, type PainCheckin } from "../../db/queries/checkins";
 import { getTodaySst, isSstDueToday, type SstResult } from "../../db/queries/sst";
-import { pullDelta } from "../../db/sync";
+import { pullDelta, pushDelta } from "../../db/sync";
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -72,6 +72,7 @@ export function HomeScreen() {
     if (!db || !token || syncing) return;
     setSyncing(true);
     try {
+      await pushDelta(db, token);
       await pullDelta(db, token, { force: true });
       await loadData();
     } finally {

@@ -12,7 +12,7 @@ export interface PainCheckin {
 
 export async function getTodayCheckin(db: Database, userId: string, date: string): Promise<PainCheckin | null> {
   const row = await queryOne<{ id: string; user_id: string; injury_id: string; date: string; zones: string; created_at: number }>(
-    db, `SELECT * FROM pain_checkins WHERE user_id = ? AND date = ? LIMIT 1`, [userId, date]
+    db, `SELECT * FROM pain_checkins WHERE user_id = ? AND date = ? ORDER BY created_at DESC LIMIT 1`, [userId, date]
   );
   if (!row) return null;
   return { ...row, zones: JSON.parse(row.zones) as ZoneMap };

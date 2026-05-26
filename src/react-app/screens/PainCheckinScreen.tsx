@@ -6,7 +6,7 @@ import { useSync } from "../hooks/useSync";
 import { BodyFigure, type HeatMap } from "../components/BodyFigure";
 import { ZoneRow } from "../components/ZoneRow";
 import { Ico } from "../components/icons";
-import { saveCheckin } from "../../db/queries/checkins";
+import { saveCheckin, getTodayCheckin } from "../../db/queries/checkins";
 
 const ZONES: { key: keyof HeatMap; label: string }[] = [
   { key: "ingleL", label: "Ingle izquierda" },
@@ -34,12 +34,13 @@ export function PainCheckinScreen() {
   async function handleSave() {
     if (!db || !user) return;
     const dateStr = new Date().toISOString().slice(0, 10);
+    const existing = await getTodayCheckin(db, user.id, dateStr);
     await saveCheckin(db, {
-      id: crypto.randomUUID(),
+      id: existing?.id ?? crypto.randomUUID(),
       user_id: user.id,
       date: dateStr,
       zones,
-      created_at: Date.now(),
+      created_at: existing?.created_at ?? Date.now(),
     });
     push();
     navigate("/today", { replace: true });
