@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { localToday } from "../utils/timezone";
 import { useDb } from "../hooks/useDb";
 import { TabBar } from "../components/TabBar";
 import { BodyFigure, type HeatMap } from "../components/BodyFigure";
@@ -10,7 +11,6 @@ import { getActiveInjuries, getCurrentPhase, type Injury, type Phase } from "../
 import { getRecentCheckins, type PainCheckin } from "../../db/queries/checkins";
 import { getTodaySst, isSstDueToday, type SstResult } from "../../db/queries/sst";
 
-function today() { return new Date().toISOString().slice(0, 10); }
 
 function avgZones(checkins: PainCheckin[]): HeatMap {
   if (!checkins.length) return {};
@@ -73,7 +73,7 @@ export function CuerpoScreen() {
     if (!db || !user) return;
     let active = true;
     (async () => {
-      const dateStr = today();
+      const dateStr = localToday(user?.timezone);
       const injuries = await getActiveInjuries(db, user.id);
       const injuriesWithPhase: InjuryWithPhase[] = await Promise.all(
         injuries.map(async (inj) => ({ injury: inj, phase: await getCurrentPhase(db, inj) }))

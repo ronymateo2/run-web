@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDb } from "../hooks/useDb";
+import { useAuth } from "../auth/AuthContext";
+import { localToday } from "../utils/timezone";
 import { Ico } from "../components/icons";
 import { getExerciseById, type Exercise } from "../../db/queries/exercises";
 import { ExerciseLogSheet } from "./ExerciseLogSheet";
@@ -8,6 +10,7 @@ import { ExerciseLogSheet } from "./ExerciseLogSheet";
 export function ExerciseDetailScreen() {
   const { id } = useParams<{ id: string }>();
   const db = useDb();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [showLog, setShowLog] = useState(false);
@@ -80,7 +83,7 @@ export function ExerciseDetailScreen() {
           sets={totalSets}
           plannedReps={exercise.reps}
           plannedDurationS={exercise.duration_s}
-          sessionDate={new Date().toISOString().slice(0, 10)}
+          sessionDate={localToday(user?.timezone)}
           onSave={() => navigate("/today", { replace: true })}
           onClose={() => setShowLog(false)}
         />

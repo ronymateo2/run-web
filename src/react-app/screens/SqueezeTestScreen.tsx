@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { localToday } from "../utils/timezone";
 import { useDb } from "../hooks/useDb";
 import { useSync } from "../hooks/useSync";
 import { Ico } from "../components/icons";
@@ -76,7 +77,7 @@ export function SqueezeTestScreen() {
         id: crypto.randomUUID(),
         user_id: user.id,
         injury_id: focus.id,
-        date: new Date().toISOString().slice(0, 10),
+        date: localToday(user?.timezone),
         strength_score: strengthScore,
         pain_score: painScore,
       });

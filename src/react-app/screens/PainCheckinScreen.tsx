@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { localToday } from "../utils/timezone";
 import { useDb } from "../hooks/useDb";
 import { useSync } from "../hooks/useSync";
 import { BodyFigure, type HeatMap } from "../components/BodyFigure";
@@ -33,7 +34,7 @@ export function PainCheckinScreen() {
 
   async function handleSave() {
     if (!db || !user) return;
-    const dateStr = new Date().toISOString().slice(0, 10);
+    const dateStr = localToday(user?.timezone);
     const existing = await getTodayCheckin(db, user.id, dateStr);
     await saveCheckin(db, {
       id: existing?.id ?? crypto.randomUUID(),

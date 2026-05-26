@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT,
   avatar_url TEXT,
   jwt TEXT,
+  timezone TEXT,
   last_sync INTEGER DEFAULT 0,
   created_at INTEGER
 );

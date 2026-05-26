@@ -9,6 +9,7 @@ import { PhasesOverviewScreen } from "./screens/PhasesOverviewScreen";
 import { PhaseJourneyScreen } from "./screens/PhaseJourneyScreen";
 import { ProgressScreen } from "./screens/ProgressScreen";
 import { LearnScreen } from "./screens/LearnScreen";
+import { ProfileScreen } from "./screens/ProfileScreen";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 
 export const router = createBrowserRouter([
@@ -26,6 +27,7 @@ export const router = createBrowserRouter([
       { path: "/path/phase/:id", element: <PhaseJourneyScreen /> },
       { path: "/path/progress", element: <ProgressScreen /> },
       { path: "/learn", element: <LearnScreen /> },
+      { path: "/profile", element: <ProfileScreen /> },
     ],
   },
 ]);

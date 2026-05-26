@@ -16,7 +16,7 @@ let initPromise: Promise<void> | null = null;
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY, email TEXT UNIQUE, name TEXT, avatar_url TEXT,
-  jwt TEXT, last_sync INTEGER DEFAULT 0, created_at INTEGER
+  jwt TEXT, timezone TEXT, last_sync INTEGER DEFAULT 0, created_at INTEGER
 );
 CREATE TABLE IF NOT EXISTS user_auth_providers (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, provider TEXT NOT NULL,
@@ -81,8 +81,16 @@ async function init(): Promise<void> {
     console.warn("OPFS unavailable — using in-memory SQLite");
   }
 
-  // Run schema migrations
+  // Run schema
   await promiser("exec", { dbId, sql: SCHEMA_SQL });
+
+  // Additive migrations — ignore errors for columns that already exist
+  const MIGRATIONS = [
+    `ALTER TABLE users ADD COLUMN timezone TEXT`,
+  ];
+  for (const sql of MIGRATIONS) {
+    try { await promiser("exec", { dbId, sql }); } catch { /* already exists */ }
+  }
 }
 
 export async function getDb(): Promise<Database> {

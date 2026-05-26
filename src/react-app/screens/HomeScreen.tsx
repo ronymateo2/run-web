@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { localToday, localDayName } from "../utils/timezone";
 import { useDb } from "../hooks/useDb";
 import { TabBar } from "../components/TabBar";
 import { ExerciseRow } from "../components/ExerciseRow";
@@ -14,13 +15,6 @@ import { getTodayCheckin, type PainCheckin } from "../../db/queries/checkins";
 import { getTodaySst, isSstDueToday, type SstResult } from "../../db/queries/sst";
 import { pullDelta, pushDelta } from "../../db/sync";
 
-function today() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function dayName() {
-  return new Intl.DateTimeFormat("es", { weekday: "long" }).format(new Date());
-}
 
 interface FocusBlock {
   injury: Injury;
@@ -46,7 +40,7 @@ export function HomeScreen() {
 
   const loadData = useCallback(async () => {
     if (!db || !user) return;
-    const dateStr = today();
+    const dateStr = localToday(user?.timezone);
     const injuries = await getActiveInjuries(db, user.id);
     const focusInjuries = getTodayFocusInjuries(injuries);
     const focusBlocks: FocusBlock[] = await Promise.all(
@@ -114,7 +108,7 @@ export function HomeScreen() {
         {/* Header */}
         <div className="col gap-4" style={{ paddingTop: 12 }}>
           <div className="row between" style={{ alignItems: "center" }}>
-            <div className="eyebrow">{dayName()}</div>
+            <div className="eyebrow">{localDayName(user?.timezone)}</div>
             <button
               onClick={handleForceSync}
               disabled={syncing}
