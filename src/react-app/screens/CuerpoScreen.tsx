@@ -9,7 +9,7 @@ import { NudgeSST } from "../components/NudgeSST";
 import { Ico } from "../components/icons";
 import { getActiveInjuries, getCurrentPhase, type Injury, type Phase } from "../../db/queries/injuries";
 import { getRecentCheckins, type PainCheckin } from "../../db/queries/checkins";
-import { getTodaySst, isSstDueToday, type SstResult } from "../../db/queries/sst";
+import { getTodaySst, isSstPreferredToday, type SstResult } from "../../db/queries/sst";
 
 
 function avgZones(checkins: PainCheckin[]): HeatMap {
@@ -81,7 +81,7 @@ export function CuerpoScreen() {
       const recentCheckins = await getRecentCheckins(db, user.id, 14);
       const heatAvg = avgZones(recentCheckins);
       const sstResult = await getTodaySst(db, user.id, dateStr);
-      const sstDue = isSstDueToday();
+      const sstDue = isSstPreferredToday(user?.timezone);
 
       const zoneKeys = ["ingleL", "ingleR", "caderaL", "caderaR", "pubis", "hombroD", "lumbar"] as const;
       const activeZones = zoneKeys.filter(k => (heatAvg[k] ?? 0) > 0);

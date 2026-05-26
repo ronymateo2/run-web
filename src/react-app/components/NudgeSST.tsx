@@ -1,15 +1,15 @@
 import { useNavigate } from "react-router-dom";
 
-type SstState = "pending" | "done" | "hidden";
+type SstState = "pending" | "done";
 
 interface Props {
   state: SstState;
   lastScore?: number;
+  preferred?: boolean;
 }
 
-export function NudgeSST({ state, lastScore }: Props) {
+export function NudgeSST({ state, lastScore, preferred = false }: Props) {
   const navigate = useNavigate();
-  if (state === "hidden") return null;
 
   return (
     <div
@@ -30,7 +30,11 @@ export function NudgeSST({ state, lastScore }: Props) {
           {state === "pending" && (
             <>
               <div className="title-md serif" style={{ lineHeight: 1.05 }}>¿Cómo aprieta hoy?</div>
-              <div className="body-sm" style={{ color: "var(--ink-3)" }}>2 min para medir tu fuerza isométrica.</div>
+              <div className="body-sm" style={{ color: "var(--ink-3)" }}>
+                {preferred
+                  ? "2 min para medir tu fuerza isométrica."
+                  : "De preferencia, hacerlo martes y jueves."}
+              </div>
             </>
           )}
           {state === "done" && (

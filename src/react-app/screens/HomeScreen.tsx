@@ -12,7 +12,7 @@ import { Ico } from "../components/icons";
 import { getActiveInjuries, getTodayFocusInjuries, getCurrentPhase, type Injury, type Phase } from "../../db/queries/injuries";
 import { getExercisesForPhase, getTodayLogs, type Exercise, type ExerciseLog } from "../../db/queries/exercises";
 import { getTodayCheckin, type PainCheckin } from "../../db/queries/checkins";
-import { getTodaySst, isSstDueToday, type SstResult } from "../../db/queries/sst";
+import { getTodaySst, isSstPreferredToday, type SstResult } from "../../db/queries/sst";
 import { pullDelta, pushDelta } from "../../db/sync";
 
 
@@ -42,7 +42,7 @@ export function HomeScreen() {
     if (!db || !user) return;
     const dateStr = localToday(user?.timezone);
     const injuries = await getActiveInjuries(db, user.id);
-    const focusInjuries = getTodayFocusInjuries(injuries);
+    const focusInjuries = getTodayFocusInjuries(injuries, user?.timezone);
     const focusBlocks: FocusBlock[] = await Promise.all(
       focusInjuries.map(async (injury) => {
         const phase = await getCurrentPhase(db, injury);
@@ -54,7 +54,7 @@ export function HomeScreen() {
     const doneIds = new Set(logs.map((l: ExerciseLog) => l.exercise_id));
     const checkin = await getTodayCheckin(db, user.id, dateStr);
     const sstResult = await getTodaySst(db, user.id, dateStr);
-    const sstDue = isSstDueToday();
+    const sstDue = isSstPreferredToday(user?.timezone);
     setData({ injuries, focusBlocks, doneIds, checkin, sstResult, sstDue });
   }, [db, user]);
 
@@ -100,7 +100,7 @@ export function HomeScreen() {
   const isDualInjury = injuries.length >= 2;
   const isMultiFocus = focusBlocks.length >= 2;
 
-  const sstState = !sstDue ? "hidden" : sstResult ? "done" : "pending";
+  const sstState = sstResult ? "done" : "pending";
 
   return (
     <div className="screen">
@@ -232,7 +232,7 @@ export function HomeScreen() {
           ))}
 
         {/* 5SST nudge */}
-        <NudgeSST state={sstState} lastScore={sstResult?.pain_score} />
+        <NudgeSST state={sstState} lastScore={sstResult?.pain_score} preferred={sstDue} />
       </div>
 
       <TabBar />

@@ -33,7 +33,9 @@ export async function saveSstResult(db: Database, result: SstResult): Promise<vo
 }
 
 /** Day of week (lowercase 'mon','tue',...) */
-export function isSstDueToday(focusDays: string[] = ["mon", "thu"]): boolean {
-  const dow = ["sun","mon","tue","wed","thu","fri","sat"][new Date().getDay()];
+export function isSstPreferredToday(tz?: string | null, focusDays: string[] = ["tue", "thu"]): boolean {
+  const zone = tz || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const dow = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: zone })
+    .format(new Date()).toLowerCase();
   return focusDays.includes(dow);
 }
