@@ -181,14 +181,22 @@ function SetRow({ index, entry, isExpanded, isTimeBased, unit, maxValue, isLast,
             }}>
               <Ico.check s={10} c="var(--bone)" />
             </span>
-            <span style={{ fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>
-              {entry.value}{unit} · {bucketLabel}{entry.pain > 0 ? ` · dolor ${entry.pain}/10` : ""}
+            <span style={{ fontSize: 14, color: "var(--ink)", fontWeight: 600 }}>
+              {entry.value}{unit}
+            </span>
+            <span style={{ fontSize: 13, color: "var(--muted)" }}>
+              · {bucketLabel}{entry.pain > 0 ? ` · dolor ${entry.pain}/10` : ""}
             </span>
           </div>
         ) : (
-          <span style={{ flex: 1, fontSize: 13, color: "var(--muted)", textAlign: "left" }}>
-            pendiente
-          </span>
+          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 14, color: "var(--ink)", fontWeight: 600, opacity: 0.35 }}>
+              {entry.value}{unit}
+            </span>
+            <span style={{ fontSize: 13, color: "var(--muted)", opacity: 0.6 }}>
+              · {bucketLabel} · sin dolor
+            </span>
+          </div>
         )}
 
         <span style={{
@@ -221,7 +229,10 @@ function SetRow({ index, entry, isExpanded, isTimeBased, unit, maxValue, isLast,
 
           {/* RPE */}
           <div>
-            <div className="eyebrow" style={{ marginBottom: 10, fontSize: 10 }}>ESFUERZO</div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 10 }}>
+              <span className="eyebrow" style={{ fontSize: 10 }}>ESFUERZO</span>
+              <span style={{ fontSize: 10, color: "var(--muted)" }}>· RPE percibido del 1 al 10</span>
+            </div>
             <EsfuerzoBuckets
               rpe={entry.rpe}
               onChange={v => handleUpdate({ rpe: v })}
@@ -365,9 +376,23 @@ export function ExerciseLogSheet({ exerciseId, exerciseName, sets, plannedReps, 
 
         {/* Header */}
         <div style={{ marginBottom: 16 }}>
-          <div className="eyebrow" style={{ fontSize: 11 }}>{exerciseName}</div>
-          <div className="body-sm" style={{ color: "var(--muted)", marginTop: 2 }}>
-            {sets} series · objetivo {defaultValue}{unit} · {rpeLabel}
+          <div style={{
+            fontFamily: "var(--font-serif)", fontSize: 20, fontWeight: 400,
+            color: "var(--ink)", lineHeight: 1.2, marginBottom: 6,
+          }}>{exerciseName}</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <span style={{
+              fontSize: 13, fontWeight: 600, color: "var(--ink)",
+              background: "var(--card-soft)", borderRadius: 6, padding: "2px 8px",
+            }}>{sets} series</span>
+            <span style={{
+              fontSize: 13, fontWeight: 600, color: "var(--ink)",
+              background: "var(--card-soft)", borderRadius: 6, padding: "2px 8px",
+            }}>objetivo {defaultValue}{unit}</span>
+            <span style={{
+              fontSize: 13, fontWeight: 600, color: "var(--ink)",
+              background: "var(--card-soft)", borderRadius: 6, padding: "2px 8px",
+            }}>RPE {rpeLabel}</span>
           </div>
         </div>
 

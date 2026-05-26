@@ -207,7 +207,8 @@ export function HomeScreen() {
                 {block.exercises.map((e) => (
                   <ExerciseRow
                     key={e.id} id={e.id} name={e.name} detail={e.detail}
-                    mins={e.sets && e.reps ? Math.ceil((e.sets * e.reps * 4) / 60) : undefined}
+                    sets={e.sets} reps={e.reps} duration_s={e.duration_s}
+                    mins={estimateMins(e.sets, e.reps, e.duration_s)}
                     done={doneIds.has(e.id)} phase={block.phase?.name}
                   />
                 ))}
@@ -238,6 +239,12 @@ export function HomeScreen() {
       <TabBar />
     </div>
   );
+}
+
+function estimateMins(sets?: number, reps?: number, duration_s?: number): number | undefined {
+  if (sets && reps) return Math.ceil((sets * reps * 4) / 60);
+  if (sets && duration_s) return Math.ceil((sets * duration_s) / 60);
+  return undefined;
 }
 
 function zoneLabel(key: string): string {

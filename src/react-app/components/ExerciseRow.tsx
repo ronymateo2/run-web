@@ -5,13 +5,16 @@ interface Props {
   id: string;
   name: string;
   detail?: string;
+  sets?: number;
+  reps?: number;
+  duration_s?: number;
   mins?: number;
   done: boolean;
   phase?: string;
   accent?: string;
 }
 
-export function ExerciseRow({ id, name, mins, done, phase, accent = "var(--ink-2)" }: Props) {
+export function ExerciseRow({ id, name, sets, reps, duration_s, mins, done, phase, accent = "var(--ink-2)" }: Props) {
   const navigate = useNavigate();
   return (
     <div
@@ -44,7 +47,22 @@ export function ExerciseRow({ id, name, mins, done, phase, accent = "var(--ink-2
             {phase}
           </span>
         )}
-        {mins && <span className="num body-sm">{mins} min</span>}
+        {(sets || reps || duration_s) && (
+          <span className="num body-sm" style={{ color: "var(--ink-3)" }}>
+            {(() => {
+              const s = sets ? `${sets} ${sets === 1 ? "serie" : "series"}` : "";
+              const r = reps ? `${reps} reps` : "";
+              const d = duration_s ? `${duration_s}s` : "";
+              if (s && r && d) return `${s} x ${r} | ${d}`;
+              if (s && r)      return `${s} x ${r}`;
+              if (s && d)      return `${s} x ${d}`;
+              if (s)           return s;
+              if (r && d)      return `${r} | ${d}`;
+              return r || d;
+            })()}
+          </span>
+        )}
+        {mins && <span className="num body-sm" style={{ color: "var(--ink-3)" }}>≈ {mins} min</span>}
       </div>
     </div>
   );
