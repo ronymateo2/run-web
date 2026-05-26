@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
-import { GoogleOAuthProvider, GoogleLogin, type CredentialResponse } from "@react-oauth/google";
+import { GoogleOAuthProvider, GoogleLogin, googleLogout, type CredentialResponse } from "@react-oauth/google";
 import { getDb, queryOne, exec } from "../../db/client";
 import { pullDelta, pushDelta } from "../../db/sync";
 
@@ -95,9 +95,9 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
 
     const userWithTz: AuthUser = { ...apiUser, timezone: timezone ?? undefined };
     localStorage.setItem(LS_KEY, JSON.stringify({ user: userWithTz, jwt }));
-    if (navigator.onLine) await pullDelta(db, jwt).catch(() => {});
     setUser(userWithTz);
     setToken(jwt);
+    if (navigator.onLine) pullDelta(db, jwt).catch(() => {});
   }, []);
 
   const GoogleSignInButton = useCallback(() => (
@@ -112,6 +112,7 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
   ), [handleGoogleSuccess]);
 
   const signOut = useCallback(async () => {
+    googleLogout();
     const db = await getDb();
     await exec(db, `UPDATE users SET jwt = NULL`);
     localStorage.removeItem(LS_KEY);
