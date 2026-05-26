@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 export interface HeatMap extends Record<string, number | undefined> {
   hombroD?: number; pubis?: number; ingleL?: number; ingleR?: number;
   caderaL?: number; caderaR?: number; lumbar?: number;
@@ -6,64 +8,125 @@ export interface HeatMap extends Record<string, number | undefined> {
 interface Props {
   heat?: HeatMap;
   w?: number;
+  crop?: boolean;
   onTap?: (zone: keyof HeatMap) => void;
 }
 
-function heatColor(v?: number): string {
-  if (!v) return "transparent";
-  const t = Math.min(1, v / 10);
-  return `rgba(217, 119, 87, ${0.18 + 0.65 * t})`;
+const BODY = `M104.265,117.959c-0.304,3.58,2.126,22.529,3.38,29.959c0.597,3.52,2.234,9.255,1.645,12.3
+c-0.841,4.244-1.084,9.736-0.621,12.934c0.292,1.942,1.211,10.899-0.104,14.175c-0.688,1.718-1.949,10.522-1.949,10.522
+c-3.285,8.294-1.431,7.886-1.431,7.886c1.017,1.248,2.759,0.098,2.759,0.098c1.327,0.846,2.246-0.201,2.246-0.201
+c1.139,0.943,2.467-0.116,2.467-0.116c1.431,0.743,2.758-0.627,2.758-0.627c0.822,0.414,1.023-0.109,1.023-0.109
+c2.466-0.158-1.376-8.05-1.376-8.05c-0.92-7.088,0.913-11.033,0.913-11.033c6.004-17.805,6.309-22.53,3.909-29.24
+c-0.676-1.937-0.847-2.704-0.536-3.545c0.719-1.941,0.195-9.748,1.072-12.848c1.692-5.979,3.361-21.142,4.231-28.217
+c1.169-9.53-4.141-22.308-4.141-22.308c-1.163-5.2,0.542-23.727,0.542-23.727c2.381,3.705,2.29,10.245,2.29,10.245
+c-0.378,6.859,5.541,17.342,5.541,17.342c2.844,4.332,3.921,8.442,3.921,8.747c0,1.248-0.273,4.269-0.273,4.269
+l0.109,2.631c0.049,0.67,0.426,2.977,0.365,4.092c-0.444,6.862,0.646,5.571,0.646,5.571c0.92,0,1.931-5.522,1.931-5.522
+c0,1.424-0.348,5.687,0.42,7.295c0.919,1.918,1.595-0.329,1.607-0.78c0.243-8.737,0.768-6.448,0.768-6.448
+c0.511,7.088,1.139,8.689,2.265,8.135c0.853-0.407,0.073-8.506,0.073-8.506c1.461,4.811,2.569,5.577,2.569,5.577
+c2.411,1.693,0.92-2.983,0.585-3.909c-1.784-4.92-1.839-6.625-1.839-6.625c2.229,4.421,3.909,4.257,3.909,4.257
+c2.174-0.694-1.9-6.954-4.287-9.953c-1.218-1.528-2.789-3.574-3.245-4.789c-0.743-2.058-1.304-8.674-1.304-8.674
+c-0.225-7.807-2.155-11.198-2.155-11.198c-3.3-5.282-3.921-15.135-3.921-15.135l-0.146-16.635
+c-1.157-11.347-9.518-11.429-9.518-11.429c-8.451-1.258-9.627-3.988-9.627-3.988c-1.79-2.576-0.767-7.514-0.767-7.514
+c1.485-1.208,2.058-4.415,2.058-4.415c2.466-1.891,2.345-4.658,1.206-4.628c-0.914,0.024-0.707-0.733-0.707-0.733
+C115.068,0.636,104.01,0,104.01,0h-1.688c0,0-11.063,0.636-9.523,13.089c0,0,0.207,0.758-0.715,0.733
+c-1.136-0.03-1.242,2.737,1.215,4.628c0,0,0.572,3.206,2.058,4.415c0,0,1.023,4.938-0.767,7.514
+c0,0-1.172,2.73-9.627,3.988c0,0-8.375,0.082-9.514,11.429l-0.158,16.635c0,0-0.609,9.853-3.922,15.135
+c0,0-1.921,3.392-2.143,11.198c0,0-0.563,6.616-1.303,8.674c-0.451,1.209-2.021,3.255-3.249,4.789
+c-2.408,2.993-6.455,9.24-4.29,9.953c0,0,1.689,0.164,3.909-4.257c0,0-0.046,1.693-1.827,6.625
+c-0.35,0.914-1.839,5.59,0.573,3.909c0,0,1.117-0.767,2.569-5.577c0,0-0.779,8.099,0.088,8.506
+c1.133,0.555,1.751-1.047,2.262-8.135c0,0,0.524-2.289,0.767,6.448c0.012,0.451,0.673,2.698,1.596,0.78
+c0.779-1.608,0.429-5.864,0.429-7.295c0,0,0.999,5.522,1.933,5.522c0,0,1.099,1.291,0.648-5.571
+c-0.073-1.121,0.32-3.422,0.369-4.092l0.106-2.631c0,0-0.274-3.014-0.274-4.269c0-0.311,1.078-4.415,3.921-8.747
+c0,0,5.913-10.488,5.532-17.342c0,0-0.082-6.54,2.299-10.245c0,0,1.69,18.526,0.545,23.727
+c0,0-5.319,12.778-4.146,22.308c0.864,7.094,2.53,22.237,4.226,28.217c0.886,3.094,0.362,10.899,1.072,12.848
+c0.32,0.847,0.152,1.627-0.536,3.545c-2.387,6.71-2.083,11.436,3.921,29.24c0,0,1.848,3.945,0.914,11.033
+c0,0-3.836,7.892-1.379,8.05c0,0,0.192,0.523,1.023,0.109c0,0,1.327,1.37,2.761,0.627c0,0,1.328,1.06,2.463,0.116
+c0,0,0.91,1.047,2.237,0.201c0,0,1.742,1.175,2.777-0.098c0,0,1.839,0.408-1.435-7.886
+c0,0-1.254-8.793-1.945-10.522c-1.318-3.275-0.387-12.251-0.106-14.175c0.453-3.216,0.21-8.695-0.618-12.934
+c-0.606-3.038,1.035-8.774,1.641-12.3c1.245-7.423,3.685-26.373,3.38-29.959l1.008,0.354
+C103.809,118.312,104.265,117.959,104.265,117.959z`;
+
+type ZoneDef = { id: keyof HeatMap; cx: number; cy: number; rx: number; ry: number };
+
+const ZONE_DEFS: ZoneDef[] = [
+  { id: "hombroD", cx: 83,  cy: 47,  rx: 15, ry: 13 },
+  { id: "lumbar",  cx: 103, cy: 107, rx: 13, ry: 8  },
+  { id: "caderaL", cx: 91,  cy: 112, rx: 12, ry: 11 },
+  { id: "caderaR", cx: 115, cy: 112, rx: 12, ry: 11 },
+  { id: "pubis",   cx: 103, cy: 117, rx: 11, ry: 7  },
+  { id: "ingleL",  cx: 91,  cy: 122, rx: 11, ry: 9  },
+  { id: "ingleR",  cx: 115, cy: 122, rx: 11, ry: 9  },
+];
+
+function heatFill(v?: number): string {
+  if (!v) return "none";
+  const a = 0.22 + 0.65 * Math.min(1, v / 10);
+  return `rgba(217,119,87,${a.toFixed(2)})`;
 }
 
-export function BodyFigure({ heat = {}, w = 220, onTap }: Props) {
-  const z = (id: keyof HeatMap, el: React.ReactElement) => (
-    <g key={id} onClick={() => onTap?.(id)} style={{ cursor: onTap ? "pointer" : "default" }}>
-      {el}
-    </g>
-  );
+export function BodyFigure({ heat = {}, w = 220, crop = false, onTap }: Props) {
+  const uid = useId().replace(/:/g, "");
+  const clipId = `bfclip-${uid}`;
+  const filterId = `bfglow-${uid}`;
+  const vb = crop ? "44 0 118 210" : "0 0 206.326 206.326";
 
   return (
     <svg
       width={w}
-      viewBox="0 0 200 360"
+      viewBox={vb}
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden
       style={{ display: "block" }}
     >
-      <ellipse cx="100" cy="350" rx="62" ry="6" fill="rgba(31,58,46,0.10)" />
-      {/* head */}
-      <circle cx="100" cy="34" r="24" fill="#EDE6D6" />
-      {/* neck */}
-      <rect x="92" y="56" width="16" height="14" rx="4" fill="#EDE6D6" />
-      {/* torso */}
-      <path d="M62 78 Q70 70 100 70 Q130 70 138 78 L142 150 Q142 178 130 196 L70 196 Q58 178 58 150 Z" fill="#EDE6D6" />
-      {/* arms */}
-      <path d="M62 80 Q44 90 40 130 L46 200 Q50 218 54 220 L62 220 Q60 200 60 180 L66 140 Q66 100 70 88 Z" fill="#EDE6D6" />
-      <path d="M138 80 Q156 90 160 130 L154 200 Q150 218 146 220 L138 220 Q140 200 140 180 L134 140 Q134 100 130 88 Z" fill="#EDE6D6" />
-      {/* pelvis */}
-      <path d="M68 196 L132 196 L138 230 Q120 244 100 244 Q80 244 62 230 Z" fill="#EDE6D6" />
-      {/* legs */}
-      <path d="M72 232 Q70 280 76 330 Q82 348 92 348 Q98 346 98 330 L100 244 Z" fill="#EDE6D6" />
-      <path d="M128 232 Q130 280 124 330 Q118 348 108 348 Q102 346 102 330 L100 244 Z" fill="#EDE6D6" />
+      <defs>
+        <clipPath id={clipId}>
+          <path d={BODY} />
+        </clipPath>
+        <filter id={filterId} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
 
-      {/* heat zones */}
-      {z("hombroD", <ellipse cx="62" cy="86" rx="14" ry="11" fill={heatColor(heat.hombroD)} />)}
-      {z("pubis", <ellipse cx="100" cy="216" rx="14" ry="8" fill={heatColor(heat.pubis)} />)}
-      {z("ingleL", <ellipse cx="86" cy="232" rx="11" ry="9" fill={heatColor(heat.ingleL)} />)}
-      {z("ingleR", <ellipse cx="114" cy="232" rx="11" ry="9" fill={heatColor(heat.ingleR)} />)}
-      {z("caderaL", <ellipse cx="74" cy="220" rx="13" ry="13" fill={heatColor(heat.caderaL)} />)}
-      {z("caderaR", <ellipse cx="126" cy="220" rx="13" ry="13" fill={heatColor(heat.caderaR)} />)}
+      {/* Ground shadow */}
+      <ellipse cx="103" cy="209" rx="46" ry="4" fill="rgba(31,58,46,0.08)" />
 
-      {/* outline */}
-      <g fill="none" stroke="rgba(31,58,46,0.35)" strokeWidth="1.2" strokeLinejoin="round">
-        <circle cx="100" cy="34" r="24" />
-        <path d="M62 78 Q70 70 100 70 Q130 70 138 78 L142 150 Q142 178 130 196 L70 196 Q58 178 58 150 Z" />
-        <path d="M62 80 Q44 90 40 130 L46 200 Q50 218 54 220 L62 220" />
-        <path d="M138 80 Q156 90 160 130 L154 200 Q150 218 146 220 L138 220" />
-        <path d="M68 196 L132 196 L138 230 Q120 244 100 244 Q80 244 62 230 Z" />
-        <path d="M72 232 Q70 280 76 330 Q82 348 92 348" />
-        <path d="M128 232 Q130 280 124 330 Q118 348 108 348" />
+      {/* Body fill */}
+      <path d={BODY} fill="#EDE6D6" />
+
+      {/* Heat zones clipped to body silhouette */}
+      <g clipPath={`url(#${clipId})`}>
+        {ZONE_DEFS.map(({ id, cx, cy, rx, ry }) => {
+          const v = heat[id];
+          if (!v) return null;
+          return (
+            <ellipse
+              key={id}
+              cx={cx} cy={cy} rx={rx} ry={ry}
+              fill={heatFill(v)}
+              filter={`url(#${filterId})`}
+            />
+          );
+        })}
       </g>
+
+      {/* Body outline */}
+      <path d={BODY} fill="none" stroke="rgba(31,58,46,0.30)" strokeWidth="1.1" strokeLinejoin="round" />
+
+      {/* Tap targets — larger invisible ellipses for touch */}
+      {ZONE_DEFS.map(({ id, cx, cy, rx, ry }) => (
+        <ellipse
+          key={`tap-${id}`}
+          cx={cx} cy={cy}
+          rx={rx + 10} ry={ry + 10}
+          fill="transparent"
+          style={{ cursor: onTap ? "pointer" : "default", touchAction: "manipulation" }}
+          onClick={() => onTap?.(id)}
+        />
+      ))}
     </svg>
   );
 }

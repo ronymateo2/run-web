@@ -75,18 +75,16 @@ export function PainCheckinScreen() {
         </div>
 
         {/* Zone sliders */}
-        <div className="card" style={{ padding: "18px 18px 22px" }}>
-          <div className="col gap-14">
-            {ZONES.map(({ key, label }) => (
-              <ZoneRow
-                key={key}
-                name={label}
-                value={zones[key] ?? 0}
-                interactive
-                onChange={(v) => updateZone(key, v)}
-              />
-            ))}
-          </div>
+        <div className="card" style={{ padding: "4px 18px 8px" }}>
+          {ZONES.map(({ key, label }) => (
+            <ZoneRow
+              key={key}
+              name={label}
+              value={zones[key] ?? 0}
+              interactive
+              onChange={(v) => updateZone(key, v)}
+            />
+          ))}
         </div>
 
         <div style={{ marginTop: 24 }}>

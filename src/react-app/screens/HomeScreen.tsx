@@ -148,7 +148,7 @@ export function HomeScreen() {
         {/* Pain check-in hero card */}
         <div
           className="card mt-20 is-hero"
-          style={{ padding: 18, position: "relative", overflow: "hidden", cursor: "pointer" }}
+          style={{ padding: "14px 14px 16px", position: "relative", overflow: "hidden", cursor: "pointer" }}
           onClick={() => navigate("/today/checkin")}
         >
           <div className="eyebrow">
@@ -159,21 +159,21 @@ export function HomeScreen() {
               <div className="title-md serif" style={{ lineHeight: 1.05 }}>
                 {checkin ? "¿Cómo va el cuerpo?" : "¿Cómo sientes hoy?"}
               </div>
-              <div className="col gap-8 mt-12">
+              <div className="col gap-4 mt-8">
                 {checkin ? (
                   Object.entries(checkin.zones)
                     .filter(([, v]) => (v as number) > 0)
                     .map(([zone, v]) => (
-                      <ZoneRow key={zone} name={zoneLabel(zone)} value={v as number} />
+                      <ZoneRow key={zone} name={zoneLabel(zone)} value={v as number} compact />
                     ))
                 ) : (
                   <div className="body-sm">Toca para registrar tus zonas de dolor.</div>
                 )}
               </div>
             </div>
-            <div style={{ width: 88, marginLeft: 8 }}>
+            <div style={{ width: 130, marginLeft: 4, display: "flex", justifyContent: "center", alignItems: "center" }}>
               <div className="drift">
-                <BodyFigure w={88} heat={checkin?.zones} />
+                <BodyFigure w={130} crop heat={checkin?.zones} />
               </div>
             </div>
           </div>
