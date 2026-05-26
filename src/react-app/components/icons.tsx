@@ -1,26 +1,37 @@
+import {
+  Flame, Drop, Leaf, Sparkle, Play, Check, ArrowRight,
+  CaretRight, CaretLeft, X, Hand, Bell, Book, ChartBar,
+  House, Person, Path, Lock, ArrowCounterClockwise,
+  User, Globe, SignOut,
+} from '@phosphor-icons/react';
+
 interface IcoProps { s?: number; c?: string; }
 
+type P = IcoProps | undefined;
+const sz = (p: P, def = 18) => p?.s ?? def;
+const cl = (p: P) => p?.c ?? 'currentColor';
+
 export const Ico = {
-  flame: (p?: IcoProps) => <svg width={p?.s||18} height={p?.s||18} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3c0 4-4 5-4 9a4 4 0 0 0 8 0c0-2-1-3-2-4 0 2-1 3-2 3 1-3-1-5 0-8z"/></svg>,
-  drop: (p?: IcoProps) => <svg width={p?.s||18} height={p?.s||18} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3c4 5 6 8 6 11a6 6 0 1 1-12 0c0-3 2-6 6-11z"/></svg>,
-  leaf: (p?: IcoProps) => <svg width={p?.s||18} height={p?.s||18} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20c0-9 7-16 16-16 0 9-7 16-16 16z"/><path d="M4 20l10-10"/></svg>,
-  spark: (p?: IcoProps) => <svg width={p?.s||18} height={p?.s||18} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.5 5.5l2.8 2.8M15.7 15.7l2.8 2.8M5.5 18.5l2.8-2.8M15.7 8.3l2.8-2.8"/></svg>,
-  play: (p?: IcoProps) => <svg width={p?.s||16} height={p?.s||16} viewBox="0 0 24 24" fill={p?.c||"currentColor"}><path d="M7 4l13 8-13 8z"/></svg>,
-  check: (p?: IcoProps) => <svg width={p?.s||16} height={p?.s||16} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>,
-  arrow: (p?: IcoProps) => <svg width={p?.s||16} height={p?.s||16} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>,
-  chevR: (p?: IcoProps) => <svg width={p?.s||16} height={p?.s||16} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>,
-  chevL: (p?: IcoProps) => <svg width={p?.s||16} height={p?.s||16} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6"/></svg>,
-  close: (p?: IcoProps) => <svg width={p?.s||18} height={p?.s||18} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="1.8" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>,
-  hand: (p?: IcoProps) => <svg width={p?.s||22} height={p?.s||22} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M7 11V6a1.5 1.5 0 0 1 3 0v5M10 10V4.5a1.5 1.5 0 0 1 3 0V11M13 10V5.5a1.5 1.5 0 0 1 3 0V12M16 11V7.5a1.5 1.5 0 0 1 3 0V15c0 3-2 6-6 6-3 0-5-2-6-4l-3-6c-.5-1 .5-2 1.5-1.5L7 11"/></svg>,
-  bell: (p?: IcoProps) => <svg width={p?.s||18} height={p?.s||18} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4l2-2z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>,
-  book: (p?: IcoProps) => <svg width={p?.s||18} height={p?.s||18} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 5v14"/></svg>,
-  chart: (p?: IcoProps) => <svg width={p?.s||18} height={p?.s||18} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19h16"/><path d="M7 15v-4M12 15V8M17 15v-6"/></svg>,
-  home: (p?: IcoProps) => <svg width={p?.s||20} height={p?.s||20} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 11l8-7 8 7v9h-5v-6h-6v6H4z"/></svg>,
-  body: (p?: IcoProps) => <svg width={p?.s||20} height={p?.s||20} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="2.2"/><path d="M9 9h6M12 9v8M9 13l-3 6M15 13l3 6"/></svg>,
-  path: (p?: IcoProps) => <svg width={p?.s||20} height={p?.s||20} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20c4 0 4-6 8-6s4 6 8 6"/><circle cx="4" cy="20" r="1.4" fill="currentColor"/><circle cx="20" cy="20" r="1.4" fill="currentColor"/></svg>,
-  lock: (p?: IcoProps) => <svg width={p?.s||18} height={p?.s||18} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
-  refresh: (p?: IcoProps) => <svg width={p?.s||18} height={p?.s||18} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>,
-  user: (p?: IcoProps) => <svg width={p?.s||20} height={p?.s||20} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>,
-  globe: (p?: IcoProps) => <svg width={p?.s||18} height={p?.s||18} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M2 12h20M12 3c-2.5 3-4 5.5-4 9s1.5 6 4 9M12 3c2.5 3 4 5.5 4 9s-1.5 6-4 9"/></svg>,
-  logout: (p?: IcoProps) => <svg width={p?.s||18} height={p?.s||18} viewBox="0 0 24 24" fill="none" stroke={p?.c||"currentColor"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+  flame:   (p?: IcoProps) => <Flame   size={sz(p)}     color={cl(p)} weight="regular" />,
+  drop:    (p?: IcoProps) => <Drop    size={sz(p)}     color={cl(p)} weight="regular" />,
+  leaf:    (p?: IcoProps) => <Leaf    size={sz(p)}     color={cl(p)} weight="regular" />,
+  spark:   (p?: IcoProps) => <Sparkle size={sz(p)}     color={cl(p)} weight="regular" />,
+  play:    (p?: IcoProps) => <Play    size={sz(p, 16)} color={cl(p)} weight="fill"    />,
+  check:   (p?: IcoProps) => <Check   size={sz(p, 16)} color={cl(p)} weight="bold"    />,
+  arrow:   (p?: IcoProps) => <ArrowRight size={sz(p, 16)} color={cl(p)} weight="regular" />,
+  chevR:   (p?: IcoProps) => <CaretRight size={sz(p, 16)} color={cl(p)} weight="regular" />,
+  chevL:   (p?: IcoProps) => <CaretLeft  size={sz(p, 16)} color={cl(p)} weight="regular" />,
+  close:   (p?: IcoProps) => <X       size={sz(p)}     color={cl(p)} weight="regular" />,
+  hand:    (p?: IcoProps) => <Hand    size={sz(p, 22)} color={cl(p)} weight="regular" />,
+  bell:    (p?: IcoProps) => <Bell    size={sz(p)}     color={cl(p)} weight="regular" />,
+  book:    (p?: IcoProps) => <Book    size={sz(p)}     color={cl(p)} weight="regular" />,
+  chart:   (p?: IcoProps) => <ChartBar size={sz(p)}    color={cl(p)} weight="regular" />,
+  home:    (p?: IcoProps) => <House   size={sz(p, 20)} color={cl(p)} weight="regular" />,
+  body:    (p?: IcoProps) => <Person  size={sz(p, 20)} color={cl(p)} weight="regular" />,
+  path:    (p?: IcoProps) => <Path    size={sz(p, 20)} color={cl(p)} weight="regular" />,
+  lock:    (p?: IcoProps) => <Lock    size={sz(p)}     color={cl(p)} weight="regular" />,
+  refresh: (p?: IcoProps) => <ArrowCounterClockwise size={sz(p)} color={cl(p)} weight="regular" />,
+  user:    (p?: IcoProps) => <User    size={sz(p, 20)} color={cl(p)} weight="regular" />,
+  globe:   (p?: IcoProps) => <Globe   size={sz(p)}     color={cl(p)} weight="regular" />,
+  logout:  (p?: IcoProps) => <SignOut size={sz(p)}     color={cl(p)} weight="regular" />,
 };

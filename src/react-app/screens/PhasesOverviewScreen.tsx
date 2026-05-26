@@ -3,10 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
 import { TabBar } from "../components/TabBar";
+import { Plant, Leaf, Flower, Tree } from "@phosphor-icons/react";
 import { Ico } from "../components/icons";
 import { getActiveInjuries, getPhasesForInjury, getCurrentPhase, getCriteria, computePhaseProgress, type Injury, type Phase, type PhaseCriteria } from "../../db/queries/injuries";
 
-const PHASE_GLYPHS = ["🌱", "🌿", "🌸", "🌾"];
+const PHASE_ICONS = [
+  (s?: number) => <Plant  size={s ?? 18} weight="regular" />,
+  (s?: number) => <Leaf   size={s ?? 18} weight="regular" />,
+  (s?: number) => <Flower size={s ?? 18} weight="regular" />,
+  (s?: number) => <Tree   size={s ?? 18} weight="regular" />,
+];
 
 interface PhaseWithProgress extends Phase {
   criteria: PhaseCriteria[];
@@ -86,7 +92,7 @@ export function PhasesOverviewScreen() {
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontSize: 14, border: isCurrent ? "2px solid var(--clay-deep)" : "none",
                       }}>
-                        {isDone ? <Ico.check s={13} c="#EDE6D6" /> : PHASE_GLYPHS[i]}
+                        {isDone ? <Ico.check s={13} c="#EDE6D6" /> : PHASE_ICONS[i](14)}
                       </div>
                       {i < phases.length - 1 && (
                         <div style={{ flex: 1, height: 2, background: isDone ? "var(--ink)" : "var(--line)" }} />
@@ -117,7 +123,7 @@ export function PhasesOverviewScreen() {
                     <div className="row between" style={{ alignItems: "flex-start" }}>
                       <div className="col gap-4" style={{ flex: 1 }}>
                         <div className="row gap-8" style={{ alignItems: "center" }}>
-                          <span style={{ fontSize: 20 }}>{PHASE_GLYPHS[i]}</span>
+                          <span style={{ display: "flex" }}>{PHASE_ICONS[i](20)}</span>
                           <div>
                             <div className="eyebrow">
                               Fase {p.phase_num} · semanas {p.week_start}–{p.week_end}
