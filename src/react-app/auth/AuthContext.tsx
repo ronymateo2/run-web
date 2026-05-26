@@ -58,12 +58,11 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
         }
 
         if (row?.jwt) {
+          // Pull before setLoading(false) so HomeScreen renders with data already in SQLite.
+          if (navigator.onLine) await pullDelta(db, row.jwt).catch(() => {});
           setUser({ id: row.id, email: row.email, name: row.name, avatar_url: row.avatar_url });
           setToken(row.jwt);
-          if (navigator.onLine) {
-            pullDelta(db, row.jwt).catch(() => {});
-            pushDelta(db, row.jwt).catch(() => {});
-          }
+          if (navigator.onLine) pushDelta(db, row.jwt).catch(() => {});
         }
       } finally {
         setLoading(false);
@@ -92,10 +91,9 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
     `, [apiUser.id, apiUser.email, apiUser.name, apiUser.avatar_url ?? null, jwt, Date.now()]);
 
     localStorage.setItem(LS_KEY, JSON.stringify({ user: apiUser, jwt }));
+    if (navigator.onLine) await pullDelta(db, jwt).catch(() => {});
     setUser(apiUser);
     setToken(jwt);
-
-    if (navigator.onLine) pullDelta(db, jwt).catch(() => {});
   }, []);
 
   const GoogleSignInButton = useCallback(() => (

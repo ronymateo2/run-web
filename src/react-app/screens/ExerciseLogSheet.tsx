@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
+import { useSync } from "../hooks/useSync";
 import { Ico } from "../components/icons";
 import { saveExerciseLog } from "../../db/queries/exercises";
 
@@ -21,6 +22,7 @@ const RPE_LABELS: Record<number, string> = {
 export function ExerciseLogSheet({ exerciseId, exerciseName, plannedReps = 10, sessionDate, onSave, onClose }: Props) {
   const { user } = useAuth();
   const db = useDb();
+  const push = useSync();
   const [reps, setReps] = useState(plannedReps);
   const [pain, setPain] = useState(0);
   const [rpe, setRpe] = useState(6);
@@ -41,6 +43,7 @@ export function ExerciseLogSheet({ exerciseId, exerciseName, plannedReps = 10, s
       note: note || undefined,
       completed_at: Date.now(),
     });
+    push();
     onSave();
   }
 

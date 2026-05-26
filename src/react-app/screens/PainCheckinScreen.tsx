@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
+import { useSync } from "../hooks/useSync";
 import { BodyFigure, type HeatMap } from "../components/BodyFigure";
 import { ZoneRow } from "../components/ZoneRow";
 import { Ico } from "../components/icons";
@@ -20,6 +21,7 @@ const ZONES: { key: keyof HeatMap; label: string }[] = [
 export function PainCheckinScreen() {
   const { user } = useAuth();
   const db = useDb();
+  const push = useSync();
   const navigate = useNavigate();
   const [zones, setZones] = useState<HeatMap>({
     ingleL: 0, ingleR: 0, caderaL: 0, caderaR: 0, pubis: 0, hombroD: 0, lumbar: 0,
@@ -39,6 +41,7 @@ export function PainCheckinScreen() {
       zones,
       created_at: Date.now(),
     });
+    push();
     navigate("/today", { replace: true });
   }
 

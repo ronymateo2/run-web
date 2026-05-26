@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
+import { useSync } from "../hooks/useSync";
 import { Ico } from "../components/icons";
 import { getActiveInjuries, getTodayFocusInjury } from "../../db/queries/injuries";
 import { saveSstResult } from "../../db/queries/sst";
@@ -15,6 +16,7 @@ const TOTAL_SETS = 5;
 export function SqueezeTestScreen() {
   const { user } = useAuth();
   const db = useDb();
+  const push = useSync();
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>("intro");
   const [currentSet, setCurrentSet] = useState(1);
@@ -78,6 +80,7 @@ export function SqueezeTestScreen() {
         strength_score: strengthScore,
         pain_score: painScore,
       });
+      push();
       navigate("/today", { replace: true });
     } catch (err) {
       console.error("[SST] save failed:", err);

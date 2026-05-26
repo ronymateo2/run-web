@@ -111,7 +111,7 @@ export async function queryAll<T>(
     rowMode: "object",
     resultRows: [],
   });
-  return ((res.resultRows as T[]) ?? []);
+  return (((res.result as Record<string, unknown>)?.resultRows as T[]) ?? []);
 }
 
 export async function queryOne<T>(
