@@ -12,6 +12,7 @@ interface Props {
   plannedReps?: number;
   plannedDurationS?: number;
   sessionDate: string;
+  mode: "edit" | "done";
   onSave: () => void;
   onClose: () => void;
 }
@@ -38,9 +39,9 @@ function bucketToRpe(b: RpeBucket, current: number): number {
 }
 
 const BUCKET_LABELS: Record<RpeBucket, { label: string; range: string }> = {
-  facil:  { label: "Fácil",   range: "4–5" },
-  comodo: { label: "Cómodo",  range: "6–7" },
-  duro:   { label: "Duro",    range: "8+"  },
+  facil:  { label: "Fácil",    range: "4–5" },
+  comodo: { label: "Cómodo",   range: "6–7" },
+  duro:   { label: "Difícil",  range: "8+"  },
 };
 
 function EsfuerzoBuckets({ rpe, onChange }: { rpe: number; onChange: (v: number) => void }) {
@@ -131,180 +132,9 @@ function PainBar({ value }: { value: number }) {
   );
 }
 
-interface SetRowProps {
-  index: number;
-  entry: SetEntry;
-  isExpanded: boolean;
-  isTimeBased: boolean;
-  unit: string;
-  maxValue: number;
-  isLast: boolean;
-  onToggle: () => void;
-  onUpdate: (patch: Partial<SetEntry>) => void;
-  onApplyToRest: () => void;
-}
-
-function SetRow({ index, entry, isExpanded, isTimeBased, unit, maxValue, isLast, onToggle, onUpdate, onApplyToRest }: SetRowProps) {
-  const [painOpen, setPainOpen] = useState(false);
-  const bucketLabel = BUCKET_LABELS[rpeBucket(entry.rpe)].label;
-
-  function handleUpdate(patch: Partial<SetEntry>) {
-    onUpdate({ filled: true, ...patch });
-  }
-
-  return (
-    <div style={{
-      borderBottom: isLast ? "none" : "1px solid var(--line-2)",
-    }}>
-      {/* Collapsed row — tap to expand */}
-      <button
-        onClick={onToggle}
-        style={{
-          width: "100%", background: "none", border: "none", cursor: "pointer",
-          padding: "14px 0", display: "flex", alignItems: "center", gap: 10,
-          minHeight: 52,
-        }}
-      >
-        <span style={{
-          fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700,
-          color: entry.filled ? "var(--ink)" : "var(--muted)",
-          minWidth: 24,
-        }}>
-          S{index + 1}
-        </span>
-
-        {entry.filled ? (
-          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{
-              width: 18, height: 18, borderRadius: 999, background: "var(--moss)",
-              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-            }}>
-              <Ico.check s={10} c="var(--bone)" />
-            </span>
-            <span style={{ fontSize: 14, color: "var(--ink)", fontWeight: 600 }}>
-              {entry.value}{unit}
-            </span>
-            <span style={{ fontSize: 13, color: "var(--muted)" }}>
-              · {bucketLabel}{entry.pain > 0 ? ` · dolor ${entry.pain}/10` : ""}
-            </span>
-          </div>
-        ) : (
-          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 14, color: "var(--ink)", fontWeight: 600, opacity: 0.35 }}>
-              {entry.value}{unit}
-            </span>
-            <span style={{ fontSize: 13, color: "var(--muted)", opacity: 0.6 }}>
-              · {bucketLabel} · sin dolor
-            </span>
-          </div>
-        )}
-
-        <span style={{
-          fontSize: 16, color: "var(--muted)",
-          transform: isExpanded ? "rotate(90deg)" : "none",
-          transition: "transform 0.15s ease",
-          flexShrink: 0,
-        }}>›</span>
-      </button>
-
-      {/* Expanded editor */}
-      {isExpanded && (
-        <div style={{
-          paddingBottom: 16,
-          display: "flex", flexDirection: "column", gap: 16,
-        }}>
-          {/* Value stepper */}
-          <div>
-            <div className="eyebrow" style={{ marginBottom: 10, fontSize: 10 }}>
-              {isTimeBased ? "TIEMPO" : "REPS"}
-            </div>
-            <BigStepper
-              value={entry.value}
-              min={1}
-              max={maxValue}
-              unit={unit}
-              onChange={v => handleUpdate({ value: v })}
-            />
-          </div>
-
-          {/* RPE */}
-          <div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 10 }}>
-              <span className="eyebrow" style={{ fontSize: 10 }}>ESFUERZO</span>
-              <span style={{ fontSize: 10, color: "var(--muted)" }}>· RPE percibido del 1 al 10</span>
-            </div>
-            <EsfuerzoBuckets
-              rpe={entry.rpe}
-              onChange={v => handleUpdate({ rpe: v })}
-            />
-          </div>
-
-          {/* Pain (collapsible) */}
-          <div>
-            {!painOpen ? (
-              <button
-                onClick={() => {
-                  setPainOpen(true);
-                  handleUpdate({});
-                }}
-                style={{
-                  background: "none", border: "none", cursor: "pointer", padding: "4px 0",
-                  fontSize: 13, color: "var(--muted)", display: "flex", alignItems: "center", gap: 4,
-                }}
-              >
-                <span style={{ fontSize: 16 }}>+</span>
-                {entry.pain > 0 ? `dolor: ${entry.pain}/10` : "¿sentiste dolor?"}
-              </button>
-            ) : (
-              <div>
-                <div className="eyebrow" style={{ marginBottom: 10, fontSize: 10 }}>DOLOR</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <button
-                    onClick={() => handleUpdate({ pain: Math.max(0, entry.pain - 1) })}
-                    style={{
-                      width: 48, height: 48, borderRadius: 12,
-                      border: "1.5px solid var(--line-2)", background: "transparent",
-                      color: "var(--ink)", fontSize: 22, lineHeight: 1,
-                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >−</button>
-                  <div style={{ flex: 1 }}>
-                    <PainBar value={entry.pain} />
-                  </div>
-                  <button
-                    onClick={() => handleUpdate({ pain: Math.min(10, entry.pain + 1) })}
-                    style={{
-                      width: 48, height: 48, borderRadius: 12,
-                      border: "1.5px solid var(--line-2)", background: "transparent",
-                      color: "var(--ink)", fontSize: 22, lineHeight: 1,
-                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >+</button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Apply to rest shortcut */}
-          <button
-            onClick={onApplyToRest}
-            style={{
-              background: "none", border: "none", cursor: "pointer", padding: "4px 0",
-              fontSize: 13, color: "var(--ink-2)", display: "flex", alignItems: "center", gap: 4,
-              fontWeight: 500,
-            }}
-          >
-            Aplicar a las restantes →
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export function ExerciseLogSheet({ exerciseId, exerciseName, sets, plannedReps, plannedDurationS, sessionDate, onSave, onClose }: Props) {
+export function ExerciseLogSheet({
+  exerciseId, exerciseName, sets, plannedReps, plannedDurationS, sessionDate, mode, onSave, onClose,
+}: Props) {
   const { user } = useAuth();
   const db = useDb();
   const push = useSync();
@@ -318,22 +148,64 @@ export function ExerciseLogSheet({ exerciseId, exerciseName, sets, plannedReps, 
   const [entries, setEntries] = useState<SetEntry[]>(
     Array.from({ length: sets }, () => ({ filled: false, value: defaultValue, rpe: defaultRpe, pain: 0 }))
   );
-  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
-  function update(index: number, patch: Partial<SetEntry>) {
-    setEntries(prev => prev.map((e, i) => i === index ? { ...e, ...patch } : e));
-  }
+  // Detail view state
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingEntry, setEditingEntry] = useState<SetEntry | null>(null);
+  const [applyRest, setApplyRest] = useState(false);
 
-  function applyToRest(fromIndex: number) {
-    const source = entries[fromIndex];
-    setEntries(prev => prev.map((e, i) => i > fromIndex ? { ...source, filled: true } : e));
-  }
+  // Completion state (after manual save in edit mode)
+  const [done, setDone] = useState(false);
+  const [savedEntries, setSavedEntries] = useState<{ value: number; rpe: number; pain: number }[]>([]);
+
+  const showDone = mode === "done" || done;
+
+  const completionEntries = mode === "done"
+    ? Array.from({ length: sets }, () => ({ value: defaultValue, rpe: defaultRpe, pain: 0 }))
+    : savedEntries;
 
   const filledCount = entries.filter(e => e.filled).length;
+  const remainingCount = editingIndex !== null ? sets - editingIndex - 1 : 0;
 
-  async function handleSave(overrideEntries?: SetEntry[]) {
+  const rpeLabel = BUCKET_LABELS[rpeBucket(defaultRpe)].label;
+
+  function openDetail(index: number) {
+    setEditingIndex(index);
+    setEditingEntry({ ...entries[index] });
+    setApplyRest(false);
+  }
+
+  function handleBack() {
+    setEditingIndex(null);
+    setEditingEntry(null);
+    setApplyRest(false);
+  }
+
+  function handleListo() {
+    if (editingIndex === null || editingEntry === null) return;
+    const idx = editingIndex;
+    const entry = { ...editingEntry, filled: true };
+    setEntries(prev => prev.map((e, i) => {
+      if (i === idx) return entry;
+      if (applyRest && i > idx) return entry;
+      return e;
+    }));
+    setEditingIndex(null);
+    setEditingEntry(null);
+    setApplyRest(false);
+  }
+
+  function handleMarkIncomplete() {
+    if (editingIndex === null) return;
+    setEntries(prev => prev.map((e, i) => i === editingIndex ? { ...e, filled: false } : e));
+    setEditingIndex(null);
+    setEditingEntry(null);
+    setApplyRest(false);
+  }
+
+  async function handleSave() {
     if (!db || !user) return;
-    const toSave = overrideEntries ?? entries.filter(e => e.filled);
+    const toSave = entries.filter(e => e.filled);
     const now = Date.now();
     for (let i = 0; i < toSave.length; i++) {
       const e = toSave[i];
@@ -349,22 +221,19 @@ export function ExerciseLogSheet({ exerciseId, exerciseName, sets, plannedReps, 
       });
     }
     push();
-    onSave();
+    setSavedEntries(toSave.map(e => ({ value: e.value, rpe: e.rpe, pain: e.pain })));
+    setDone(true);
   }
-
-  function handleAllAsPlanned() {
-    const all = entries.map(() => ({ filled: true, value: defaultValue, rpe: defaultRpe, pain: 0 }));
-    handleSave(all);
-  }
-
-  const rpeLabel = BUCKET_LABELS[rpeBucket(defaultRpe)].label.toLowerCase();
 
   return (
     <div style={{
       position: "absolute", inset: 0, zIndex: 200,
       display: "flex", flexDirection: "column", justifyContent: "flex-end",
     }}>
-      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)" }} onClick={onClose} />
+      <div
+        style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)" }}
+        onClick={showDone ? onSave : onClose}
+      />
 
       <div style={{
         position: "relative", background: "var(--bg)", borderRadius: "24px 24px 0 0",
@@ -374,113 +243,323 @@ export function ExerciseLogSheet({ exerciseId, exerciseName, sets, plannedReps, 
       }}>
         <div style={{ width: 36, height: 4, borderRadius: 999, background: "var(--line-2)", margin: "0 auto 16px" }} />
 
-        {/* Header */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{
-            fontFamily: "var(--font-serif)", fontSize: 20, fontWeight: 400,
-            color: "var(--ink)", lineHeight: 1.2, marginBottom: 6,
-          }}>{exerciseName}</div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <span style={{
-              fontSize: 13, fontWeight: 600, color: "var(--ink)",
-              background: "var(--card-soft)", borderRadius: 6, padding: "2px 8px",
-            }}>{sets} series</span>
-            <span style={{
-              fontSize: 13, fontWeight: 600, color: "var(--ink)",
-              background: "var(--card-soft)", borderRadius: 6, padding: "2px 8px",
-            }}>objetivo {defaultValue}{unit}</span>
-            <span style={{
-              fontSize: 13, fontWeight: 600, color: "var(--ink)",
-              background: "var(--card-soft)", borderRadius: 6, padding: "2px 8px",
-            }}>RPE {rpeLabel}</span>
-          </div>
-        </div>
-
-        {/* Scrollable content */}
-        <div style={{ overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
-
-          {/* Hero: all as planned */}
-          <button
-            onClick={handleAllAsPlanned}
-            style={{
-              width: "100%", background: "var(--ink)", border: "none", borderRadius: 14,
-              padding: "16px 18px", cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              flexShrink: 0,
-            }}
-          >
-            <div style={{ textAlign: "left" }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--bone)", marginBottom: 2 }}>
-                Todas como el plan
+        {/* === COMPLETION VIEW === */}
+        {showDone && (
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
+              <div style={{ fontSize: 17, fontWeight: 600, color: "var(--ink)" }}>
+                {completionEntries.length} series × {defaultValue}{unit}
               </div>
-              <div style={{ fontSize: 12, color: "rgba(237,230,214,0.6)", fontFamily: "var(--font-mono)" }}>
-                {sets}×{defaultValue}{unit} · {rpeLabel} · sin dolor
-              </div>
+              <button
+                onClick={onSave}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "var(--ink-3)", fontSize: 22, lineHeight: 1 }}
+              >
+                ×
+              </button>
             </div>
+
             <div style={{
-              width: 32, height: 32, borderRadius: 999,
-              background: "rgba(255,255,255,0.15)",
-              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              background: "var(--card-soft)", borderRadius: 14, padding: "0 14px",
+              overflowY: "auto", flex: 1,
             }}>
-              <Ico.check s={16} c="var(--bone)" />
+              {completionEntries.map((e, i) => (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "13px 0",
+                  borderBottom: i < completionEntries.length - 1 ? "1px solid var(--line-2)" : "none",
+                }}>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: 999,
+                    background: "var(--ink)", color: "var(--bone)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 700,
+                    flexShrink: 0,
+                  }}>{i + 1}</div>
+
+                  <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)" }}>
+                      {e.value}{unit}
+                    </span>
+                    <span style={{ fontSize: 13, color: "var(--muted)" }}>
+                      · {BUCKET_LABELS[rpeBucket(e.rpe)].label}
+                    </span>
+                    <span style={{ fontSize: 13, color: "var(--muted)" }}>
+                      · {e.pain}/10
+                    </span>
+                  </div>
+
+                  <div style={{
+                    width: 28, height: 28, borderRadius: 999,
+                    background: "var(--ink)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    flexShrink: 0,
+                  }}>
+                    <Ico.check s={12} c="var(--bone)" />
+                  </div>
+                </div>
+              ))}
             </div>
-          </button>
 
-          {/* Divider */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ flex: 1, height: 1, background: "var(--line-2)" }} />
-            <span style={{ fontSize: 11, color: "var(--muted)" }}>o ajustar cada serie</span>
-            <div style={{ flex: 1, height: 1, background: "var(--line-2)" }} />
+            <div style={{ textAlign: "center", padding: "20px 0 4px" }}>
+              <div style={{ fontSize: 17, fontWeight: 700, color: "var(--ink)", marginBottom: 4 }}>
+                ¡Todo registrado!
+              </div>
+              <div style={{ fontSize: 13, color: "var(--muted)", fontFamily: "var(--font-mono)" }}>
+                {completionEntries.length} de {sets} series
+              </div>
+            </div>
           </div>
+        )}
 
-          {/* Set rows */}
-          <div style={{
-            background: "var(--card-soft)", borderRadius: 14,
-            padding: "0 14px",
-            flexShrink: 0,
-          }}>
-            {entries.map((entry, i) => (
-              <SetRow
-                key={i}
-                index={i}
-                entry={entry}
-                isExpanded={expandedIndex === i}
-                isTimeBased={isTimeBased}
-                unit={unit}
-                maxValue={maxValue}
-                isLast={i === sets - 1}
-                onToggle={() => setExpandedIndex(prev => prev === i ? null : i)}
-                onUpdate={patch => update(i, patch)}
-                onApplyToRest={() => {
-                  applyToRest(i);
-                  setExpandedIndex(null);
+        {/* === DETAIL VIEW (editing a single set) === */}
+        {!showDone && editingIndex !== null && editingEntry !== null && (
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, overflowY: "auto" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+              <button
+                onClick={handleBack}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 0", color: "var(--ink)", fontSize: 15, fontWeight: 500 }}
+              >
+                ‹ Atrás
+              </button>
+              <span style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>
+                Editar serie {editingIndex + 1}
+              </span>
+              <button
+                onClick={handleListo}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 0", color: "var(--ink)", fontSize: 15, fontWeight: 600 }}
+              >
+                Listo
+              </button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              {/* Value stepper */}
+              <div>
+                <div className="eyebrow" style={{ marginBottom: 10, fontSize: 10 }}>
+                  {isTimeBased ? "TIEMPO" : "REPS"}
+                </div>
+                <BigStepper
+                  value={editingEntry.value}
+                  min={1}
+                  max={maxValue}
+                  unit={unit}
+                  onChange={v => setEditingEntry(prev => prev ? { ...prev, value: v } : prev)}
+                />
+              </div>
+
+              {/* RPE */}
+              <div>
+                <div className="eyebrow" style={{ marginBottom: 10, fontSize: 10 }}>ESFUERZO (RPE)</div>
+                <EsfuerzoBuckets
+                  rpe={editingEntry.rpe}
+                  onChange={v => setEditingEntry(prev => prev ? { ...prev, rpe: v } : prev)}
+                />
+              </div>
+
+              {/* Pain */}
+              <div>
+                <div className="eyebrow" style={{ marginBottom: 10, fontSize: 10 }}>DOLOR</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <button
+                    onClick={() => setEditingEntry(prev => prev ? { ...prev, pain: Math.max(0, prev.pain - 1) } : prev)}
+                    style={{
+                      width: 48, height: 48, borderRadius: 12,
+                      border: "1.5px solid var(--line-2)", background: "transparent",
+                      color: "var(--ink)", fontSize: 22, lineHeight: 1,
+                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >−</button>
+                  <div style={{ flex: 1 }}>
+                    <PainBar value={editingEntry.pain} />
+                  </div>
+                  <button
+                    onClick={() => setEditingEntry(prev => prev ? { ...prev, pain: Math.min(10, prev.pain + 1) } : prev)}
+                    style={{
+                      width: 48, height: 48, borderRadius: 12,
+                      border: "1.5px solid var(--line-2)", background: "transparent",
+                      color: "var(--ink)", fontSize: 22, lineHeight: 1,
+                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >+</button>
+                </div>
+              </div>
+
+              {/* Apply to rest */}
+              {remainingCount > 0 && (
+                <div>
+                  <div style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "4px 0",
+                  }}>
+                    <span style={{ fontSize: 14, color: "var(--ink)" }}>
+                      Aplicar a las restantes ({remainingCount} serie{remainingCount !== 1 ? "s" : ""})
+                    </span>
+                    <button
+                      onClick={() => setApplyRest(r => !r)}
+                      style={{
+                        width: 44, height: 26, borderRadius: 13,
+                        background: applyRest ? "var(--ink)" : "var(--line-2)",
+                        border: "none", cursor: "pointer", position: "relative", flexShrink: 0,
+                      }}
+                    >
+                      <div style={{
+                        width: 20, height: 20, borderRadius: 10,
+                        background: "white",
+                        position: "absolute",
+                        top: 3,
+                        left: applyRest ? 21 : 3,
+                        transition: "left 0.15s ease",
+                      }} />
+                    </button>
+                  </div>
+                  {applyRest && (
+                    <div style={{
+                      background: "var(--card-soft)", borderRadius: 10, padding: "10px 12px",
+                      marginTop: 8,
+                      fontSize: 12, color: "var(--muted)", fontFamily: "var(--font-mono)",
+                    }}>
+                      {Array.from({ length: remainingCount }, (_, k) => `S${editingIndex + 2 + k}`).join(" y ")}
+                      {" · "}{editingEntry.value}{unit}
+                      {" · "}{BUCKET_LABELS[rpeBucket(editingEntry.rpe)].label}
+                      {" · "}{editingEntry.pain}/10 dolor
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Mark incomplete */}
+              <button
+                onClick={handleMarkIncomplete}
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  padding: "12px 0",
+                  fontSize: 13, color: "var(--clay)", textAlign: "center",
+                  width: "100%",
                 }}
-              />
-            ))}
+              >
+                Marcar como no completada
+              </button>
+            </div>
           </div>
+        )}
 
-          {/* Hint */}
-          {filledCount === 0 && (
-            <p style={{ fontSize: 11, color: "var(--muted)", textAlign: "center", margin: 0 }}>
-              Guarda solo las series que completaste
-            </p>
-          )}
-        </div>
+        {/* === LIST VIEW === */}
+        {!showDone && editingIndex === null && (
+          <>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                <div>
+                  <div style={{ fontSize: 13, color: "var(--muted)", fontFamily: "var(--font-mono)", marginBottom: 2 }}>
+                    Registrando...
+                  </div>
+                  <div style={{
+                    fontFamily: "var(--font-serif)", fontSize: 20, fontWeight: 400,
+                    color: "var(--ink)", lineHeight: 1.2,
+                  }}>{exerciseName}</div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
+                    <span style={{
+                      fontSize: 13, fontWeight: 600, color: "var(--ink)",
+                      background: "var(--card-soft)", borderRadius: 6, padding: "2px 8px",
+                    }}>{sets} series</span>
+                    <span style={{
+                      fontSize: 13, fontWeight: 600, color: "var(--ink)",
+                      background: "var(--card-soft)", borderRadius: 6, padding: "2px 8px",
+                    }}>objetivo {defaultValue}{unit}</span>
+                    <span style={{
+                      fontSize: 13, fontWeight: 600, color: "var(--ink)",
+                      background: "var(--card-soft)", borderRadius: 6, padding: "2px 8px",
+                    }}>RPE {rpeLabel}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={onClose}
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "var(--ink-3)", fontSize: 22, lineHeight: 1, flexShrink: 0 }}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
 
-        {/* Save partial */}
-        <div style={{ marginTop: 16, flexShrink: 0 }}>
-          <button
-            className="btn-pill"
-            onClick={() => handleSave()}
-            disabled={filledCount === 0}
-            style={{ opacity: filledCount === 0 ? 0.4 : 1 }}
-          >
-            {filledCount === 0
-              ? "Registrar series"
-              : `Guardar ${filledCount} serie${filledCount > 1 ? "s" : ""}`}
-            {filledCount > 0 && <Ico.arrow s={16} c="var(--bone)" />}
-          </button>
-        </div>
+            <div style={{ overflowY: "auto", flex: 1 }}>
+              <div style={{ background: "var(--card-soft)", borderRadius: 14, padding: "0 14px" }}>
+                {entries.map((entry, i) => {
+                  const bucketLabel = BUCKET_LABELS[rpeBucket(entry.rpe)].label;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => openDetail(i)}
+                      style={{
+                        width: "100%", background: "none", border: "none", cursor: "pointer",
+                        padding: "14px 0",
+                        display: "flex", alignItems: "center", gap: 10,
+                        borderBottom: i < sets - 1 ? "1px solid var(--line-2)" : "none",
+                        minHeight: 52,
+                      }}
+                    >
+                      <span style={{
+                        fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700,
+                        color: entry.filled ? "var(--ink)" : "var(--muted)",
+                        minWidth: 24,
+                      }}>
+                        S{i + 1}
+                      </span>
+
+                      {entry.filled ? (
+                        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{
+                            width: 18, height: 18, borderRadius: 999, background: "var(--moss)",
+                            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                          }}>
+                            <Ico.check s={10} c="var(--bone)" />
+                          </span>
+                          <span style={{ fontSize: 14, color: "var(--ink)", fontWeight: 600 }}>
+                            {entry.value}{unit}
+                          </span>
+                          <span style={{ fontSize: 13, color: "var(--muted)" }}>
+                            · {bucketLabel}{entry.pain > 0 ? ` · dolor ${entry.pain}/10` : ""}
+                          </span>
+                        </div>
+                      ) : (
+                        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: 14, color: "var(--ink)", fontWeight: 600, opacity: 0.35 }}>
+                            {entry.value}{unit}
+                          </span>
+                          <span style={{ fontSize: 13, color: "var(--muted)", opacity: 0.6 }}>
+                            · {bucketLabel} · sin dolor
+                          </span>
+                        </div>
+                      )}
+
+                      <span style={{ fontSize: 16, color: "var(--muted)", flexShrink: 0 }}>›</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {filledCount === 0 && (
+                <p style={{ fontSize: 11, color: "var(--muted)", textAlign: "center", margin: "12px 0 0" }}>
+                  Toca una serie para registrar
+                </p>
+              )}
+            </div>
+
+            <div style={{ marginTop: 16, flexShrink: 0 }}>
+              <button
+                className="btn-pill"
+                onClick={handleSave}
+                disabled={filledCount === 0}
+                style={{ opacity: filledCount === 0 ? 0.4 : 1 }}
+              >
+                {filledCount === 0
+                  ? "Registrar series"
+                  : `Guardar ${filledCount} serie${filledCount > 1 ? "s" : ""}`}
+                {filledCount > 0 && <Ico.arrow s={16} c="var(--bone)" />}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
