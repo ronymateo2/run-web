@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
@@ -8,10 +8,11 @@ import { NudgeSST } from "../components/NudgeSST";
 import { BodyFigure } from "../components/BodyFigure";
 import { ZoneRow } from "../components/ZoneRow";
 import { Ico } from "../components/icons";
-import { getActiveInjuries, getTodayFocusInjury, getCurrentPhase, type Injury, type Phase } from "../../db/queries/injuries";
+import { getActiveInjuries, getTodayFocusInjuries, getCurrentPhase, type Injury, type Phase } from "../../db/queries/injuries";
 import { getExercisesForPhase, getTodayLogs, type Exercise, type ExerciseLog } from "../../db/queries/exercises";
 import { getTodayCheckin, type PainCheckin } from "../../db/queries/checkins";
 import { getTodaySst, isSstDueToday, type SstResult } from "../../db/queries/sst";
+import { pullDelta } from "../../db/sync";
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -21,43 +22,62 @@ function dayName() {
   return new Intl.DateTimeFormat("es", { weekday: "long" }).format(new Date());
 }
 
-interface HomeData {
-  injuries: Injury[];
-  focus: Injury | null;
+interface FocusBlock {
+  injury: Injury;
   phase: Phase | null;
   exercises: Exercise[];
+}
+
+interface HomeData {
+  injuries: Injury[];
+  focusBlocks: FocusBlock[];
   doneIds: Set<string>;
   checkin: PainCheckin | null;
   sstResult: SstResult | null;
   sstDue: boolean;
-  otherInjury: Injury | undefined;
 }
 
 export function HomeScreen() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const db = useDb();
   const navigate = useNavigate();
   const [data, setData] = useState<HomeData | null>(null);
+  const [syncing, setSyncing] = useState(false);
+
+  const loadData = useCallback(async () => {
+    if (!db || !user) return;
+    const dateStr = today();
+    const injuries = await getActiveInjuries(db, user.id);
+    const focusInjuries = getTodayFocusInjuries(injuries);
+    const focusBlocks: FocusBlock[] = await Promise.all(
+      focusInjuries.map(async (injury) => {
+        const phase = await getCurrentPhase(db, injury);
+        const exercises = phase ? await getExercisesForPhase(db, phase.id) : [];
+        return { injury, phase, exercises };
+      })
+    );
+    const logs = await getTodayLogs(db, user.id, dateStr);
+    const doneIds = new Set(logs.map((l: ExerciseLog) => l.exercise_id));
+    const checkin = await getTodayCheckin(db, user.id, dateStr);
+    const sstResult = await getTodaySst(db, user.id, dateStr);
+    const sstDue = isSstDueToday();
+    setData({ injuries, focusBlocks, doneIds, checkin, sstResult, sstDue });
+  }, [db, user]);
 
   useEffect(() => {
-    if (!db || !user) return;
-    let active = true;
-    (async () => {
-      const dateStr = today();
-      const injuries = await getActiveInjuries(db, user.id);
-      const focus = getTodayFocusInjury(injuries);
-      const phase = focus ? await getCurrentPhase(db, focus) : null;
-      const exercises = phase ? await getExercisesForPhase(db, phase.id) : [];
-      const logs = await getTodayLogs(db, user.id, dateStr);
-      const doneIds = new Set(logs.map((l: ExerciseLog) => l.exercise_id));
-      const checkin = await getTodayCheckin(db, user.id, dateStr);
-      const sstResult = await getTodaySst(db, user.id, dateStr);
-      const sstDue = isSstDueToday();
-      const otherInjury = injuries.find(i => i.id !== focus?.id);
-      if (active) setData({ injuries, focus, phase, exercises, doneIds, checkin, sstResult, sstDue, otherInjury });
-    })();
-    return () => { active = false; };
-  }, [db, user]);
+    loadData();
+  }, [loadData]);
+
+  const handleForceSync = useCallback(async () => {
+    if (!db || !token || syncing) return;
+    setSyncing(true);
+    try {
+      await pullDelta(db, token, { force: true });
+      await loadData();
+    } finally {
+      setSyncing(false);
+    }
+  }, [db, token, syncing, loadData]);
 
   if (!data) {
     return (
@@ -70,9 +90,10 @@ export function HomeScreen() {
     );
   }
 
-  const { focus, phase, exercises, doneIds, checkin, sstResult, sstDue, otherInjury, injuries } = data;
-  const doneCount = exercises.filter(e => doneIds.has(e.id)).length;
+  const { focusBlocks, doneIds, checkin, sstResult, sstDue, injuries } = data;
+  const focus = focusBlocks[0]?.injury ?? null;
   const isDualInjury = injuries.length >= 2;
+  const isMultiFocus = focusBlocks.length >= 2;
 
   const sstState = !sstDue ? "hidden" : sstResult ? "done" : "pending";
 
@@ -81,12 +102,27 @@ export function HomeScreen() {
       <div className="screen-body" style={{ paddingBottom: 100 }}>
         {/* Header */}
         <div className="col gap-4" style={{ paddingTop: 12 }}>
-          <div className="eyebrow">{dayName()}</div>
+          <div className="row between" style={{ alignItems: "center" }}>
+            <div className="eyebrow">{dayName()}</div>
+            <button
+              onClick={handleForceSync}
+              disabled={syncing}
+              style={{
+                background: "none", border: "none", cursor: syncing ? "default" : "pointer",
+                padding: 4, opacity: syncing ? 0.4 : 0.55, display: "flex", alignItems: "center",
+              }}
+              title="Sincronizar"
+            >
+              <Ico.refresh s={16} />
+            </button>
+          </div>
           {isDualInjury && focus ? (
             <div className="title-lg serif">
               Hoy es día de{" "}
               <em style={{ fontStyle: "italic", color: "var(--clay-deep)" }}>
-                {focus.name.toLowerCase()}
+                {isMultiFocus
+                  ? focusBlocks.map(b => b.injury.name.toLowerCase()).join(" / ")
+                  : focus.name.toLowerCase()}
               </em>.
             </div>
           ) : (
@@ -97,9 +133,9 @@ export function HomeScreen() {
               </em>.
             </div>
           )}
-          {focus && phase && (
+          {focusBlocks.length === 1 && focusBlocks[0].phase && (
             <div className="body-sm" style={{ marginTop: 2 }}>
-              {focus.name} · {phase.name}
+              {focusBlocks[0].injury.name} · {focusBlocks[0].phase.name}
             </div>
           )}
         </div>
@@ -148,42 +184,47 @@ export function HomeScreen() {
           )}
         </div>
 
-        {/* Today's exercises */}
-        {exercises.length > 0 && (
-          <>
-            <div className="row between mt-24" style={{ alignItems: "baseline" }}>
-              <div className="title-md serif">
-                {isDualInjury ? `Ejercicios de ${focus?.name.toLowerCase() ?? "hoy"}` : "Hoy toca…"}
+        {/* Today's exercises — one block per focus injury */}
+        {focusBlocks.map((block) => {
+          const blockDone = block.exercises.filter(e => doneIds.has(e.id)).length;
+          return block.exercises.length > 0 ? (
+            <div key={block.injury.id}>
+              <div className="row between mt-24" style={{ alignItems: "baseline" }}>
+                <div className="title-md serif">
+                  {isDualInjury ? `Ejercicios de ${block.injury.name.toLowerCase()}` : "Hoy toca…"}
+                </div>
+                <div className="label num">{blockDone} / {block.exercises.length} hechos</div>
               </div>
-              <div className="label num">{doneCount} / {exercises.length} hechos</div>
+              <div className="bar mt-8" style={{ background: "rgba(31,58,46,0.08)" }}>
+                <div className="bar-fill" style={{ width: `${block.exercises.length ? (blockDone / block.exercises.length) * 100 : 0}%`, background: "var(--ink)" }} />
+              </div>
+              <div className="col gap-10 mt-16">
+                {block.exercises.map((e) => (
+                  <ExerciseRow
+                    key={e.id} id={e.id} name={e.name} detail={e.detail}
+                    mins={e.sets && e.reps ? Math.ceil((e.sets * e.reps * 4) / 60) : undefined}
+                    done={doneIds.has(e.id)} phase={block.phase?.name}
+                  />
+                ))}
+              </div>
             </div>
-            <div className="bar mt-8" style={{ background: "rgba(31,58,46,0.08)" }}>
-              <div className="bar-fill" style={{ width: `${exercises.length ? (doneCount / exercises.length) * 100 : 0}%`, background: "var(--ink)" }} />
-            </div>
-            <div className="col gap-10 mt-16">
-              {exercises.map((e) => (
-                <ExerciseRow
-                  key={e.id} id={e.id} name={e.name} detail={e.detail}
-                  mins={e.sets && e.reps ? Math.ceil((e.sets * e.reps * 4) / 60) : undefined}
-                  done={doneIds.has(e.id)} phase={phase?.name}
-                />
-              ))}
-            </div>
-          </>
-        )}
+          ) : null;
+        })}
 
-        {/* Other injury maintenance card (dual injury) */}
-        {isDualInjury && otherInjury && (
-          <div className="card mt-20" style={{
-            padding: 16, border: "1.5px dashed var(--line-2)",
-            background: "transparent", boxShadow: "none",
-          }}>
-            <div className="eyebrow">Mantenimiento · {otherInjury.name}</div>
-            <div className="body-sm mt-4" style={{ color: "var(--ink-3)", lineHeight: 1.5 }}>
-              Isométricos suaves — 1 set de 10s × 5. Sin carga adicional hoy.
+        {/* Maintenance card for non-focus injuries */}
+        {injuries
+          .filter(inj => !focusBlocks.some(b => b.injury.id === inj.id))
+          .map(inj => (
+            <div key={inj.id} className="card mt-20" style={{
+              padding: 16, border: "1.5px dashed var(--line-2)",
+              background: "transparent", boxShadow: "none",
+            }}>
+              <div className="eyebrow">Mantenimiento · {inj.name}</div>
+              <div className="body-sm mt-4" style={{ color: "var(--ink-3)", lineHeight: 1.5 }}>
+                Isométricos suaves — 1 set de 10s × 5. Sin carga adicional hoy.
+              </div>
             </div>
-          </div>
-        )}
+          ))}
 
         {/* 5SST nudge */}
         <NudgeSST state={sstState} lastScore={sstResult?.pain_score} />

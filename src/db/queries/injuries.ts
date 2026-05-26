@@ -46,12 +46,16 @@ export function computePhaseProgress(criteria: PhaseCriteria[]): number {
   return Math.round((criteria.filter(c => c.done).length / criteria.length) * 100);
 }
 
-export function getTodayFocusInjury(injuries: Injury[]): Injury | null {
+export function getTodayFocusInjuries(injuries: Injury[]): Injury[] {
   const dow = ["sun","mon","tue","wed","thu","fri","sat"][new Date().getDay()];
-  const focused = injuries.find(inj => {
+  const focused = injuries.filter(inj => {
     if (!inj.focus_days) return false;
     try { return (JSON.parse(inj.focus_days) as string[]).includes(dow); }
     catch { return false; }
   });
-  return focused ?? injuries[0] ?? null;
+  return focused.length > 0 ? focused : injuries.slice(0, 1);
+}
+
+export function getTodayFocusInjury(injuries: Injury[]): Injury | null {
+  return getTodayFocusInjuries(injuries)[0] ?? null;
 }

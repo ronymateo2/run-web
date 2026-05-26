@@ -5,9 +5,9 @@ import { queryAll, exec, type Database } from "./client";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 
-export async function pullDelta(db: Database, token: string): Promise<void> {
+export async function pullDelta(db: Database, token: string, { force = false }: { force?: boolean } = {}): Promise<void> {
   const users = await queryAll<{ last_sync: number }>(db, `SELECT last_sync FROM users LIMIT 1`);
-  const since = users[0]?.last_sync ?? 0;
+  const since = force ? 0 : (users[0]?.last_sync ?? 0);
   const res = await fetch(`${API_BASE}/api/sync/pull?since=${since}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
