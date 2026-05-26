@@ -36,7 +36,6 @@ export function ExerciseRow({ id, name, detail, mins, done, phase, accent = "var
           fontWeight: 600, color: done ? "var(--muted)" : "var(--ink)",
           textDecoration: done ? "line-through" : "none",
         }}>{name}</span>
-        {detail && <span className="body-sm" style={{ marginTop: 2 }}>{detail}</span>}
       </div>
       <div className="col" style={{ alignItems: "flex-end", gap: 4 }}>
         {phase && (

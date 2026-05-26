@@ -42,11 +42,11 @@ export function ExerciseDetailScreen() {
 
         {/* Exercise name */}
         <div style={{ textAlign: "center", marginTop: 48 }}>
-          <div className="title-lg serif" style={{ color: "var(--bone)", lineHeight: 1.1 }}>
+          <div className="title-xl serif" style={{ color: "#F5F0E8", lineHeight: 1.05 }}>
             {exercise?.name ?? "Ejercicio"}
           </div>
           {exercise?.detail && (
-            <div className="body-sm" style={{ color: "rgba(237,230,214,0.65)", marginTop: 8 }}>
+            <div className="body" style={{ color: "rgba(245,240,232,0.80)", marginTop: 12, lineHeight: 1.55 }}>
               {exercise.detail}
             </div>
           )}
@@ -55,13 +55,13 @@ export function ExerciseDetailScreen() {
         {/* Objective card */}
         <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 48, flexWrap: "wrap" }}>
           <div style={{
-            background: "rgba(237,230,214,0.08)", border: "1px solid rgba(237,230,214,0.15)",
-            borderRadius: 16, padding: "20px 36px", textAlign: "center",
+            background: "rgba(245,240,232,0.10)", border: "1px solid rgba(245,240,232,0.20)",
+            borderRadius: 20, padding: "24px 48px", textAlign: "center",
           }}>
-            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", color: "rgba(237,230,214,0.45)" }}>
+            <div style={{ fontSize: 12, fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.10em", color: "rgba(245,240,232,0.60)" }}>
               {isTimeBased ? "segundos" : "repeticiones"}
             </div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 52, color: "var(--bone)", lineHeight: 1, marginTop: 4 }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 64, color: "#F5F0E8", lineHeight: 1, marginTop: 8, fontWeight: 500 }}>
               {isTimeBased ? exercise?.duration_s : exercise?.reps}
             </div>
           </div>

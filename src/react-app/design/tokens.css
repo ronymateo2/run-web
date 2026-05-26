@@ -190,6 +190,13 @@ body {
   background: var(--ink);
   color: var(--bone);
 }
+.screen-dark .btn-pill {
+  background: #F5F0E8;
+  color: var(--ink);
+}
+.screen-dark .eyebrow {
+  color: rgba(245,240,232,0.50);
+}
 
 /* Density variants */
 .aire-compacto .screen-body { padding: 0 18px; }
@@ -205,3 +212,13 @@ body {
 /* Scrollbar hide for mobile feel */
 .screen::-webkit-scrollbar { display: none; }
 .screen { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Mobile font size boost */
+@media (max-width: 430px) {
+  .body { font-size: 16px; }
+  .body-sm { font-size: 14px; }
+  .label { font-size: 13px; }
+  .eyebrow { font-size: 11px; }
+  .tab { font-size: 11px; }
+  .tab .tab-ico { width: 24px; height: 24px; }
+}
