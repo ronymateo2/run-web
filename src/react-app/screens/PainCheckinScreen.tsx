@@ -70,8 +70,8 @@ export function PainCheckinScreen() {
         </div>
 
         {/* Body figure */}
-        <div style={{ display: "flex", justifyContent: "center", margin: "24px 0 8px" }}>
-          <BodyFigure w={160} heat={zones} onTap={(zone) => updateZone(zone, Math.min(10, (zones[zone] ?? 0) + 1))} />
+        <div style={{ display: "flex", justifyContent: "center", margin: "12px 0 4px" }}>
+          <BodyFigure w={300} heat={zones} onTap={(zone) => updateZone(zone, Math.min(10, (zones[zone] ?? 0) + 1))} />
         </div>
 
         {/* Zone sliders */}
@@ -82,6 +82,7 @@ export function PainCheckinScreen() {
               name={label}
               value={zones[key] ?? 0}
               interactive
+              compact
               onChange={(v) => updateZone(key, v)}
             />
           ))}
