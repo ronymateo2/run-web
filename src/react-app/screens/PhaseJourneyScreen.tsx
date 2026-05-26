@@ -67,42 +67,71 @@ export function PhaseJourneyScreen() {
           <div style={{ width: 30 }} />
         </div>
 
-        {injury && <div className="eyebrow mt-8" style={{ color: "var(--clay-deep)" }}>{injury.name}</div>}
+        {injury && <div className="eyebrow mt-12" style={{ color: "var(--clay-deep)" }}>{injury.name}</div>}
 
-        <div className="title-lg serif mt-4" style={{ lineHeight: 1.05 }}>
+        <div className="title-lg serif mt-8" style={{ lineHeight: 1.0 }}>
           {phase.name}
         </div>
-        <div className="body mt-4">
+        <div className="body-sm mt-6" style={{ color: "var(--muted)" }}>
           Semanas {phase.week_start}–{phase.week_end}
         </div>
 
-        {/* Progress bar with threshold marker */}
-        <div className="card mt-20" style={{ padding: 18 }}>
-          <div className="row between" style={{ marginBottom: 8 }}>
-            <span className="body-sm" style={{ fontSize: 14 }}>Progreso hacia fase {phase.phase_num + 1}</span>
-            <span className="num body-sm" style={{ fontSize: 14 }}>{progressPct}% / {phase.threshold_pct}%</span>
+        {/* Progress card */}
+        <div className="card mt-24" style={{ padding: "20px 22px 22px" }}>
+          {/* Top row: label left, numbers right */}
+          <div className="row between" style={{ alignItems: "flex-end", marginBottom: 14 }}>
+            <div>
+              <div className="eyebrow">Progreso</div>
+              <div style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: 32,
+                lineHeight: 1,
+                marginTop: 4,
+                color: locked ? "var(--clay)" : "var(--moss)",
+              }}>
+                {progressPct}%
+              </div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div className="eyebrow">meta</div>
+              <div className="num" style={{ fontSize: 20, lineHeight: 1, marginTop: 4, color: "var(--ink)" }}>
+                {phase.threshold_pct}%
+              </div>
+            </div>
           </div>
-          <div style={{ position: "relative", height: 10, borderRadius: 999, background: "var(--line)", overflow: "visible" }}>
+
+          {/* Bar */}
+          <div style={{ position: "relative", height: 12, borderRadius: 999, background: "var(--line)" }}>
             <div style={{
               width: `${progressPct}%`, height: "100%",
               background: locked ? "var(--sun)" : "var(--moss)",
               borderRadius: 999, transition: "width 0.4s ease",
             }} />
             <div style={{
-              position: "absolute", top: -6, left: `${phase.threshold_pct}%`,
-              width: 2, height: 22, background: "var(--clay)", borderRadius: 1,
+              position: "absolute", top: 0, left: `${phase.threshold_pct}%`,
+              width: 2, height: "100%", background: "var(--clay)", borderRadius: 1,
             }} />
-            <div style={{
-              position: "absolute", top: -18, left: `${phase.threshold_pct}%`,
-              transform: "translateX(-50%)",
-              fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--clay-deep)", whiteSpace: "nowrap",
-            }}>
-              {phase.threshold_pct}% mínimo
-            </div>
           </div>
+
+          {/* Threshold label below bar */}
+          <div style={{ position: "relative", height: 18, marginTop: 5 }}>
+            <span style={{
+              position: "absolute",
+              left: `${phase.threshold_pct}%`,
+              transform: "translateX(-50%)",
+              fontFamily: "var(--font-mono)",
+              fontSize: 10,
+              letterSpacing: "0.06em",
+              color: "var(--clay-deep)",
+              whiteSpace: "nowrap",
+            }}>
+              {phase.threshold_pct}% mín
+            </span>
+          </div>
+
           {locked && (
-            <div className="body-sm mt-12" style={{ color: "var(--clay-deep)", fontSize: 14 }}>
-              Faltan {phase.threshold_pct - progressPct}% para desbloquear{" "}
+            <div className="body-sm mt-8" style={{ color: "var(--clay-deep)", borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+              Faltan <span className="num" style={{ fontFamily: "var(--font-mono)" }}>{phase.threshold_pct - progressPct}%</span> para desbloquear{" "}
               {nextPhase ? `"${nextPhase.name}"` : "la siguiente fase"}.
             </div>
           )}
