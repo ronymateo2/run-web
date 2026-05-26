@@ -1,0 +1,207 @@
+/* Rurana — design tokens & global styles */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg: #F5F2EC;
+  --bg-2: #EFEBE2;
+  --card: #FFFFFF;
+  --card-soft: #FBF8F2;
+  --ink: #1F3A2E;
+  --ink-2: #2A5E4C;
+  --ink-3: #4A5A52;
+  --muted: rgba(31,58,46,0.55);
+  --faint: rgba(31,58,46,0.25);
+  --line: rgba(31,58,46,0.10);
+  --line-2: rgba(31,58,46,0.18);
+  --clay: #D97757;
+  --clay-soft: #F4D7C6;
+  --clay-deep: #B0532F;
+  --sun: #E8B85C;
+  --moss: #8AA88C;
+  --bone: #EDE6D6;
+  --shadow-1: 0 1px 2px rgba(31,58,46,0.04), 0 8px 24px rgba(31,58,46,0.06);
+  --shadow-2: 0 2px 6px rgba(31,58,46,0.06), 0 20px 40px rgba(31,58,46,0.10);
+  --r-sm: 12px;
+  --r-md: 18px;
+  --r-lg: 26px;
+  --r-xl: 36px;
+  --font-serif: 'Instrument Serif', 'Cormorant Garamond', Georgia, serif;
+  --font-sans: 'Manrope', 'SF Pro Text', -apple-system, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+  /* Safe area insets for iOS */
+  --sat: env(safe-area-inset-top);
+  --sab: env(safe-area-inset-bottom);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  font-family: var(--font-sans);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+/* Screen shell — full-height app shell */
+.screen {
+  min-height: 100dvh;
+  background: var(--bg);
+  font-family: var(--font-sans);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  padding-top: calc(54px + var(--sat, 0px));
+  padding-bottom: calc(34px + var(--sab, 0px));
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+.screen-body { padding: 0 22px; }
+
+/* Typography */
+.serif { font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.01em; }
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.title-xl { font-family: var(--font-serif); font-size: 44px; line-height: 0.95; letter-spacing: -0.02em; color: var(--ink); }
+.title-lg { font-family: var(--font-serif); font-size: 32px; line-height: 1.0; letter-spacing: -0.015em; color: var(--ink); }
+.title-md { font-family: var(--font-serif); font-size: 24px; line-height: 1.1; color: var(--ink); }
+.body { font-size: 15px; line-height: 1.45; color: var(--ink); }
+.body-sm { font-size: 13px; line-height: 1.45; color: var(--muted); }
+.label { font-size: 12px; line-height: 1.2; color: var(--muted); font-weight: 500; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* Cards */
+.card {
+  background: var(--card);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-1);
+}
+.card-flat {
+  background: var(--card-soft);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--card-soft);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.dot { width: 6px; height: 6px; border-radius: 999px; background: var(--clay); display: inline-block; }
+
+/* Tab bar */
+.tab-bar {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + var(--sab, 0px));
+  height: 64px;
+  background: rgba(255,255,255,0.86);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 28px;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-2);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  align-items: center;
+  padding: 0 8px;
+  z-index: 100;
+}
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+.tab.is-active { color: var(--ink); }
+.tab .tab-ico { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
+
+/* Layout helpers */
+.row { display: flex; align-items: center; }
+.col { display: flex; flex-direction: column; }
+.between { justify-content: space-between; }
+.center { align-items: center; justify-content: center; }
+.gap-4 { gap: 4px; } .gap-6 { gap: 6px; } .gap-8 { gap: 8px; }
+.gap-10 { gap: 10px; } .gap-12 { gap: 12px; } .gap-16 { gap: 16px; }
+.mt-4 { margin-top: 4px; } .mt-8 { margin-top: 8px; } .mt-12 { margin-top: 12px; }
+.mt-16 { margin-top: 16px; } .mt-20 { margin-top: 20px; } .mt-24 { margin-top: 24px; }
+
+/* Progress bar */
+.bar { height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.bar > .bar-fill { display: block; height: 100%; background: var(--ink); border-radius: 999px; }
+
+/* Buttons */
+.btn-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 24px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--bone);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+}
+.btn-pill.alt { background: var(--clay); color: #fff; }
+.btn-pill.ghost { background: transparent; border: 1px solid var(--line-2); color: var(--ink); }
+
+/* Animations */
+@keyframes pulseSlow {
+  0%, 100% { transform: scale(1); opacity: 0.65; }
+  50% { transform: scale(1.08); opacity: 0.9; }
+}
+.pulse { animation: pulseSlow 3.6s ease-in-out infinite; transform-origin: center; }
+
+@keyframes drift {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.drift { animation: drift 4.2s ease-in-out infinite; }
+
+/* Dark screen variant (exercise detail, SST) */
+.screen-dark {
+  background: var(--ink);
+  color: var(--bone);
+}
+
+/* Density variants */
+.aire-compacto .screen-body { padding: 0 18px; }
+.aire-compacto .title-xl { font-size: 36px; }
+.aire-compacto .title-lg { font-size: 26px; }
+.aire-compacto .title-md { font-size: 20px; }
+
+.aire-aire .screen-body { padding: 0 28px; }
+.aire-aire .title-xl { font-size: 52px; }
+.aire-aire .title-lg { font-size: 38px; }
+.aire-aire .title-md { font-size: 28px; }
+
+/* Scrollbar hide for mobile feel */
+.screen::-webkit-scrollbar { display: none; }
+.screen { -ms-overflow-style: none; scrollbar-width: none; }
