@@ -9,7 +9,7 @@ export default defineConfig({
 		cloudflare(),
 		VitePWA({
 			registerType: "autoUpdate",
-			includeAssets: ["favicon.ico", "apple-touch-icon.png"],
+			includeAssets: ["favicon.ico", "favicon.svg", "apple-touch-icon.png"],
 			manifest: {
 				name: "Rurana",
 				short_name: "Rurana",

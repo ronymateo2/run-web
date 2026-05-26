@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full-bleed bg (maskable safe) -->
+  <rect width="512" height="512" fill="#1F3A2E"/>
+
+  <!-- Circle — same visual as login logo (scaled 16x from 32px) -->
+  <circle cx="256" cy="256" r="224" fill="#1F3A2E"/>
+
+  <!-- Stem -->
+  <path d="M256 416 V224"
+        stroke="#EDE6D6" stroke-width="35" stroke-linecap="round"/>
+
+  <!-- Left leaf (clay) -->
+  <path d="M256 288 Q144 224 144 112 Q256 144 256 288"
+        fill="#D97757"/>
+
+  <!-- Right leaf (bone) -->
+  <path d="M256 224 Q368 192 368 80 Q256 112 256 224"
+        fill="#EDE6D6" opacity="0.85"/>
+</svg>
