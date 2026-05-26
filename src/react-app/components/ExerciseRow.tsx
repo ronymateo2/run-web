@@ -11,7 +11,7 @@ interface Props {
   accent?: string;
 }
 
-export function ExerciseRow({ id, name, detail, mins, done, phase, accent = "var(--ink-2)" }: Props) {
+export function ExerciseRow({ id, name, mins, done, phase, accent = "var(--ink-2)" }: Props) {
   const navigate = useNavigate();
   return (
     <div

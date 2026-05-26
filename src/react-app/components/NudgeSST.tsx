@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 
-type SstState = "pending" | "done";
+type SstState = "pending" | "done" | "hidden";
 
 interface Props {
   state: SstState;
