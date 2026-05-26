@@ -72,15 +72,15 @@ export function PhaseJourneyScreen() {
         <div className="title-lg serif mt-4" style={{ lineHeight: 1.05 }}>
           {phase.name}
         </div>
-        <div className="body-sm mt-4">
+        <div className="body mt-4">
           Semanas {phase.week_start}–{phase.week_end}
         </div>
 
         {/* Progress bar with threshold marker */}
         <div className="card mt-20" style={{ padding: 18 }}>
           <div className="row between" style={{ marginBottom: 8 }}>
-            <span className="body-sm">Progreso hacia fase {phase.phase_num + 1}</span>
-            <span className="num body-sm">{progressPct}% / {phase.threshold_pct}%</span>
+            <span className="body-sm" style={{ fontSize: 14 }}>Progreso hacia fase {phase.phase_num + 1}</span>
+            <span className="num body-sm" style={{ fontSize: 14 }}>{progressPct}% / {phase.threshold_pct}%</span>
           </div>
           <div style={{ position: "relative", height: 10, borderRadius: 999, background: "var(--line)", overflow: "visible" }}>
             <div style={{
@@ -95,13 +95,13 @@ export function PhaseJourneyScreen() {
             <div style={{
               position: "absolute", top: -18, left: `${phase.threshold_pct}%`,
               transform: "translateX(-50%)",
-              fontSize: 9, fontFamily: "var(--font-mono)", color: "var(--clay-deep)", whiteSpace: "nowrap",
+              fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--clay-deep)", whiteSpace: "nowrap",
             }}>
               {phase.threshold_pct}% mínimo
             </div>
           </div>
           {locked && (
-            <div className="body-sm mt-12" style={{ color: "var(--clay-deep)" }}>
+            <div className="body-sm mt-12" style={{ color: "var(--clay-deep)", fontSize: 14 }}>
               Faltan {phase.threshold_pct - progressPct}% para desbloquear{" "}
               {nextPhase ? `"${nextPhase.name}"` : "la siguiente fase"}.
             </div>
@@ -152,7 +152,7 @@ export function PhaseJourneyScreen() {
         )}
 
         {phase.description && (
-          <div className="body-sm mt-20" style={{ lineHeight: 1.6 }}>{phase.description}</div>
+          <div className="body mt-20" style={{ lineHeight: 1.6 }}>{phase.description}</div>
         )}
       </div>
     </div>

@@ -61,7 +61,7 @@ export function PhasesOverviewScreen() {
         <div className="col gap-4 mt-4">
           <div className="eyebrow">Sendero</div>
           <div className="title-lg serif">Tu plan de 20 semanas.</div>
-          <div className="body-sm mt-2">
+          <div className="body mt-2">
             El coach no te deja avanzar sin completar el 70% de cada fase.
           </div>
         </div>
@@ -125,7 +125,7 @@ export function PhasesOverviewScreen() {
                         <div className="row gap-8" style={{ alignItems: "center" }}>
                           <span style={{ display: "flex" }}>{PHASE_ICONS[i](20)}</span>
                           <div>
-                            <div className="eyebrow">
+                            <div className="eyebrow" style={{ fontSize: 12 }}>
                               Fase {p.phase_num} · semanas {p.week_start}–{p.week_end}
                             </div>
                             <div className="title-md serif" style={{ lineHeight: 1.1, marginTop: 2 }}>
@@ -137,8 +137,8 @@ export function PhasesOverviewScreen() {
                         {isCurrent && (
                           <div style={{ marginTop: 10 }}>
                             <div className="row between" style={{ marginBottom: 6 }}>
-                              <span className="body-sm">Progreso</span>
-                              <span className="body-sm num">{p.progressPct}% / {p.threshold_pct}%</span>
+                              <span className="body-sm" style={{ fontSize: 14 }}>Progreso</span>
+                              <span className="body-sm num" style={{ fontSize: 14 }}>{p.progressPct}% / {p.threshold_pct}%</span>
                             </div>
                             <div style={{ position: "relative", height: 6, borderRadius: 999, background: "var(--line)", overflow: "visible" }}>
                               <div style={{ width: `${p.progressPct}%`, height: "100%", background: "var(--ink)", borderRadius: 999 }} />
@@ -149,14 +149,14 @@ export function PhasesOverviewScreen() {
                               }} />
                             </div>
                             {isUnlocking && (
-                              <div className="body-sm mt-6" style={{ color: "var(--clay-deep)" }}>
+                              <div className="body-sm mt-6" style={{ color: "var(--clay-deep)", fontSize: 14 }}>
                                 Te faltan {p.threshold_pct - p.progressPct}% para desbloquear fase {p.phase_num + 1}.
                               </div>
                             )}
                           </div>
                         )}
 
-                        {p.description && <div className="body-sm mt-6">{p.description}</div>}
+                        {p.description && <div className="body mt-6">{p.description}</div>}
                       </div>
 
                       <div style={{ marginLeft: 12 }}>
