@@ -29,7 +29,7 @@ export async function saveCheckin(db: Database, checkin: Omit<PainCheckin, "zone
   await exec(db, `
     INSERT INTO pain_checkins (id, user_id, injury_id, date, zones, created_at, synced)
     VALUES (?, ?, ?, ?, ?, ?, 0)
-    ON CONFLICT(id) DO UPDATE SET zones = excluded.zones
+    ON CONFLICT(id) DO UPDATE SET zones = excluded.zones, synced = 0
   `, [checkin.id, checkin.user_id, checkin.injury_id ?? null, checkin.date,
       JSON.stringify(checkin.zones), checkin.created_at]);
 }
