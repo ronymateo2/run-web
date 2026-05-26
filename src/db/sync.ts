@@ -7,7 +7,8 @@ const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 
 export async function pullDelta(db: Database, token: string, { force = false }: { force?: boolean } = {}): Promise<void> {
   const users = await queryAll<{ last_sync: number }>(db, `SELECT last_sync FROM users LIMIT 1`);
-  const since = force ? 0 : (users[0]?.last_sync ?? 0);
+  // last_sync is stored as ms (Date.now()), but D1 updated_at is in seconds
+  const since = force ? 0 : Math.floor((users[0]?.last_sync ?? 0) / 1000);
   const res = await fetch(`${API_BASE}/api/sync/pull?since=${since}`, {
     headers: { Authorization: `Bearer ${token}` },
   });

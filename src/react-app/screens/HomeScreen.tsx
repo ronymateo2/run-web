@@ -68,6 +68,16 @@ export function HomeScreen() {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    if (!data) return;
+    const lastId = sessionStorage.getItem("lastExerciseId");
+    if (!lastId) return;
+    sessionStorage.removeItem("lastExerciseId");
+    requestAnimationFrame(() => {
+      document.querySelector(`[data-exercise-id="${lastId}"]`)?.scrollIntoView({ block: "center", behavior: "instant" });
+    });
+  }, [data]);
+
   const handleForceSync = useCallback(async () => {
     if (!db || !token || syncing) return;
     setSyncing(true);

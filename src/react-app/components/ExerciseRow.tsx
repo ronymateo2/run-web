@@ -16,8 +16,12 @@ export function ExerciseRow({ id, name, detail, mins, done, phase, accent = "var
   return (
     <div
       className="card"
+      data-exercise-id={id}
       style={{ padding: 14, display: "flex", alignItems: "center", gap: 14, cursor: "pointer" }}
-      onClick={() => navigate(`/today/exercise/${id}`)}
+      onClick={() => {
+        sessionStorage.setItem("lastExerciseId", id);
+        navigate(`/today/exercise/${id}`);
+      }}
     >
       <div style={{
         width: 32, height: 32, borderRadius: 999, flexShrink: 0,
