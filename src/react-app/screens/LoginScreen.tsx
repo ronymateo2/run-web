@@ -3,12 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 
 export function LoginScreen() {
-  const { user, loading, GoogleSignInButton } = useAuth();
+  const { user, loading, signingIn, GoogleSignInButton } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!loading && user) navigate("/today", { replace: true });
   }, [user, loading, navigate]);
+
+  const busy = loading || signingIn;
+  const busyLabel = signingIn ? "Iniciando sesión…" : "Preparando…";
 
   return (
     <div style={{
@@ -30,11 +33,30 @@ export function LoginScreen() {
         </div>
       </div>
 
-      <div className="col gap-12" style={{ width: "100%", maxWidth: 320, alignItems: "center" }}>
-        <GoogleSignInButton />
-        <p className="body-sm" style={{ textAlign: "center", maxWidth: 260, lineHeight: 1.6 }}>
-          Tus datos se sincronizan en la nube y se guardan sin conexión en tu dispositivo.
-        </p>
+      <div className="col gap-12" style={{ width: "100%", maxWidth: 320, alignItems: "center", minHeight: 80, justifyContent: "center" }}>
+        {busy ? (
+          <div className="col gap-12" style={{ alignItems: "center" }} aria-live="polite">
+            <span
+              aria-hidden
+              style={{
+                width: 22, height: 22, borderRadius: "50%",
+                border: "2px solid var(--line, rgba(31,58,46,0.18))",
+                borderTopColor: "var(--ink)",
+                animation: "rurana-spin 0.8s linear infinite",
+                display: "inline-block",
+              }}
+            />
+            <span className="body-sm" style={{ opacity: 0.75 }}>{busyLabel}</span>
+            <style>{`@keyframes rurana-spin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+        ) : (
+          <>
+            <GoogleSignInButton />
+            <p className="body-sm" style={{ textAlign: "center", maxWidth: 260, lineHeight: 1.6 }}>
+              Tus datos se sincronizan en la nube y se guardan sin conexión en tu dispositivo.
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

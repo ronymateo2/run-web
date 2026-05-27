@@ -33,7 +33,7 @@ interface HomeData {
 }
 
 export function HomeScreen() {
-  const { user, token } = useAuth();
+  const { user, token, lastSyncAt } = useAuth();
   const db = useDb();
   const navigate = useNavigate();
   const [data, setData] = useState<HomeData | null>(null);
@@ -61,7 +61,7 @@ export function HomeScreen() {
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [loadData, lastSyncAt]);
 
   useEffect(() => {
     if (!data) return;

@@ -17,13 +17,15 @@ interface AuthState {
   user: AuthUser | null;
   token: string | null;
   loading: boolean;
+  signingIn: boolean;
+  lastSyncAt: number;
   GoogleSignInButton: () => React.ReactElement;
   signOut: () => void;
   setTimezone: (tz: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState>({
-  user: null, token: null, loading: true,
+  user: null, token: null, loading: true, signingIn: false, lastSyncAt: 0,
   GoogleSignInButton: () => <></>,
   signOut: () => {},
   setTimezone: async () => {},
@@ -37,6 +39,8 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [signingIn, setSigningIn] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -58,7 +62,6 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
         }
 
         if (row?.jwt) {
-          if (navigator.onLine) await pullDelta(row.jwt).catch(() => {});
           setUser({
             id: row.id ?? '',
             email: row.email ?? '',
@@ -67,7 +70,14 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
             timezone: row.timezone ?? undefined,
           });
           setToken(row.jwt);
-          if (navigator.onLine) pushDelta(row.jwt).catch(() => {});
+          setLoading(false);
+          if (navigator.onLine) {
+            pullDelta(row.jwt)
+              .then(() => setLastSyncAt(Date.now()))
+              .catch(() => {});
+            pushDelta(row.jwt).catch(() => {});
+          }
+          return;
         }
       } finally {
         setLoading(false);
@@ -78,28 +88,36 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
   const handleGoogleSuccess = useCallback(async (credentialResponse: CredentialResponse) => {
     const idToken = credentialResponse.credential;
     if (!idToken) return;
+    setSigningIn(true);
+    try {
+      const apiRes = await fetch(`${API_BASE}/api/auth/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id_token: idToken }),
+      });
+      if (!apiRes.ok) { console.error("Auth failed"); return; }
 
-    const apiRes = await fetch(`${API_BASE}/api/auth/google`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id_token: idToken }),
-    });
-    if (!apiRes.ok) { console.error("Auth failed"); return; }
+      const { token: jwt, user: apiUser } = await apiRes.json() as { token: string; user: AuthUser & { timezone?: string | null } };
 
-    const { token: jwt, user: apiUser } = await apiRes.json() as { token: string; user: AuthUser & { timezone?: string | null } };
+      const timezone = apiUser.timezone ?? null;
+      await exec(`
+        INSERT INTO users (id, email, name, avatar_url, jwt, timezone, last_sync, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, 0, ?)
+        ON CONFLICT(id) DO UPDATE SET name = excluded.name, avatar_url = excluded.avatar_url, jwt = excluded.jwt, timezone = COALESCE(excluded.timezone, timezone)
+      `, [apiUser.id, apiUser.email, apiUser.name, apiUser.avatar_url ?? null, jwt, timezone, Date.now()]);
 
-    const timezone = apiUser.timezone ?? null;
-    await exec(`
-      INSERT INTO users (id, email, name, avatar_url, jwt, timezone, last_sync, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, 0, ?)
-      ON CONFLICT(id) DO UPDATE SET name = excluded.name, avatar_url = excluded.avatar_url, jwt = excluded.jwt, timezone = COALESCE(excluded.timezone, timezone)
-    `, [apiUser.id, apiUser.email, apiUser.name, apiUser.avatar_url ?? null, jwt, timezone, Date.now()]);
-
-    const userWithTz: AuthUser = { ...apiUser, timezone: timezone ?? undefined };
-    localStorage.setItem(LS_KEY, JSON.stringify({ user: userWithTz, jwt }));
-    setUser(userWithTz);
-    setToken(jwt);
-    if (navigator.onLine) pullDelta(jwt).catch(() => {});
+      const userWithTz: AuthUser = { ...apiUser, timezone: timezone ?? undefined };
+      localStorage.setItem(LS_KEY, JSON.stringify({ user: userWithTz, jwt }));
+      setUser(userWithTz);
+      setToken(jwt);
+      if (navigator.onLine) {
+        pullDelta(jwt)
+          .then(() => setLastSyncAt(Date.now()))
+          .catch(() => {});
+      }
+    } finally {
+      setSigningIn(false);
+    }
   }, []);
 
   const GoogleSignInButton = useCallback(() => (
@@ -134,7 +152,7 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
   }, [token]);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, GoogleSignInButton, signOut, setTimezone }}>
+    <AuthContext.Provider value={{ user, token, loading, signingIn, lastSyncAt, GoogleSignInButton, signOut, setTimezone }}>
       {children}
     </AuthContext.Provider>
   );
