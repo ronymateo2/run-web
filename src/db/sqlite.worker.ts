@@ -18,30 +18,21 @@ type SAHPoolOptions = Parameters<
 const isMissingOpfsApi = (error: unknown) =>
   error instanceof Error && error.message.includes("Missing required OPFS APIs");
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 const ready = sqlite3InitModule({ print: () => {}, printErr: console.error }).then(
   async (sqlite3) => {
-    let lastError: unknown;
-    for (let attempt = 0; attempt < 20; attempt++) {
-      try {
-        poolUtil = await sqlite3.installOpfsSAHPoolVfs({
-          forceReinitIfPreviouslyFailed: true,
-        } as SAHPoolOptions);
-        db = new poolUtil.OpfsSAHPoolDb("/rurana.db") as Database;
-        return;
-      } catch (error) {
-        if (isMissingOpfsApi(error)) break;
-        lastError = error;
-        if (attempt < 19) {
-          await sleep(Math.min(250 * (attempt + 1), 1500));
-        }
+    try {
+      poolUtil = await sqlite3.installOpfsSAHPoolVfs({
+        forceReinitIfPreviouslyFailed: true,
+      } as SAHPoolOptions);
+      db = new poolUtil.OpfsSAHPoolDb("/rurana.db") as Database;
+      return;
+    } catch (error) {
+      if (!isMissingOpfsApi(error)) {
+        console.error("[worker] OPFS unavailable while initializing SQLite SAHPool", error);
+        throw error;
       }
     }
-    if (lastError) {
-      console.error("[worker] OPFS unavailable after retrying SQLite SAHPool", lastError);
-      throw lastError;
-    }
+
     console.warn("[worker] OPFS unavailable — using in-memory SQLite");
     db = new sqlite3.oo1.DB(":memory:");
   }
