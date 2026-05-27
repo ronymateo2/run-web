@@ -18,6 +18,12 @@ type SAHPoolOptions = Parameters<
 const isMissingOpfsApi = (error: unknown) =>
   error instanceof Error && error.message.includes("Missing required OPFS APIs");
 
+const INIT_PRAGMAS = `
+  PRAGMA journal_mode=WAL;
+  PRAGMA foreign_keys=ON;
+  PRAGMA synchronous=NORMAL;
+`;
+
 const ready = sqlite3InitModule({ print: () => {}, printErr: console.error }).then(
   async (sqlite3) => {
     try {
@@ -25,16 +31,15 @@ const ready = sqlite3InitModule({ print: () => {}, printErr: console.error }).th
         forceReinitIfPreviouslyFailed: true,
       } as SAHPoolOptions);
       db = new poolUtil.OpfsSAHPoolDb("/rurana.db") as Database;
-      return;
     } catch (error) {
       if (!isMissingOpfsApi(error)) {
         console.error("[worker] OPFS unavailable while initializing SQLite SAHPool", error);
         throw error;
       }
+      console.warn("[worker] OPFS unavailable — using in-memory SQLite");
+      db = new sqlite3.oo1.DB(":memory:");
     }
-
-    console.warn("[worker] OPFS unavailable — using in-memory SQLite");
-    db = new sqlite3.oo1.DB(":memory:");
+    db.exec(INIT_PRAGMAS);
   }
 );
 
@@ -59,6 +64,21 @@ const api = {
     const rows: Record<string, SqlValue>[] = [];
     db.exec(sql, { bind, rowMode: "object", resultRows: rows });
     return rows;
+  },
+
+  async execBatch(statements: Array<{ sql: string; bind?: BindingSpec }>): Promise<void> {
+    await ready;
+    if (!db) throw new Error("SQLite database is closed");
+    db.exec("BEGIN");
+    try {
+      for (const { sql, bind } of statements) {
+        db.exec(bind ? { sql, bind } : sql);
+      }
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
   },
 
   async close(): Promise<void> {

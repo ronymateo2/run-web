@@ -5,6 +5,7 @@ import SharedSqliteWorker from "./sqlite.worker?sharedworker";
 
 interface DbWorkerApi {
   exec(sql: string, bind?: BindingSpec): Promise<void>;
+  execBatch(statements: Array<{ sql: string; bind?: BindingSpec }>): Promise<void>;
   query(sql: string, bind?: BindingSpec): Promise<SqlValue[][]>;
   queryObjects(sql: string, bind?: BindingSpec): Promise<Record<string, SqlValue>[]>;
   close(): Promise<void>;
@@ -55,8 +56,8 @@ CREATE INDEX IF NOT EXISTS idx_exercise_logs_user_date ON exercise_logs(user_id,
 CREATE INDEX IF NOT EXISTS idx_sst_results_user_date ON sst_results(user_id, date);
 `;
 
-const MIGRATIONS = [
-  `ALTER TABLE users ADD COLUMN timezone TEXT`,
+const MIGRATIONS: Array<{ id: number; sql: string }> = [
+  { id: 1, sql: `ALTER TABLE users ADD COLUMN timezone TEXT` },
 ];
 
 const DB_LOCK_NAME = "rurana.sqlite.opfs";
@@ -70,8 +71,27 @@ let lockAbortController: AbortController | null = null;
 
 async function initSchema(proxy: DbWorkerApi): Promise<void> {
   await proxy.exec(SCHEMA_SQL);
-  for (const sql of MIGRATIONS) {
-    try { await proxy.exec(sql); } catch { /* column already exists */ }
+  await proxy.exec(
+    `CREATE TABLE IF NOT EXISTS _migrations (id INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)`
+  );
+  const applied = await proxy.queryObjects(`SELECT id FROM _migrations`) as { id: number }[];
+  const appliedIds = new Set(applied.map((r) => r.id));
+  for (const migration of MIGRATIONS) {
+    if (!appliedIds.has(migration.id)) {
+      try {
+        await proxy.exec(migration.sql);
+      } catch (error) {
+        // Schema already in desired state (applied before migration tracking existed).
+        const msg = error instanceof Error ? error.message : String(error);
+        if (!msg.includes("duplicate column name") && !msg.includes("already exists")) {
+          throw error;
+        }
+      }
+      await proxy.exec(`INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`, [
+        migration.id,
+        Date.now(),
+      ] as BindingSpec);
+    }
   }
 }
 
@@ -192,6 +212,15 @@ if (typeof window !== "undefined") {
 export async function exec(sql: string, bind?: unknown[]): Promise<void> {
   const proxy = await getProxy();
   await proxy.exec(sql, bind as BindingSpec | undefined);
+}
+
+export async function execBatch(
+  statements: Array<{ sql: string; bind?: unknown[] }>
+): Promise<void> {
+  const proxy = await getProxy();
+  await proxy.execBatch(
+    statements.map((s) => ({ sql: s.sql, bind: s.bind as BindingSpec | undefined }))
+  );
 }
 
 export async function queryAll<T>(sql: string, bind?: unknown[]): Promise<T[]> {
