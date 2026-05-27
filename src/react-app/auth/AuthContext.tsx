@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { GoogleOAuthProvider, GoogleLogin, googleLogout, type CredentialResponse } from "@react-oauth/google";
-import { getDb, queryOne, exec } from "../../db/client";
+import { exec } from "../../db/client";
+import { getDrizzle } from "../../db/drizzle";
+import { getSessionUser } from "../../db/queries/users";
 import { pullDelta, pushDelta } from "../../db/sync";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
@@ -36,35 +38,36 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Restore session from local SQLite on mount, with localStorage fallback
   useEffect(() => {
     (async () => {
       try {
-        const db = await getDb();
-        let row = await queryOne<{ id: string; email: string; name: string; avatar_url: string; jwt: string; timezone: string | null }>(
-          db, `SELECT id, email, name, avatar_url, jwt, timezone FROM users LIMIT 1`
-        );
+        const drizzleDb = await getDrizzle();
+        let row = await getSessionUser(drizzleDb);
 
-        // localStorage fallback: OPFS may be in-memory (cleared on refresh)
         if (!row?.jwt) {
           const saved = localStorage.getItem(LS_KEY);
           if (saved) {
             const parsed = JSON.parse(saved) as { user: AuthUser; jwt: string };
-            await exec(db, `
+            await exec(`
               INSERT INTO users (id, email, name, avatar_url, jwt, last_sync, created_at)
               VALUES (?, ?, ?, ?, ?, 0, ?)
               ON CONFLICT(id) DO UPDATE SET name = excluded.name, avatar_url = excluded.avatar_url, jwt = excluded.jwt
             `, [parsed.user.id, parsed.user.email, parsed.user.name, parsed.user.avatar_url ?? null, parsed.jwt, Date.now()]);
-            row = { ...parsed.user, avatar_url: parsed.user.avatar_url ?? '', timezone: parsed.user.timezone ?? null, jwt: parsed.jwt };
+            row = await getSessionUser(drizzleDb);
           }
         }
 
         if (row?.jwt) {
-          // Pull before setLoading(false) so HomeScreen renders with data already in SQLite.
-          if (navigator.onLine) await pullDelta(db, row.jwt).catch(() => {});
-          setUser({ id: row.id, email: row.email, name: row.name, avatar_url: row.avatar_url, timezone: row.timezone ?? undefined });
+          if (navigator.onLine) await pullDelta(row.jwt).catch(() => {});
+          setUser({
+            id: row.id ?? '',
+            email: row.email ?? '',
+            name: row.name ?? '',
+            avatar_url: row.avatar_url ?? undefined,
+            timezone: row.timezone ?? undefined,
+          });
           setToken(row.jwt);
-          if (navigator.onLine) pushDelta(db, row.jwt).catch(() => {});
+          if (navigator.onLine) pushDelta(row.jwt).catch(() => {});
         }
       } finally {
         setLoading(false);
@@ -85,9 +88,8 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
 
     const { token: jwt, user: apiUser } = await apiRes.json() as { token: string; user: AuthUser & { timezone?: string | null } };
 
-    const db = await getDb();
     const timezone = apiUser.timezone ?? null;
-    await exec(db, `
+    await exec(`
       INSERT INTO users (id, email, name, avatar_url, jwt, timezone, last_sync, created_at)
       VALUES (?, ?, ?, ?, ?, ?, 0, ?)
       ON CONFLICT(id) DO UPDATE SET name = excluded.name, avatar_url = excluded.avatar_url, jwt = excluded.jwt, timezone = COALESCE(excluded.timezone, timezone)
@@ -97,7 +99,7 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
     localStorage.setItem(LS_KEY, JSON.stringify({ user: userWithTz, jwt }));
     setUser(userWithTz);
     setToken(jwt);
-    if (navigator.onLine) pullDelta(db, jwt).catch(() => {});
+    if (navigator.onLine) pullDelta(jwt).catch(() => {});
   }, []);
 
   const GoogleSignInButton = useCallback(() => (
@@ -113,16 +115,14 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     googleLogout();
-    const db = await getDb();
-    await exec(db, `UPDATE users SET jwt = NULL`);
+    await exec(`UPDATE users SET jwt = NULL`);
     localStorage.removeItem(LS_KEY);
     setUser(null);
     setToken(null);
   }, []);
 
   const setTimezone = useCallback(async (tz: string) => {
-    const db = await getDb();
-    await exec(db, `UPDATE users SET timezone = ?`, [tz]);
+    await exec(`UPDATE users SET timezone = ?`, [tz]);
     setUser(prev => prev ? { ...prev, timezone: tz } : prev);
     if (navigator.onLine && token) {
       fetch(`${API_BASE}/api/users/me`, {

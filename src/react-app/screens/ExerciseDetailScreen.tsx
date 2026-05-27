@@ -37,7 +37,7 @@ export function ExerciseDetailScreen() {
 
   async function loadLogs() {
     if (!db || !user || !exercise) return;
-    const logs = await getLogsForExercise(db, user.id, exercise.id, localToday(user?.timezone));
+    const logs = await getLogsForExercise(db, user.id, exercise.id  , localToday(user?.timezone));
     setExistingLogs(logs);
   }
 
@@ -203,8 +203,8 @@ export function ExerciseDetailScreen() {
             exerciseId={exercise.id}
             exerciseName={exercise.name}
             sets={totalSets}
-            plannedReps={exercise.reps}
-            plannedDurationS={exercise.duration_s}
+            plannedReps={exercise.reps ?? undefined}
+            plannedDurationS={exercise.duration_s ?? undefined}
             sessionDate={localToday(user?.timezone)}
             mode={showLog}
             existingLogs={existingLogs}

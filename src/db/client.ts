@@ -1,17 +1,12 @@
-// SQLite WASM client — runs SQLite in a Web Worker via the Worker1 Promiser API.
-// Uses opfs-sahpool VFS: OPFS persistence without SharedArrayBuffer (no COOP/COEP needed).
-import { sqlite3Worker1Promiser } from "@sqlite.org/sqlite-wasm";
+import { wrap } from "comlink";
+import type { SqlValue, BindingSpec } from "@sqlite.org/sqlite-wasm";
 import SqliteWorker from "./sqlite.worker?worker";
 
-// The promiser sends commands to the worker and resolves with the response.
-type Promiser = (
-  cmd: string,
-  args: Record<string, unknown>
-) => Promise<Record<string, unknown>>;
-
-let promiser: Promiser | null = null;
-let dbId: string | null = null;
-let initPromise: Promise<void> | null = null;
+interface DbWorkerApi {
+  exec(sql: string, bind?: BindingSpec): Promise<void>;
+  query(sql: string, bind?: BindingSpec): Promise<SqlValue[][]>;
+  queryObjects(sql: string, bind?: BindingSpec): Promise<Record<string, SqlValue>[]>;
+}
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS users (
@@ -58,83 +53,43 @@ CREATE INDEX IF NOT EXISTS idx_exercise_logs_user_date ON exercise_logs(user_id,
 CREATE INDEX IF NOT EXISTS idx_sst_results_user_date ON sst_results(user_id, date);
 `;
 
-async function init(): Promise<void> {
+const MIGRATIONS = [
+  `ALTER TABLE users ADD COLUMN timezone TEXT`,
+];
+
+let proxyPromise: Promise<DbWorkerApi> | null = null;
+
+async function initWorker(): Promise<DbWorkerApi> {
   const worker = new SqliteWorker();
-
-  promiser = await new Promise<Promiser>((resolve) => {
-    let p: ReturnType<typeof sqlite3Worker1Promiser>;
-    p = sqlite3Worker1Promiser({
-      worker,
-      onready: () => resolve(p as unknown as Promiser),
-    });
-  });
-
-  // Open with opfs-sahpool (persistent, no SAB required).
-  // Falls back to :memory: in environments where OPFS isn't available.
-  let filename = "file:rurana.db?vfs=opfs-sahpool";
-  try {
-    const openRes = await promiser("open", { filename });
-    dbId = (openRes as { dbId: string }).dbId;
-  } catch {
-    const openRes = await promiser("open", { filename: ":memory:" });
-    dbId = (openRes as { dbId: string }).dbId;
-    console.warn("OPFS unavailable — using in-memory SQLite");
-  }
-
-  // Run schema
-  await promiser("exec", { dbId, sql: SCHEMA_SQL });
-
-  // Additive migrations — ignore errors for columns that already exist
-  const MIGRATIONS = [
-    `ALTER TABLE users ADD COLUMN timezone TEXT`,
-  ];
+  const proxy = wrap<DbWorkerApi>(worker);
+  await proxy.exec(SCHEMA_SQL);
   for (const sql of MIGRATIONS) {
-    try { await promiser("exec", { dbId, sql }); } catch { /* already exists */ }
+    try { await proxy.exec(sql); } catch { /* column already exists */ }
   }
+  return proxy;
 }
 
-export async function getDb(): Promise<Database> {
-  if (promiser && dbId) return { promiser, dbId };
-  if (!initPromise) initPromise = init();
-  await initPromise;
-  return { promiser: promiser!, dbId: dbId! };
+function getProxy(): Promise<DbWorkerApi> {
+  if (!proxyPromise) proxyPromise = initWorker();
+  return proxyPromise;
 }
 
-export interface Database {
-  promiser: Promiser;
-  dbId: string;
+export async function exec(sql: string, bind?: unknown[]): Promise<void> {
+  const proxy = await getProxy();
+  await proxy.exec(sql, bind as BindingSpec | undefined);
 }
 
-// --- Query helpers used by all query modules ---
-
-export async function queryAll<T>(
-  db: Database,
-  sql: string,
-  bind: unknown[] = []
-): Promise<T[]> {
-  const res = await db.promiser("exec", {
-    dbId: db.dbId,
-    sql,
-    bind,
-    rowMode: "object",
-    resultRows: [],
-  });
-  return (((res.result as Record<string, unknown>)?.resultRows as T[]) ?? []);
+export async function queryAll<T>(sql: string, bind?: unknown[]): Promise<T[]> {
+  const proxy = await getProxy();
+  return proxy.queryObjects(sql, bind as BindingSpec | undefined) as Promise<T[]>;
 }
 
-export async function queryOne<T>(
-  db: Database,
-  sql: string,
-  bind: unknown[] = []
-): Promise<T | null> {
-  const rows = await queryAll<T>(db, sql, bind);
+export async function queryAllArray(sql: string, bind?: unknown[]): Promise<unknown[][]> {
+  const proxy = await getProxy();
+  return proxy.query(sql, bind as BindingSpec | undefined);
+}
+
+export async function queryOne<T>(sql: string, bind?: unknown[]): Promise<T | null> {
+  const rows = await queryAll<T>(sql, bind);
   return rows[0] ?? null;
-}
-
-export async function exec(
-  db: Database,
-  sql: string,
-  bind: unknown[] = []
-): Promise<void> {
-  await db.promiser("exec", { dbId: db.dbId, sql, bind });
 }

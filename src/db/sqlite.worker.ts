@@ -1,16 +1,41 @@
-// SQLite WASM worker — runs SQLite in a Web Worker with opfs-sahpool VFS.
-// opfs-sahpool uses FileSystemSyncAccessHandle (Worker-only API).
-// No SharedArrayBuffer needed → no COOP/COEP headers needed on main page.
-import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
+import { expose } from "comlink";
+import sqlite3InitModule, {
+  type Database,
+  type SqlValue,
+  type BindingSpec,
+} from "@sqlite.org/sqlite-wasm";
 
-sqlite3InitModule({ print: () => {}, printErr: console.error }).then(async (sqlite3) => {
-  try {
-    // opfs-sahpool must be explicitly installed before Worker1 API opens any DB.
-    // Uses FileSystemSyncAccessHandle — no SharedArrayBuffer or COOP/COEP needed.
-    await (sqlite3 as unknown as { installOpfsSAHPoolVfs(o: object): Promise<unknown> })
-      .installOpfsSAHPoolVfs({});
-  } catch (e) {
-    console.warn("[worker] opfs-sahpool install failed:", e);
+let db: Database;
+
+const ready = sqlite3InitModule({ print: () => {}, printErr: console.error }).then(
+  async (sqlite3) => {
+    try {
+      const { OpfsSAHPoolDb } = await sqlite3.installOpfsSAHPoolVfs({});
+      db = new OpfsSAHPoolDb("rurana.db") as Database;
+    } catch {
+      console.warn("[worker] OPFS unavailable — using in-memory SQLite");
+      db = new sqlite3.oo1.DB(":memory:");
+    }
   }
-  sqlite3.initWorker1API();
+);
+
+expose({
+  async exec(sql: string, bind: BindingSpec): Promise<void> {
+    await ready;
+    db.exec(bind ? { sql, bind } : sql);
+  },
+
+  async query(sql: string, bind?: BindingSpec): Promise<SqlValue[][]> {
+    await ready;
+    const rows: SqlValue[][] = [];
+    db.exec(sql, { bind, rowMode: "array", resultRows: rows });
+    return rows;
+  },
+
+  async queryObjects(sql: string, bind?: BindingSpec): Promise<Record<string, SqlValue>[]> {
+    await ready;
+    const rows: Record<string, SqlValue>[] = [];
+    db.exec(sql, { bind, rowMode: "object", resultRows: rows });
+    return rows;
+  },
 });

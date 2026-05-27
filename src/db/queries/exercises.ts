@@ -1,51 +1,50 @@
-import { queryAll, queryOne, exec, type Database } from "../client";
+import { eq, and } from "drizzle-orm";
+import { exercises, exerciseLogs } from "../schema";
+import type { DrizzleDb } from "../drizzle";
 
-export interface Exercise {
-  id: string; phase_id: string; name: string; detail?: string;
-  sets?: number; reps?: number; duration_s?: number;
-  exercise_type: "isometric" | "strength" | "mobility" | "cardio";
-  sort_order: number;
+export type Exercise = typeof exercises.$inferSelect;
+export type ExerciseLog = typeof exerciseLogs.$inferSelect;
+export type NewExerciseLog = Omit<typeof exerciseLogs.$inferInsert, "synced">;
+
+export async function getExercisesForPhase(db: DrizzleDb, phaseId: string): Promise<Exercise[]> {
+  return db.select().from(exercises)
+    .where(eq(exercises.phase_id, phaseId))
+    .orderBy(exercises.sort_order);
 }
 
-export interface ExerciseLog {
-  id: string; user_id: string; exercise_id: string; session_date: string;
-  reps_done?: number; pain_during?: number; rpe?: number;
-  note?: string; completed_at?: number;
+export async function getExerciseById(db: DrizzleDb, id: string): Promise<Exercise | null> {
+  const rows = await db.select().from(exercises).where(eq(exercises.id, id));
+  return rows[0] ?? null;
 }
 
-export async function getExercisesForPhase(db: Database, phaseId: string): Promise<Exercise[]> {
-  return queryAll<Exercise>(db, `SELECT * FROM exercises WHERE phase_id = ? ORDER BY sort_order`, [phaseId]);
-}
-
-export async function getExerciseById(db: Database, id: string): Promise<Exercise | null> {
-  return queryOne<Exercise>(db, `SELECT * FROM exercises WHERE id = ?`, [id]);
-}
-
-export async function getTodayLogs(db: Database, userId: string, date: string): Promise<ExerciseLog[]> {
-  return queryAll<ExerciseLog>(
-    db, `SELECT * FROM exercise_logs WHERE user_id = ? AND session_date = ?`, [userId, date]
-  );
+export async function getTodayLogs(db: DrizzleDb, userId: string, date: string): Promise<ExerciseLog[]> {
+  return db.select().from(exerciseLogs)
+    .where(and(eq(exerciseLogs.user_id, userId), eq(exerciseLogs.session_date, date)));
 }
 
 export async function getLogsForExercise(
-  db: Database, userId: string, exerciseId: string, date: string
+  db: DrizzleDb, userId: string, exerciseId: string, date: string
 ): Promise<ExerciseLog[]> {
-  return queryAll<ExerciseLog>(
-    db,
-    `SELECT * FROM exercise_logs WHERE user_id = ? AND exercise_id = ? AND session_date = ? ORDER BY completed_at`,
-    [userId, exerciseId, date]
-  );
+  return db.select().from(exerciseLogs)
+    .where(and(
+      eq(exerciseLogs.user_id, userId),
+      eq(exerciseLogs.exercise_id, exerciseId),
+      eq(exerciseLogs.session_date, date),
+    ))
+    .orderBy(exerciseLogs.completed_at);
 }
 
-export async function saveExerciseLog(db: Database, log: ExerciseLog): Promise<void> {
-  await exec(db, `
-    INSERT INTO exercise_logs
-      (id, user_id, exercise_id, session_date, reps_done, pain_during, rpe, note, completed_at, synced)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-    ON CONFLICT(id) DO UPDATE SET
-      reps_done = excluded.reps_done, pain_during = excluded.pain_during,
-      rpe = excluded.rpe, note = excluded.note, completed_at = excluded.completed_at
-  `, [log.id, log.user_id, log.exercise_id, log.session_date,
-      log.reps_done ?? null, log.pain_during ?? null, log.rpe ?? null,
-      log.note ?? null, log.completed_at ?? null]);
+export async function saveExerciseLog(db: DrizzleDb, log: NewExerciseLog): Promise<void> {
+  await db.insert(exerciseLogs)
+    .values({ ...log, synced: 0 })
+    .onConflictDoUpdate({
+      target: exerciseLogs.id,
+      set: {
+        reps_done: log.reps_done,
+        pain_during: log.pain_during,
+        rpe: log.rpe,
+        note: log.note,
+        completed_at: log.completed_at,
+      },
+    });
 }

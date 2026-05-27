@@ -77,8 +77,8 @@ export function HomeScreen() {
     if (!db || !token || syncing) return;
     setSyncing(true);
     try {
-      await pushDelta(db, token);
-      await pullDelta(db, token, { force: true });
+      await pushDelta(token);
+      await pullDelta(token, { force: true });
       await loadData();
     } finally {
       setSyncing(false);
@@ -214,9 +214,9 @@ export function HomeScreen() {
               <div className="col gap-10 mt-16">
                 {block.exercises.map((e) => (
                   <ExerciseRow
-                    key={e.id} id={e.id} name={e.name} detail={e.detail}
-                    sets={e.sets} reps={e.reps} duration_s={e.duration_s}
-                    mins={estimateMins(e.sets, e.reps, e.duration_s)}
+                    key={e.id} id={e.id} name={e.name} detail={e.detail ?? undefined}
+                    sets={e.sets ?? undefined} reps={e.reps ?? undefined} duration_s={e.duration_s ?? undefined}
+                    mins={estimateMins(e.sets ?? undefined, e.reps ?? undefined, e.duration_s ?? undefined)}
                     done={doneIds.has(e.id)} phase={block.phase?.name}
                   />
                 ))}
@@ -241,7 +241,7 @@ export function HomeScreen() {
           ))}
 
         {/* 5SST nudge */}
-        <NudgeSST state={sstState} lastScore={sstResult?.pain_score} preferred={sstDue} />
+        <NudgeSST state={sstState} lastScore={sstResult?.pain_score ?? undefined} preferred={sstDue} />
       </div>
 
     </div>

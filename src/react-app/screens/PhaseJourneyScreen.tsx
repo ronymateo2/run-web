@@ -3,11 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
 import { Ico } from "../components/icons";
-import { getCriteria, computePhaseProgress, getPhasesForInjury, getActiveInjuries, type Phase, type Injury, type PhaseCriteria } from "../../db/queries/injuries";
-import { queryOne, exec } from "../../db/client";
+import { getCriteria, computePhaseProgress, getPhasesForInjury, getActiveInjuries, getPhaseById, type Phase, type Injury, type PhaseCriteria } from "../../db/queries/injuries";
+import { exec } from "../../db/client";
 
 interface PhaseJourneyData {
-  phase: Phase & { description?: string };
+  phase: Phase;
   criteria: PhaseCriteria[];
   progressPct: number;
   injury: Injury | undefined;
@@ -23,9 +23,7 @@ export function PhaseJourneyScreen() {
 
   const loadData = useCallback(async () => {
     if (!db || !id) return;
-    const phase = await queryOne<Phase & { description?: string }>(
-      db, `SELECT * FROM phases WHERE id = ?`, [id]
-    );
+    const phase = await getPhaseById(db, id);
     if (!phase) return;
     const criteria = await getCriteria(db, id);
     const progressPct = computePhaseProgress(criteria);
@@ -42,7 +40,7 @@ export function PhaseJourneyScreen() {
 
   async function toggleCriteria(criteriaId: string, current: boolean) {
     if (!db) return;
-    await exec(db, `UPDATE phase_criteria SET done = ? WHERE id = ?`, [current ? 0 : 1, criteriaId]);
+    await exec(`UPDATE phase_criteria SET done = ? WHERE id = ?`, [current ? 0 : 1, criteriaId]);
     await loadData();
   }
 

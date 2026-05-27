@@ -1,4 +1,6 @@
-import { queryAll, queryOne, exec, type Database } from "../client";
+import { eq, and, desc } from "drizzle-orm";
+import { painCheckins } from "../schema";
+import type { DrizzleDb } from "../drizzle";
 
 export interface ZoneMap extends Record<string, number | undefined> {
   ingleL?: number; ingleR?: number; caderaL?: number;
@@ -10,26 +12,48 @@ export interface PainCheckin {
   date: string; zones: ZoneMap; created_at: number;
 }
 
-export async function getTodayCheckin(db: Database, userId: string, date: string): Promise<PainCheckin | null> {
-  const row = await queryOne<{ id: string; user_id: string; injury_id: string; date: string; zones: string; created_at: number }>(
-    db, `SELECT * FROM pain_checkins WHERE user_id = ? AND date = ? ORDER BY created_at DESC LIMIT 1`, [userId, date]
-  );
-  if (!row) return null;
-  return { ...row, zones: JSON.parse(row.zones) as ZoneMap };
+type RawCheckin = typeof painCheckins.$inferSelect;
+
+function parseCheckin(row: RawCheckin): PainCheckin {
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    injury_id: row.injury_id ?? undefined,
+    date: row.date,
+    zones: JSON.parse(row.zones) as ZoneMap,
+    created_at: row.created_at ?? 0,
+  };
 }
 
-export async function getRecentCheckins(db: Database, userId: string, limit = 30): Promise<PainCheckin[]> {
-  const rows = await queryAll<{ id: string; user_id: string; injury_id: string; date: string; zones: string; created_at: number }>(
-    db, `SELECT * FROM pain_checkins WHERE user_id = ? ORDER BY date DESC LIMIT ?`, [userId, limit]
-  );
-  return rows.map(r => ({ ...r, zones: JSON.parse(r.zones) as ZoneMap }));
+export async function getTodayCheckin(db: DrizzleDb, userId: string, date: string): Promise<PainCheckin | null> {
+  const rows = await db.select().from(painCheckins)
+    .where(and(eq(painCheckins.user_id, userId), eq(painCheckins.date, date)))
+    .orderBy(desc(painCheckins.created_at))
+    .limit(1);
+  return rows[0] ? parseCheckin(rows[0]) : null;
 }
 
-export async function saveCheckin(db: Database, checkin: Omit<PainCheckin, "zones"> & { zones: ZoneMap }): Promise<void> {
-  await exec(db, `
-    INSERT INTO pain_checkins (id, user_id, injury_id, date, zones, created_at, synced)
-    VALUES (?, ?, ?, ?, ?, ?, 0)
-    ON CONFLICT(id) DO UPDATE SET zones = excluded.zones, synced = 0
-  `, [checkin.id, checkin.user_id, checkin.injury_id ?? null, checkin.date,
-      JSON.stringify(checkin.zones), checkin.created_at]);
+export async function getRecentCheckins(db: DrizzleDb, userId: string, limit = 30): Promise<PainCheckin[]> {
+  const rows = await db.select().from(painCheckins)
+    .where(eq(painCheckins.user_id, userId))
+    .orderBy(desc(painCheckins.date))
+    .limit(limit);
+  return rows.map(parseCheckin);
+}
+
+export async function saveCheckin(db: DrizzleDb, checkin: Omit<PainCheckin, "zones"> & { zones: ZoneMap }): Promise<void> {
+  await db.insert(painCheckins)
+    .values({
+      id: checkin.id,
+      user_id: checkin.user_id,
+      injury_id: checkin.injury_id ?? null,
+      date: checkin.date,
+      zones: JSON.stringify(checkin.zones),
+      created_at: checkin.created_at,
+      synced: 0,
+    })
+    .onConflictDoUpdate({
+      target: painCheckins.id,
+      set: { zones: JSON.stringify(checkin.zones), synced: 0 },
+    });
 }

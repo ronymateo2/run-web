@@ -1,43 +1,44 @@
-import { queryAll, queryOne, type Database } from "../client";
+import { eq, asc } from "drizzle-orm";
+import { injuries, phases, phaseCriteria } from "../schema";
+import type { DrizzleDb } from "../drizzle";
 
-export interface Injury {
-  id: string; user_id: string; name: string; zone: string;
-  status: "active" | "paused" | "completed"; current_phase_id?: string;
-  focus_days?: string; started_at?: number;
-}
-
-export interface Phase {
-  id: string; injury_id: string; phase_num: number; name: string;
-  description?: string; week_start: number; week_end: number; threshold_pct: number;
-}
+export type Injury = typeof injuries.$inferSelect;
+export type Phase = typeof phases.$inferSelect;
 
 export interface PhaseCriteria {
   id: string; phase_id: string; description: string; done: boolean;
 }
 
-export async function getActiveInjuries(db: Database, userId: string): Promise<Injury[]> {
-  return queryAll<Injury>(
-    db, `SELECT * FROM injuries WHERE user_id = ? AND status = 'active' ORDER BY started_at`, [userId]
-  );
+export async function getActiveInjuries(db: DrizzleDb, userId: string): Promise<Injury[]> {
+  return db.select().from(injuries)
+    .where(eq(injuries.user_id, userId))
+    .orderBy(asc(injuries.started_at));
 }
 
-export async function getInjuryById(db: Database, id: string): Promise<Injury | null> {
-  return queryOne<Injury>(db, `SELECT * FROM injuries WHERE id = ?`, [id]);
+export async function getInjuryById(db: DrizzleDb, id: string): Promise<Injury | null> {
+  const rows = await db.select().from(injuries).where(eq(injuries.id, id));
+  return rows[0] ?? null;
 }
 
-export async function getPhasesForInjury(db: Database, injuryId: string): Promise<Phase[]> {
-  return queryAll<Phase>(db, `SELECT * FROM phases WHERE injury_id = ? ORDER BY phase_num`, [injuryId]);
+export async function getPhaseById(db: DrizzleDb, id: string): Promise<Phase | null> {
+  const rows = await db.select().from(phases).where(eq(phases.id, id));
+  return rows[0] ?? null;
 }
 
-export async function getCurrentPhase(db: Database, injury: Injury): Promise<Phase | null> {
+export async function getPhasesForInjury(db: DrizzleDb, injuryId: string): Promise<Phase[]> {
+  return db.select().from(phases)
+    .where(eq(phases.injury_id, injuryId))
+    .orderBy(asc(phases.phase_num));
+}
+
+export async function getCurrentPhase(db: DrizzleDb, injury: Injury): Promise<Phase | null> {
   if (!injury.current_phase_id) return null;
-  return queryOne<Phase>(db, `SELECT * FROM phases WHERE id = ?`, [injury.current_phase_id]);
+  const rows = await db.select().from(phases).where(eq(phases.id, injury.current_phase_id));
+  return rows[0] ?? null;
 }
 
-export async function getCriteria(db: Database, phaseId: string): Promise<PhaseCriteria[]> {
-  const rows = await queryAll<{ id: string; phase_id: string; description: string; done: number }>(
-    db, `SELECT * FROM phase_criteria WHERE phase_id = ?`, [phaseId]
-  );
+export async function getCriteria(db: DrizzleDb, phaseId: string): Promise<PhaseCriteria[]> {
+  const rows = await db.select().from(phaseCriteria).where(eq(phaseCriteria.phase_id, phaseId));
   return rows.map(r => ({ ...r, done: Boolean(r.done) }));
 }
 

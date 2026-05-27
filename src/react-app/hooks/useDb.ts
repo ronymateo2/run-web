@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { getDb, type Database } from "../../db/client";
+import { getDrizzle, type DrizzleDb } from "../../db/drizzle";
 
-export function useDb(): Database | null {
-  const [db, setDb] = useState<Database | null>(null);
+export function useDb(): DrizzleDb | null {
+  const [db, setDb] = useState<DrizzleDb | null>(null);
   useEffect(() => {
-    getDb().then(d => setDb(d)).catch(console.error);
+    getDrizzle().then(setDb).catch(console.error);
   }, []);
   return db;
 }

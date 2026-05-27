@@ -199,7 +199,7 @@ export function CuerpoScreen() {
         )}
 
         {/* 5SST card */}
-        <NudgeSST state={sstState} lastScore={data?.sstResult?.pain_score} />
+        <NudgeSST state={sstState} lastScore={data?.sstResult?.pain_score ?? undefined} />
       </div>
 
     </div>

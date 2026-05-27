@@ -1,38 +1,37 @@
+import { eq, and, desc } from "drizzle-orm";
+import { sstResults } from "../schema";
+import type { DrizzleDb } from "../drizzle";
 
-import { queryAll, queryOne, exec, type Database } from "../client";
+export type SstResult = typeof sstResults.$inferSelect;
+export type NewSstResult = Omit<typeof sstResults.$inferInsert, "synced">;
 
-export interface SstResult {
-  id: string; user_id: string; injury_id: string; date: string;
-  strength_score?: number; pain_score?: number; note?: string;
+export async function getRecentSst(db: DrizzleDb, userId: string, limit = 12): Promise<SstResult[]> {
+  return db.select().from(sstResults)
+    .where(eq(sstResults.user_id, userId))
+    .orderBy(desc(sstResults.date))
+    .limit(limit);
 }
 
-export async function getRecentSst(db: Database, userId: string, limit = 12): Promise<SstResult[]> {
-  return queryAll<SstResult>(
-    db,
-    `SELECT * FROM sst_results WHERE user_id = ? ORDER BY date DESC LIMIT ?`,
-    [userId, limit]
-  );
+export async function getTodaySst(db: DrizzleDb, userId: string, date: string): Promise<SstResult | null> {
+  const rows = await db.select().from(sstResults)
+    .where(and(eq(sstResults.user_id, userId), eq(sstResults.date, date)))
+    .limit(1);
+  return rows[0] ?? null;
 }
 
-export async function getTodaySst(db: Database, userId: string, date: string): Promise<SstResult | null> {
-  return queryOne<SstResult>(
-    db,
-    `SELECT * FROM sst_results WHERE user_id = ? AND date = ? LIMIT 1`,
-    [userId, date]
-  );
+export async function saveSstResult(db: DrizzleDb, result: NewSstResult): Promise<void> {
+  await db.insert(sstResults)
+    .values({ ...result, synced: 0 })
+    .onConflictDoUpdate({
+      target: sstResults.id,
+      set: {
+        strength_score: result.strength_score,
+        pain_score: result.pain_score,
+        note: result.note,
+      },
+    });
 }
 
-export async function saveSstResult(db: Database, result: SstResult): Promise<void> {
-  await exec(db, `
-    INSERT INTO sst_results (id, user_id, injury_id, date, strength_score, pain_score, note, synced)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 0)
-    ON CONFLICT(id) DO UPDATE SET strength_score = excluded.strength_score,
-      pain_score = excluded.pain_score, note = excluded.note
-  `, [result.id, result.user_id, result.injury_id, result.date,
-      result.strength_score ?? null, result.pain_score ?? null, result.note ?? null]);
-}
-
-/** Day of week (lowercase 'mon','tue',...) */
 export function isSstPreferredToday(tz?: string | null, focusDays: string[] = ["tue", "thu"]): boolean {
   const zone = tz || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const dow = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: zone })

@@ -40,10 +40,10 @@ export function ProfileScreen() {
     setResetDone(false);
     try {
       for (const table of ["exercises", "phases", "injuries", "exercise_logs", "pain_checkins", "sst_results"]) {
-        await exec(db, `DELETE FROM ${table}`);
+        await exec(`DELETE FROM ${table}`);
       }
-      await exec(db, `UPDATE users SET last_sync = 0`);
-      await pullDelta(db, token, { force: true });
+      await exec(`UPDATE users SET last_sync = 0`);
+      await pullDelta(token, { force: true });
       setResetDone(true);
     } finally {
       setResetting(false);
