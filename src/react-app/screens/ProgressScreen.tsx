@@ -28,7 +28,7 @@ interface ProgressData {
 }
 
 export function ProgressScreen() {
-  const { user } = useAuth();
+  const { user, lastSyncAt } = useAuth();
   const db = useDb();
   const navigate = useNavigate();
   const [data, setData] = useState<ProgressData | null>(null);
@@ -43,7 +43,7 @@ export function ProgressScreen() {
       if (active) setData({ segments, sst });
     })();
     return () => { active = false; };
-  }, [db, user]);
+  }, [db, user, lastSyncAt]);
 
   const W = 340, H = 140;
   const segments = data?.segments ?? [];

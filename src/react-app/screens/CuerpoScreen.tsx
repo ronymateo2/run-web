@@ -63,7 +63,7 @@ interface CuerpoData {
 }
 
 export function CuerpoScreen() {
-  const { user } = useAuth();
+  const { user, lastSyncAt } = useAuth();
   const db = useDb();
   const navigate = useNavigate();
   const [data, setData] = useState<CuerpoData | null>(null);
@@ -100,7 +100,7 @@ export function CuerpoScreen() {
       if (active) setData({ injuriesWithPhase, heatAvg, zoneStats, sstResult, sstDue });
     })();
     return () => { active = false; };
-  }, [db, user]);
+  }, [db, user, lastSyncAt]);
 
   const sstState = !data?.sstDue ? "hidden" : data?.sstResult ? "done" : "pending";
 

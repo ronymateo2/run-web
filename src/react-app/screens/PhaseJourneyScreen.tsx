@@ -16,7 +16,7 @@ interface PhaseJourneyData {
 
 export function PhaseJourneyScreen() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, lastSyncAt } = useAuth();
   const db = useDb();
   const navigate = useNavigate();
   const [data, setData] = useState<PhaseJourneyData | null>(null);
@@ -36,7 +36,7 @@ export function PhaseJourneyScreen() {
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [loadData, lastSyncAt]);
 
   async function toggleCriteria(criteriaId: string, current: boolean) {
     if (!db) return;

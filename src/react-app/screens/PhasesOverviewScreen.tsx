@@ -25,7 +25,7 @@ interface InjuryData {
 }
 
 export function PhasesOverviewScreen() {
-  const { user } = useAuth();
+  const { user, lastSyncAt } = useAuth();
   const db = useDb();
   const navigate = useNavigate();
   const [data, setData] = useState<InjuryData[] | null>(null);
@@ -51,7 +51,7 @@ export function PhasesOverviewScreen() {
       if (active) setData(result);
     })();
     return () => { active = false; };
-  }, [db, user]);
+  }, [db, user, lastSyncAt]);
 
   return (
     <div className="screen">
