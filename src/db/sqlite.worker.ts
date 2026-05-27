@@ -9,13 +9,20 @@ let db: Database;
 
 const ready = sqlite3InitModule({ print: () => {}, printErr: console.error }).then(
   async (sqlite3) => {
-    try {
-      const { OpfsSAHPoolDb } = await sqlite3.installOpfsSAHPoolVfs({});
-      db = new OpfsSAHPoolDb("rurana.db") as Database;
-    } catch {
-      console.warn("[worker] OPFS unavailable — using in-memory SQLite");
-      db = new sqlite3.oo1.DB(":memory:");
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        const { OpfsSAHPoolDb } = await sqlite3.installOpfsSAHPoolVfs({});
+        db = new OpfsSAHPoolDb("rurana.db") as Database;
+        return;
+      } catch {
+        if (attempt < 4) {
+          await sleep(300 * (attempt + 1));
+        }
+      }
     }
+    console.warn("[worker] OPFS unavailable — using in-memory SQLite");
+    db = new sqlite3.oo1.DB(":memory:");
   }
 );
 
