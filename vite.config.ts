@@ -49,8 +49,8 @@ export default defineConfig({
 	server: {
 		headers: {
 			// Allow Google OAuth popup to postMessage back to opener.
-			// Cloudflare Vite plugin sets same-origin by default; override to allow popups.
-			"Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+			// SQLite SAHPool does not require cross-origin isolation.
+			"Cross-Origin-Opener-Policy": "unsafe-none",
 		},
 	},
 });

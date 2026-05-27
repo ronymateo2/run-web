@@ -1,11 +1,13 @@
-import { wrap } from "comlink";
+import { releaseProxy, wrap } from "comlink";
 import type { SqlValue, BindingSpec } from "@sqlite.org/sqlite-wasm";
-import SqliteWorker from "./sqlite.worker?worker";
+import DedicatedSqliteWorker from "./sqlite.worker?worker";
+import SharedSqliteWorker from "./sqlite.worker?sharedworker";
 
 interface DbWorkerApi {
   exec(sql: string, bind?: BindingSpec): Promise<void>;
   query(sql: string, bind?: BindingSpec): Promise<SqlValue[][]>;
   queryObjects(sql: string, bind?: BindingSpec): Promise<Record<string, SqlValue>[]>;
+  close(): Promise<void>;
 }
 
 const SCHEMA_SQL = `
@@ -57,21 +59,134 @@ const MIGRATIONS = [
   `ALTER TABLE users ADD COLUMN timezone TEXT`,
 ];
 
-let proxyPromise: Promise<DbWorkerApi> | null = null;
+const DB_LOCK_NAME = "rurana.sqlite.opfs";
 
-async function initWorker(): Promise<DbWorkerApi> {
-  const worker = new SqliteWorker();
-  const proxy = wrap<DbWorkerApi>(worker);
+let proxyPromise: Promise<DbWorkerApi> | null = null;
+let workerInstance: Worker | null = null;
+let sharedWorkerInstance: SharedWorker | null = null;
+let sharedWorkerPort: MessagePort | null = null;
+let releaseDbLock: (() => void) | null = null;
+let lockAbortController: AbortController | null = null;
+
+async function initSchema(proxy: DbWorkerApi): Promise<void> {
   await proxy.exec(SCHEMA_SQL);
   for (const sql of MIGRATIONS) {
     try { await proxy.exec(sql); } catch { /* column already exists */ }
   }
+}
+
+async function initSharedWorker(): Promise<DbWorkerApi> {
+  sharedWorkerInstance = new SharedSqliteWorker();
+  sharedWorkerPort = sharedWorkerInstance.port;
+  sharedWorkerPort.start();
+  const proxy = wrap<DbWorkerApi>(sharedWorkerPort);
+  await initSchema(proxy);
   return proxy;
 }
 
+async function initDedicatedWorker(): Promise<DbWorkerApi> {
+  workerInstance = new DedicatedSqliteWorker();
+  const proxy = wrap<DbWorkerApi>(workerInstance);
+  await initSchema(proxy);
+  return proxy;
+}
+
+function initDedicatedWorkerWithLock(): Promise<DbWorkerApi> {
+  if (typeof navigator === "undefined" || !navigator.locks) {
+    return initDedicatedWorker();
+  }
+
+  lockAbortController = new AbortController();
+
+  let releaseLock!: () => void;
+  const lockReleased = new Promise<void>((resolve) => {
+    releaseLock = resolve;
+  });
+
+  let resolveProxy!: (proxy: DbWorkerApi) => void;
+  let rejectProxy!: (error: unknown) => void;
+  const proxyReady = new Promise<DbWorkerApi>((resolve, reject) => {
+    resolveProxy = resolve;
+    rejectProxy = reject;
+  });
+
+  void navigator.locks.request(
+    DB_LOCK_NAME,
+    { mode: "exclusive", signal: lockAbortController.signal },
+    async () => {
+      releaseDbLock = releaseLock;
+      try {
+        const proxy = await initDedicatedWorker();
+        resolveProxy(proxy);
+        await lockReleased;
+        await proxy.close().catch(console.warn);
+      } catch (error) {
+        rejectProxy(error);
+      } finally {
+        workerInstance?.terminate();
+        workerInstance = null;
+        releaseDbLock = null;
+        lockAbortController = null;
+      }
+    }
+  ).catch((error: unknown) => {
+    if (error instanceof DOMException && error.name === "AbortError") return;
+    rejectProxy(error);
+  });
+
+  return proxyReady;
+}
+
+function initWorker(): Promise<DbWorkerApi> {
+  if (typeof SharedWorker !== "undefined") {
+    return initSharedWorker();
+  }
+  return initDedicatedWorkerWithLock();
+}
+
 function getProxy(): Promise<DbWorkerApi> {
-  if (!proxyPromise) proxyPromise = initWorker();
+  if (!proxyPromise) {
+    const pendingProxy = initWorker().catch((error: unknown) => {
+      proxyPromise = null;
+      throw error;
+    });
+    proxyPromise = pendingProxy;
+  }
   return proxyPromise;
+}
+
+export async function closeDatabaseWorker(): Promise<void> {
+  const proxyPromiseToClose = proxyPromise;
+  const lockWillCloseWorker = Boolean(releaseDbLock);
+  releaseDbLock?.();
+  lockAbortController?.abort();
+  const proxy = proxyPromiseToClose ? await proxyPromiseToClose.catch(() => null) : null;
+  if (sharedWorkerPort) {
+    (proxy as (DbWorkerApi & { [releaseProxy]?: () => void }) | null)?.[releaseProxy]?.();
+    sharedWorkerPort.close();
+    sharedWorkerPort = null;
+    sharedWorkerInstance = null;
+  } else if (!lockWillCloseWorker) {
+    await proxy?.close().catch(console.warn);
+    workerInstance?.terminate();
+    workerInstance = null;
+  }
+  proxyPromise = null;
+}
+
+if (typeof window !== "undefined") {
+  const closeOnPageHide = () => {
+    void closeDatabaseWorker();
+  };
+
+  window.addEventListener("pagehide", closeOnPageHide);
+
+  if (import.meta.hot) {
+    import.meta.hot.dispose(() => {
+      window.removeEventListener("pagehide", closeOnPageHide);
+      void closeDatabaseWorker();
+    });
+  }
 }
 
 export async function exec(sql: string, bind?: unknown[]): Promise<void> {
