@@ -6,7 +6,10 @@ import { useAuth } from "../auth/AuthContext";
 import { useSync } from "../hooks/useSync";
 import { localToday } from "../utils/timezone";
 import { Ico } from "../components/icons";
-import { getExerciseById, saveExerciseLog, type Exercise } from "../../db/queries/exercises";
+import {
+  getExerciseById, saveExerciseLog, getLogsForExercise,
+  type Exercise, type ExerciseLog,
+} from "../../db/queries/exercises";
 import { ExerciseLogSheet } from "./ExerciseLogSheet";
 
 const DEFAULT_RPE = 6;
@@ -20,6 +23,7 @@ export function ExerciseDetailScreen() {
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [showLog, setShowLog] = useState<false | "edit" | "done">(false);
   const [saving, setSaving] = useState(false);
+  const [existingLogs, setExistingLogs] = useState<ExerciseLog[]>([]);
 
   useEffect(() => {
     if (!db || !id) return;
@@ -31,16 +35,28 @@ export function ExerciseDetailScreen() {
   const defaultValue = isTimeBased ? (exercise?.duration_s ?? 30) : (exercise?.reps ?? 10);
   const metricUnit = isTimeBased ? "s" : "rep";
 
+  async function loadLogs() {
+    if (!db || !user || !exercise) return;
+    const logs = await getLogsForExercise(db, user.id, exercise.id, localToday(user?.timezone));
+    setExistingLogs(logs);
+  }
+
+  async function openEdit() {
+    await loadLogs();
+    setShowLog("edit");
+  }
+
   async function handleQuickSave() {
     if (!db || !user || !exercise) return;
     setSaving(true);
+    const sessionDate = localToday(user?.timezone);
     const now = Date.now();
     for (let i = 0; i < totalSets; i++) {
       await saveExerciseLog(db, {
-        id: crypto.randomUUID(),
+        id: `${user.id}:${exercise.id}:${sessionDate}:${i}`,
         user_id: user.id,
         exercise_id: exercise.id,
-        session_date: localToday(user?.timezone),
+        session_date: sessionDate,
         reps_done: defaultValue,
         pain_during: 0,
         rpe: DEFAULT_RPE,
@@ -48,6 +64,8 @@ export function ExerciseDetailScreen() {
       });
     }
     push();
+    const logs = await getLogsForExercise(db, user.id, exercise.id, sessionDate);
+    setExistingLogs(logs);
     setSaving(false);
     setShowLog("done");
   }
@@ -160,7 +178,7 @@ export function ExerciseDetailScreen() {
             {!saving && <Ico.check s={16} c="var(--bone)" />}
           </motion.button>
           <button
-            onClick={() => setShowLog("edit")}
+            onClick={openEdit}
             disabled={!exercise}
             style={{
               width: "100%", height: 52, borderRadius: 999,
@@ -189,6 +207,7 @@ export function ExerciseDetailScreen() {
             plannedDurationS={exercise.duration_s}
             sessionDate={localToday(user?.timezone)}
             mode={showLog}
+            existingLogs={existingLogs}
             onSave={() => navigate("/today", { replace: true })}
             onClose={() => setShowLog(false)}
           />

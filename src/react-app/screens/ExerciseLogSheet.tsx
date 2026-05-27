@@ -4,7 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
 import { useSync } from "../hooks/useSync";
 import { Ico } from "../components/icons";
-import { saveExerciseLog } from "../../db/queries/exercises";
+import { saveExerciseLog, type ExerciseLog } from "../../db/queries/exercises";
 
 interface Props {
   exerciseId: string;
@@ -14,6 +14,7 @@ interface Props {
   plannedDurationS?: number;
   sessionDate: string;
   mode: "edit" | "done";
+  existingLogs?: ExerciseLog[];
   onSave: () => void;
   onClose: () => void;
 }
@@ -134,7 +135,7 @@ function PainBar({ value }: { value: number }) {
 }
 
 export function ExerciseLogSheet({
-  exerciseId, exerciseName, sets, plannedReps, plannedDurationS, sessionDate, mode, onSave, onClose,
+  exerciseId, exerciseName, sets, plannedReps, plannedDurationS, sessionDate, mode, existingLogs, onSave, onClose,
 }: Props) {
   const { user } = useAuth();
   const db = useDb();
@@ -146,8 +147,16 @@ export function ExerciseLogSheet({
   const maxValue = isTimeBased ? 600 : 99;
   const defaultRpe = 6;
 
-  const [entries, setEntries] = useState<SetEntry[]>(
-    Array.from({ length: sets }, () => ({ filled: false, value: defaultValue, rpe: defaultRpe, pain: 0 }))
+  const [localMode, setLocalMode] = useState<"edit" | "done">(mode);
+
+  const [entries, setEntries] = useState<SetEntry[]>(() =>
+    Array.from({ length: sets }, (_, i) => {
+      const log = existingLogs?.[i];
+      if (log) {
+        return { filled: true, value: log.reps_done ?? defaultValue, rpe: log.rpe ?? defaultRpe, pain: log.pain_during ?? 0 };
+      }
+      return { filled: false, value: defaultValue, rpe: defaultRpe, pain: 0 };
+    })
   );
 
   // Detail view state
@@ -159,11 +168,13 @@ export function ExerciseLogSheet({
   const [done, setDone] = useState(false);
   const [savedEntries, setSavedEntries] = useState<{ value: number; rpe: number; pain: number }[]>([]);
 
-  const showDone = mode === "done" || done;
+  const showDone = localMode === "done" || done;
 
-  const completionEntries = mode === "done"
-    ? Array.from({ length: sets }, () => ({ value: defaultValue, rpe: defaultRpe, pain: 0 }))
-    : savedEntries;
+  const completionEntries = showDone
+    ? (done
+        ? savedEntries
+        : (existingLogs ?? []).map(l => ({ value: l.reps_done ?? defaultValue, rpe: l.rpe ?? defaultRpe, pain: l.pain_during ?? 0 })))
+    : [];
 
   const filledCount = entries.filter(e => e.filled).length;
   const remainingCount = editingIndex !== null ? sets - editingIndex - 1 : 0;
@@ -206,23 +217,25 @@ export function ExerciseLogSheet({
 
   async function handleSave() {
     if (!db || !user) return;
-    const toSave = entries.filter(e => e.filled);
     const now = Date.now();
-    for (let i = 0; i < toSave.length; i++) {
-      const e = toSave[i];
+    let savedIdx = 0;
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i];
+      if (!e.filled) continue;
       await saveExerciseLog(db, {
-        id: crypto.randomUUID(),
+        id: `${user.id}:${exerciseId}:${sessionDate}:${i}`,
         user_id: user.id,
         exercise_id: exerciseId,
         session_date: sessionDate,
         reps_done: e.value,
         pain_during: e.pain,
         rpe: e.rpe,
-        completed_at: now + i,
+        completed_at: now + savedIdx,
       });
+      savedIdx++;
     }
     push();
-    setSavedEntries(toSave.map(e => ({ value: e.value, rpe: e.rpe, pain: e.pain })));
+    setSavedEntries(entries.filter(e => e.filled).map(e => ({ value: e.value, rpe: e.rpe, pain: e.pain })));
     setDone(true);
   }
 
@@ -270,12 +283,20 @@ export function ExerciseLogSheet({
               <div style={{ fontSize: 17, fontWeight: 600, color: "var(--ink)" }}>
                 {completionEntries.length} series × {defaultValue}{unit}
               </div>
-              <button
-                onClick={onSave}
-                style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "var(--ink-3)", fontSize: 22, lineHeight: 1 }}
-              >
-                ×
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <button
+                  onClick={() => { setLocalMode("edit"); setDone(false); }}
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 8px", color: "var(--ink)", fontSize: 14, fontWeight: 600 }}
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={onSave}
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "var(--ink-3)", fontSize: 22, lineHeight: 1 }}
+                >
+                  ×
+                </button>
+              </div>
             </div>
 
             <div style={{

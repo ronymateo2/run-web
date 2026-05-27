@@ -27,6 +27,16 @@ export async function getTodayLogs(db: Database, userId: string, date: string): 
   );
 }
 
+export async function getLogsForExercise(
+  db: Database, userId: string, exerciseId: string, date: string
+): Promise<ExerciseLog[]> {
+  return queryAll<ExerciseLog>(
+    db,
+    `SELECT * FROM exercise_logs WHERE user_id = ? AND exercise_id = ? AND session_date = ? ORDER BY completed_at`,
+    [userId, exerciseId, date]
+  );
+}
+
 export async function saveExerciseLog(db: Database, log: ExerciseLog): Promise<void> {
   await exec(db, `
     INSERT INTO exercise_logs

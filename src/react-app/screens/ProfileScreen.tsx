@@ -1,16 +1,22 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { useDb } from "../hooks/useDb";
 import { Ico } from "../components/icons";
 import { COMMON_TIMEZONES, detectTimezone } from "../utils/timezone";
+import { exec } from "../../db/client";
+import { pullDelta } from "../../db/sync";
 
 export function ProfileScreen() {
-  const { user, signOut, setTimezone } = useAuth();
+  const { user, token, signOut, setTimezone } = useAuth();
+  const db = useDb();
   const navigate = useNavigate();
   const currentTz = user?.timezone || detectTimezone();
   const [selectedTz, setSelectedTz] = useState(currentTz);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetDone, setResetDone] = useState(false);
 
   const handleTzChange = (tz: string) => {
     setSelectedTz(tz);
@@ -25,6 +31,22 @@ export function ProfileScreen() {
       setSaved(true);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleResetCache = async () => {
+    if (!db || !token || resetting) return;
+    setResetting(true);
+    setResetDone(false);
+    try {
+      for (const table of ["exercises", "phases", "injuries", "exercise_logs", "pain_checkins", "sst_results"]) {
+        await exec(db, `DELETE FROM ${table}`);
+      }
+      await exec(db, `UPDATE users SET last_sync = 0`);
+      await pullDelta(db, token, { force: true });
+      setResetDone(true);
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -125,6 +147,44 @@ export function ProfileScreen() {
               <div className="row gap-6" style={{ marginTop: 10, color: "var(--moss)" }}>
                 <Ico.check s={14} c="var(--moss)" />
                 <span className="body-sm" style={{ color: "var(--moss)" }}>Guardado</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Data */}
+        <div style={{ marginTop: 28 }}>
+          <div className="row gap-6" style={{ marginBottom: 10, alignItems: "center" }}>
+            <span className="eyebrow">Datos</span>
+          </div>
+          <div className="card" style={{ padding: "6px 4px" }}>
+            <button
+              onClick={handleResetCache}
+              disabled={resetting || !token}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "14px 14px",
+                background: "none",
+                border: "none",
+                cursor: resetting ? "default" : "pointer",
+                color: "var(--ink)",
+                fontFamily: "var(--font-sans)",
+                fontSize: 15,
+                fontWeight: 600,
+                borderRadius: "var(--r-sm)",
+                opacity: resetting ? 0.5 : 1,
+              }}
+            >
+              <Ico.refresh s={18} c="var(--ink)" />
+              {resetting ? "Sincronizando…" : "Borrar caché local"}
+            </button>
+            {resetDone && (
+              <div className="row gap-6" style={{ padding: "0 14px 12px", color: "var(--moss)" }}>
+                <Ico.check s={14} c="var(--moss)" />
+                <span className="body-sm" style={{ color: "var(--moss)" }}>Caché actualizado desde el servidor</span>
               </div>
             )}
           </div>
