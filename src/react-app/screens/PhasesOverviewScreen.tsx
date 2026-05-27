@@ -4,7 +4,8 @@ import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
 import { Plant, Leaf, Flower, Tree } from "@phosphor-icons/react";
 import { Ico } from "../components/icons";
-import { getActiveInjuries, getPhasesForInjury, getCurrentPhase, getCriteria, computePhaseProgress, type Injury, type Phase, type PhaseCriteria } from "../../db/queries/injuries";
+import { getActiveInjuries, getPhasesForInjury, getCurrentPhase, type Injury, type Phase } from "../../db/queries/injuries";
+import { getPhaseExerciseProgress } from "../../db/queries/exercises";
 
 const PHASE_ICONS = [
   (s?: number) => <Plant  size={s ?? 18} weight="regular" />,
@@ -14,7 +15,6 @@ const PHASE_ICONS = [
 ];
 
 interface PhaseWithProgress extends Phase {
-  criteria: PhaseCriteria[];
   progressPct: number;
 }
 
@@ -41,9 +41,8 @@ export function PhasesOverviewScreen() {
           const current = await getCurrentPhase(db, inj);
           const phasesWithProgress: PhaseWithProgress[] = await Promise.all(
             phases.map(async (p) => {
-              const criteria = await getCriteria(db, p.id);
-              const progressPct = computePhaseProgress(criteria);
-              return { ...p, criteria, progressPct };
+              const progressPct = await getPhaseExerciseProgress(db, p.id, user.id);
+              return { ...p, progressPct };
             })
           );
           return { injury: inj, phases: phasesWithProgress, current };
