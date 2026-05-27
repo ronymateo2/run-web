@@ -121,7 +121,7 @@ function EditableNum({
         fontFamily: "var(--font-mono)",
         fontWeight: 600,
         fontSize: 22,
-        color: completed ? "rgba(245,240,232,0.95)" : "rgba(245,240,232,0.28)",
+        color: completed ? "rgba(245,240,232,0.97)" : "rgba(245,240,232,0.45)",
         transition: "color 0.25s",
         display: "flex",
         alignItems: "baseline",
@@ -236,7 +236,7 @@ export function ExerciseDetailScreen() {
           </div>
           {exercise?.detail && (
             <div className="body" style={{
-              color: "rgba(245,240,232,0.55)", marginTop: 10, lineHeight: 1.6,
+              color: "rgba(245,240,232,0.80)", marginTop: 10, lineHeight: 1.6,
               maxWidth: 480, marginLeft: "auto", marginRight: "auto",
             }}>
               {exercise.detail}
@@ -258,7 +258,7 @@ export function ExerciseDetailScreen() {
                 fontSize: 10,
                 fontFamily: "var(--font-mono)",
                 letterSpacing: "0.12em",
-                color: "rgba(245,240,232,0.35)",
+                color: "rgba(245,240,232,0.55)",
                 textAlign: i === 0 ? "left" : "center",
                 paddingLeft: i === 0 ? 8 : 0,
               }}>
@@ -287,7 +287,7 @@ export function ExerciseDetailScreen() {
                 fontFamily: "var(--font-mono)",
                 fontSize: 22,
                 fontWeight: 700,
-                color: row.completed ? "rgba(245,240,232,0.90)" : "rgba(245,240,232,0.25)",
+                color: row.completed ? "rgba(245,240,232,0.95)" : "rgba(245,240,232,0.45)",
                 paddingLeft: 8,
                 transition: "color 0.25s",
               }}>
@@ -353,7 +353,7 @@ export function ExerciseDetailScreen() {
                     transform: row.expanded ? "rotate(90deg)" : "rotate(0deg)",
                     transition: "transform 0.18s ease",
                   }}>
-                    <Ico.chevR s={15} c="rgba(245,240,232,0.35)" />
+                    <Ico.chevR s={15} c="rgba(245,240,232,0.55)" />
                   </span>
                 </button>
               </div>
@@ -384,7 +384,7 @@ export function ExerciseDetailScreen() {
                         fontSize: 10,
                         fontFamily: "var(--font-mono)",
                         letterSpacing: "0.12em",
-                        color: "rgba(245,240,232,0.40)",
+                        color: "rgba(245,240,232,0.60)",
                       }}>
                         DOLOR
                       </span>
@@ -403,15 +403,18 @@ export function ExerciseDetailScreen() {
                     </div>
                     <input
                       type="range"
+                      className="zone-slider"
                       min={0} max={10} step={1}
                       value={row.painDuring}
                       onChange={e => updateSet(i, "painDuring", Number(e.target.value))}
-                      style={{ width: "100%", accentColor: "#6EC96E", cursor: "pointer" }}
+                      style={{
+                        "--zone-color": row.painDuring === 0 ? "#6EC96E" : row.painDuring <= 4 ? "#C9C96E" : "#C96E6E",
+                      } as React.CSSProperties}
                     />
                     <div style={{
                       display: "flex", justifyContent: "space-between",
                       fontSize: 9,
-                      color: "rgba(245,240,232,0.25)",
+                      color: "rgba(245,240,232,0.45)",
                       fontFamily: "var(--font-mono)",
                       letterSpacing: "0.08em",
                       marginTop: 4,
@@ -431,7 +434,7 @@ export function ExerciseDetailScreen() {
         <div style={{
           position: "fixed", bottom: 0, left: 0, right: 0,
           padding: "20px 24px 40px",
-          background: "linear-gradient(to top, var(--bg, #111) 55%, transparent)",
+          background: "linear-gradient(to top, #111E16 60%, transparent)",
           pointerEvents: "none",
         }}>
           <motion.button

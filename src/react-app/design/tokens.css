@@ -220,7 +220,7 @@ body {
 
 /* Dark screen variant (exercise detail, SST) */
 .screen-dark {
-  background: var(--ink);
+  background: #111E16;
   color: var(--bone);
 }
 .screen-dark .btn-pill {
@@ -228,7 +228,39 @@ body {
   color: var(--ink);
 }
 .screen-dark .eyebrow {
-  color: rgba(245,240,232,0.50);
+  color: rgba(245,240,232,0.60);
+}
+
+/* Slider — dark-screen variant: bigger thumb, visible track */
+.screen-dark .zone-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(245,240,232,0.18);
+}
+.screen-dark .zone-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(245,240,232,0.18);
+}
+.screen-dark .zone-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--zone-color, #6EC96E);
+  border: 3px solid rgba(245,240,232,0.95);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.40);
+  margin-top: -14px;
+  transition: background 0.2s, transform 0.15s;
+}
+.screen-dark .zone-slider::-moz-range-thumb {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--zone-color, #6EC96E);
+  border: 3px solid rgba(245,240,232,0.95);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.40);
+  transition: background 0.2s, transform 0.15s;
 }
 
 /* Density variants */
