@@ -4,7 +4,7 @@ import type { DrizzleDb } from "../drizzle";
 
 export interface ZoneMap extends Record<string, number | undefined> {
   ingleL?: number; ingleR?: number; caderaL?: number;
-  caderaR?: number; pubis?: number; hombroD?: number; lumbar?: number;
+  caderaR?: number; pubis?: number; hombroI?: number; lumbar?: number;
 }
 
 export interface PainCheckin {

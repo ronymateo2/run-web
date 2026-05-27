@@ -9,7 +9,7 @@ import { getRecentSst, type SstResult } from "../../db/queries/sst";
 const ZONE_COLORS: Record<string, string> = {
   ingleL: "rgba(217,119,87,0.7)", ingleR: "rgba(217,119,87,0.45)",
   caderaL: "rgba(58,82,109,0.6)", caderaR: "rgba(58,82,109,0.35)",
-  pubis: "rgba(232,184,92,0.7)", hombroD: "rgba(138,168,140,0.8)",
+  pubis: "rgba(232,184,92,0.7)", hombroI: "rgba(138,168,140,0.8)", hombroD: "rgba(138,168,140,0.8)",
 };
 
 interface Segment { date: string; zones: Record<string, number | undefined>; avg: number; }
@@ -168,7 +168,7 @@ function zoneLabel(key: string): string {
   const m: Record<string, string> = {
     ingleL: "Ingle izq", ingleR: "Ingle der",
     caderaL: "Cadera izq", caderaR: "Cadera der",
-    pubis: "Pubis", hombroD: "Hombro D",
+    pubis: "Pubis", hombroI: "Hombro izq", hombroD: "Hombro izq",
   };
   return m[key] ?? key;
 }

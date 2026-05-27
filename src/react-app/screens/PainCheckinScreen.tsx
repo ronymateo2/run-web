@@ -15,7 +15,7 @@ const ZONES: { key: keyof HeatMap; label: string }[] = [
   { key: "caderaL", label: "Cadera izquierda" },
   { key: "caderaR", label: "Cadera derecha" },
   { key: "pubis", label: "Pubis" },
-  { key: "hombroD", label: "Hombro derecho" },
+  { key: "hombroI", label: "Hombro izquierdo" },
   { key: "lumbar", label: "Lumbar" },
 ];
 
@@ -25,7 +25,7 @@ export function PainCheckinScreen() {
   const push = useSync();
   const navigate = useNavigate();
   const [zones, setZones] = useState<HeatMap>({
-    ingleL: 0, ingleR: 0, caderaL: 0, caderaR: 0, pubis: 0, hombroD: 0, lumbar: 0,
+    ingleL: 0, ingleR: 0, caderaL: 0, caderaR: 0, pubis: 0, hombroI: 0, lumbar: 0,
   });
 
   function updateZone(key: keyof HeatMap, value: number) {

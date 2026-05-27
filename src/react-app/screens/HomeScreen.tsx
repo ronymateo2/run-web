@@ -258,7 +258,7 @@ function zoneLabel(key: string): string {
   const labels: Record<string, string> = {
     ingleL: "Ingle izquierda", ingleR: "Ingle derecha",
     caderaL: "Cadera izquierda", caderaR: "Cadera derecha",
-    pubis: "Pubis", hombroD: "Hombro derecho", lumbar: "Lumbar",
+    pubis: "Pubis", hombroI: "Hombro izquierdo", hombroD: "Hombro izquierdo", lumbar: "Lumbar",
   };
   return labels[key] ?? key;
 }
