@@ -4,18 +4,11 @@
 import { queryAll, exec, execBatch } from "./client";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
-const LS_LAST_SYNC_KEY = "rurana_last_sync";
 
 export async function pullDelta(token: string, { force = false }: { force?: boolean } = {}): Promise<void> {
   const users = await queryAll<{ last_sync: number }>(`SELECT last_sync FROM users LIMIT 1`);
   // last_sync stored as ms (matches serverTime = Date.now()); API compares updated_at > since (also ms)
-  // Mirror in localStorage: OPFS WAL may not survive worker death on F5 (Chrome SharedWorker /
-  // Safari dedicated worker behave differently), but localStorage is durable across reloads.
-  const dbSync = users[0]?.last_sync ?? 0;
-  // Only trust localStorage when OPFS DB has data (dbSync > 0). If OPFS was wiped/reinitialized,
-  // fall back to a full pull so we don't skip rows missing locally.
-  const lsSync = dbSync > 0 ? parseInt(localStorage.getItem(LS_LAST_SYNC_KEY) ?? "0", 10) : 0;
-  const since = force ? 0 : Math.max(dbSync, lsSync);
+  const since = force ? 0 : (users[0]?.last_sync ?? 0);
   const res = await fetch(`${API_BASE}/api/sync/pull?since=${since}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -94,10 +87,10 @@ export async function pullDelta(token: string, { force = false }: { force?: bool
     await execBatch(statements);
   }
   await exec(`UPDATE users SET last_sync = ?`, [data.serverTime]);
-  // Force WAL checkpoint so last_sync survives worker death on F5 (helps Safari's dedicated worker).
+  // Force WAL checkpoint so last_sync survives worker death on F5.
+  // Without it the write sits in the unflushed -wal file (synchronous=NORMAL)
+  // and is lost when the worker is terminated on reload, causing since=0 re-pulls.
   await exec(`PRAGMA wal_checkpoint(PASSIVE)`);
-  // Durable fallback for browsers where the OPFS write is lost on reload (e.g. Chrome SharedWorker).
-  localStorage.setItem(LS_LAST_SYNC_KEY, String(data.serverTime));
 }
 
 export async function pushDelta(token: string): Promise<void> {
