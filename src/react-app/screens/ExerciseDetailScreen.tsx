@@ -202,7 +202,7 @@ export function ExerciseDetailScreen() {
     }
     push();
     setSaving(false);
-    navigate("/today", { replace: true });
+    navigate(-1);
   }
 
   const saveLabel = saving

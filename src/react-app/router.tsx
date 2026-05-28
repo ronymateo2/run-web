@@ -7,6 +7,7 @@ import { SqueezeTestScreen } from "./screens/SqueezeTestScreen";
 import { CuerpoScreen } from "./screens/CuerpoScreen";
 import { PhasesOverviewScreen } from "./screens/PhasesOverviewScreen";
 import { PhaseJourneyScreen } from "./screens/PhaseJourneyScreen";
+import { PhaseExercisesScreen } from "./screens/PhaseExercisesScreen";
 import { ProgressScreen } from "./screens/ProgressScreen";
 import { LearnScreen } from "./screens/LearnScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
@@ -25,6 +26,7 @@ export const router = createBrowserRouter([
       { path: "/body", element: <CuerpoScreen /> },
       { path: "/path", element: <PhasesOverviewScreen /> },
       { path: "/path/phase/:id", element: <PhaseJourneyScreen /> },
+      { path: "/path/phase/:id/exercises", element: <PhaseExercisesScreen /> },
       { path: "/path/progress", element: <ProgressScreen /> },
       { path: "/learn", element: <LearnScreen /> },
       { path: "/profile", element: <ProfileScreen /> },

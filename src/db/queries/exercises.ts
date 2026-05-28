@@ -72,6 +72,14 @@ export async function getPhaseExerciseProgress(
   return Math.round((done / allExercises.length) * 100);
 }
 
+export async function getSessionDates(db: DrizzleDb, userId: string): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ session_date: exerciseLogs.session_date })
+    .from(exerciseLogs)
+    .where(eq(exerciseLogs.user_id, userId));
+  return rows.map(r => r.session_date);
+}
+
 export async function saveExerciseLog(db: DrizzleDb, log: NewExerciseLog): Promise<void> {
   await db.insert(exerciseLogs)
     .values({ ...log, synced: 0 })

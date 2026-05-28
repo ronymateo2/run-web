@@ -4,7 +4,9 @@ import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
 import { Ico } from "../components/icons";
 import { getCriteria, computePhaseProgress, getPhasesForInjury, getActiveInjuries, getPhaseById, type Phase, type Injury, type PhaseCriteria } from "../../db/queries/injuries";
+import { getExercisesForPhase, getTodayLogs, getSessionDates, type Exercise } from "../../db/queries/exercises";
 import { exec } from "../../db/client";
+import { localToday } from "../utils/timezone";
 
 interface PhaseJourneyData {
   phase: Phase;
@@ -12,6 +14,27 @@ interface PhaseJourneyData {
   progressPct: number;
   injury: Injury | undefined;
   nextPhase: Phase | undefined;
+  exercises: Exercise[];
+  doneIds: Set<string>;
+  weekDays: { label: string; date: string; isToday: boolean }[];
+  activeDates: Set<string>;
+}
+
+const DAY_LABELS = ["L", "M", "M", "J", "V", "S", "D"];
+
+function getWeekDays(tz?: string | null): { label: string; date: string; isToday: boolean }[] {
+  const today = localToday(tz);
+  const ref = new Date(today + "T12:00:00");
+  const dow = ref.getDay(); // 0=Sun
+  const mondayOffset = dow === 0 ? -6 : 1 - dow;
+  const monday = new Date(ref);
+  monday.setDate(ref.getDate() + mondayOffset);
+  return DAY_LABELS.map((label, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const date = d.toLocaleDateString("en-CA");
+    return { label, date, isToday: date === today };
+  });
 }
 
 export function PhaseJourneyScreen() {
@@ -31,7 +54,13 @@ export function PhaseJourneyScreen() {
     const injury = injuries.find(i => i.id === phase.injury_id);
     const allPhases = await getPhasesForInjury(db, phase.injury_id);
     const nextPhase = allPhases.find(p => p.phase_num === phase.phase_num + 1);
-    setData({ phase, criteria, progressPct, injury, nextPhase });
+    const exercises = await getExercisesForPhase(db, id);
+    const today = localToday(user?.timezone);
+    const logs = user ? await getTodayLogs(db, user.id, today) : [];
+    const doneIds = new Set(logs.map(l => l.exercise_id));
+    const sessionDates = user ? new Set(await getSessionDates(db, user.id)) : new Set<string>();
+    const weekDays = getWeekDays(user?.timezone);
+    setData({ phase, criteria, progressPct, injury, nextPhase, exercises, doneIds, weekDays, activeDates: sessionDates });
   }, [db, id, user]);
 
   useEffect(() => {
@@ -50,12 +79,14 @@ export function PhaseJourneyScreen() {
     </div>
   );
 
-  const { phase, criteria, progressPct, injury, nextPhase } = data;
+  const { phase, criteria, progressPct, injury, nextPhase, exercises, doneIds, weekDays, activeDates } = data;
   const locked = progressPct < phase.threshold_pct;
+  const doneCnt = exercises.filter(e => doneIds.has(e.id)).length;
 
   return (
     <div className="screen">
       <div className="screen-body" style={{ paddingBottom: 100 }}>
+
         {/* Header */}
         <div className="row between mt-4" style={{ alignItems: "center" }}>
           <button onClick={() => navigate("/path")} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
@@ -65,41 +96,38 @@ export function PhaseJourneyScreen() {
           <div style={{ width: 30 }} />
         </div>
 
-        {injury && <div className="eyebrow mt-12" style={{ color: "var(--clay-deep)" }}>{injury.name}</div>}
-
-        <div className="title-lg serif mt-8" style={{ lineHeight: 1.0 }}>
-          {phase.name}
-        </div>
-        <div className="body-sm mt-6" style={{ color: "var(--muted)" }}>
-          Semanas {phase.week_start}–{phase.week_end}
+        {/* Injury name */}
+        {injury && (
+          <div className="title-sm serif mt-16" style={{ color: "var(--clay-deep)", lineHeight: 1.1 }}>
+            {injury.name}
+          </div>
+        )}
+        <div className="body-sm mt-4" style={{ color: "var(--muted)" }}>
+          {phase.name} · Semanas {phase.week_start}–{phase.week_end}
         </div>
 
         {/* Progress card */}
-        <div className="card mt-24" style={{ padding: "20px 22px 22px" }}>
-          {/* Top row: label left, numbers right */}
+        <div className="card mt-20" style={{ padding: "18px 20px 20px" }}>
+          <div className="eyebrow" style={{ marginBottom: 14 }}>Progreso</div>
           <div className="row between" style={{ alignItems: "flex-end", marginBottom: 14 }}>
-            <div>
-              <div className="eyebrow">Progreso</div>
-              <div style={{
-                fontFamily: "var(--font-serif)",
-                fontSize: 32,
-                lineHeight: 1,
-                marginTop: 4,
-                color: locked ? "var(--clay)" : "var(--moss)",
-              }}>
-                {progressPct}%
-              </div>
+            <div style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: 44,
+              lineHeight: 1,
+              color: locked ? "var(--clay)" : "var(--moss)",
+            }}>
+              {progressPct}%
             </div>
             <div style={{ textAlign: "right" }}>
-              <div className="eyebrow">meta</div>
-              <div className="num" style={{ fontSize: 20, lineHeight: 1, marginTop: 4, color: "var(--ink)" }}>
+              <div className="eyebrow" style={{ color: "var(--muted)" }}>meta</div>
+              <div className="num" style={{ fontSize: 28, lineHeight: 1, marginTop: 4, color: "var(--ink)" }}>
                 {phase.threshold_pct}%
               </div>
             </div>
           </div>
 
-          {/* Bar */}
-          <div style={{ position: "relative", height: 12, borderRadius: 999, background: "var(--line)" }}>
+          {/* Progress bar */}
+          <div style={{ position: "relative", height: 10, borderRadius: 999, background: "var(--line)" }}>
             <div style={{
               width: `${progressPct}%`, height: "100%",
               background: locked ? "var(--sun)" : "var(--moss)",
@@ -111,36 +139,14 @@ export function PhaseJourneyScreen() {
             }} />
           </div>
 
-          {/* Threshold label below bar */}
-          <div style={{ position: "relative", height: 18, marginTop: 5 }}>
-            <span style={{
-              position: "absolute",
-              left: `${phase.threshold_pct}%`,
-              transform: "translateX(-50%)",
-              fontFamily: "var(--font-mono)",
-              fontSize: 10,
-              letterSpacing: "0.06em",
-              color: "var(--clay-deep)",
-              whiteSpace: "nowrap",
-            }}>
-              {phase.threshold_pct}% mín
-            </span>
-          </div>
-
           {locked && (
-            <div className="body-sm mt-8" style={{ color: "var(--clay-deep)", borderTop: "1px solid var(--line)", paddingTop: 12 }}>
-              Faltan <span className="num" style={{ fontFamily: "var(--font-mono)" }}>{phase.threshold_pct - progressPct}%</span> para desbloquear{" "}
+            <div className="body-sm mt-10" style={{ color: "var(--clay-deep)", borderTop: "1px solid var(--line)", paddingTop: 10 }}>
+              Faltan{" "}
+              <span className="num" style={{ fontFamily: "var(--font-mono)" }}>{phase.threshold_pct - progressPct}%</span>
+              {" "}para desbloquear{" "}
               {nextPhase ? `"${nextPhase.name}"` : "la siguiente fase"}.
             </div>
           )}
-        </div>
-
-        {/* Coach message */}
-        <div className="card mt-16" style={{ padding: 18, background: "var(--ink)" }}>
-          <div className="eyebrow" style={{ color: "rgba(237,230,214,0.5)" }}>el coach dice</div>
-          <div className="title-md serif mt-8" style={{ color: "var(--bone)", lineHeight: 1.15 }}>
-            "No hay atajo. Cuando los criterios estén en verde, el paso viene solo."
-          </div>
         </div>
 
         {/* Criteria checklist */}
@@ -180,8 +186,61 @@ export function PhaseJourneyScreen() {
           </>
         )}
 
+        {/* Weekly day calendar */}
+        <div className="mt-28">
+          <div className="eyebrow" style={{ marginBottom: 12 }}>Esta semana</div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {weekDays.map(({ label, date, isToday }) => {
+              const active = activeDates.has(date);
+              return (
+                <div
+                  key={date}
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "10px 0",
+                    borderRadius: 10,
+                    background: isToday ? "var(--ink)" : active ? "var(--bg-2)" : "transparent",
+                    border: isToday ? "none" : "1px solid var(--line)",
+                  }}
+                >
+                  <span style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 12,
+                    fontWeight: isToday ? 700 : 400,
+                    color: isToday ? "#fff" : "var(--ink-3)",
+                    letterSpacing: "0.03em",
+                  }}>
+                    {label}
+                  </span>
+                  <div style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: 999,
+                    background: active
+                      ? isToday ? "rgba(255,255,255,0.75)" : "var(--moss)"
+                      : "transparent",
+                  }} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
         {phase.description && (
-          <div className="body mt-20" style={{ lineHeight: 1.6 }}>{phase.description}</div>
+          <div className="body mt-20" style={{ lineHeight: 1.6, color: "var(--muted)" }}>{phase.description}</div>
+        )}
+
+        {exercises.length > 0 && (
+          <button
+            className="btn-pill mt-24"
+            style={{ width: "100%", justifyContent: "center", background: "var(--ink)", color: "var(--bone)" }}
+            onClick={() => navigate(`/path/phase/${phase.id}/exercises`)}
+          >
+            Ver ejercicios de hoy · {doneCnt}/{exercises.length}
+          </button>
         )}
       </div>
     </div>

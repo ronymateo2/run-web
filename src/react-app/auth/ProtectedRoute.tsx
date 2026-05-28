@@ -4,6 +4,7 @@ import { useAuth } from "./AuthContext";
 import { TabBar } from "../components/TabBar";
 
 const TABBAR_ROOTS = ["/today", "/body", "/path", "/learn", "/profile"];
+const NO_TABBAR_PREFIXES = ["/today/exercise", "/today/checkin", "/today/sst", "/path/phase"];
 
 export function ProtectedRoute() {
   const { user, loading } = useAuth();
@@ -27,7 +28,8 @@ export function ProtectedRoute() {
 
   if (!user) return <Navigate to="/login" replace />;
 
-  const showTabBar = TABBAR_ROOTS.some((root) => location.pathname.startsWith(root));
+  const showTabBar = TABBAR_ROOTS.some((root) => location.pathname.startsWith(root))
+    && !NO_TABBAR_PREFIXES.some((prefix) => location.pathname.startsWith(prefix));
 
   return (
     <>

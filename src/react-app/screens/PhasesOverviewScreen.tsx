@@ -5,7 +5,7 @@ import { useDb } from "../hooks/useDb";
 import { Plant, Leaf, Flower, Tree } from "@phosphor-icons/react";
 import { Ico } from "../components/icons";
 import { getActiveInjuries, getPhasesForInjury, getCurrentPhase, type Injury, type Phase } from "../../db/queries/injuries";
-import { getPhaseExerciseProgress } from "../../db/queries/exercises";
+import { getPhaseExerciseProgress, getSessionDates } from "../../db/queries/exercises";
 
 const PHASE_ICONS = [
   (s?: number) => <Plant  size={s ?? 18} weight="regular" />,
@@ -22,6 +22,7 @@ interface InjuryData {
   injury: Injury;
   phases: PhaseWithProgress[];
   current: Phase | null;
+  activityWeeks: Set<number>;
 }
 
 export function PhasesOverviewScreen() {
@@ -35,6 +36,7 @@ export function PhasesOverviewScreen() {
     let active = true;
     (async () => {
       const injuries = await getActiveInjuries(db, user.id);
+      const sessionDates = await getSessionDates(db, user.id);
       const result: InjuryData[] = await Promise.all(
         injuries.map(async (inj) => {
           const phases = await getPhasesForInjury(db, inj.id);
@@ -45,7 +47,12 @@ export function PhasesOverviewScreen() {
               return { ...p, progressPct };
             })
           );
-          return { injury: inj, phases: phasesWithProgress, current };
+          const startedAt = inj.started_at ?? Date.now();
+          const MS_PER_WEEK = 7 * 24 * 3600 * 1000;
+          const activityWeeks = new Set(
+            sessionDates.map(d => Math.max(1, Math.floor((new Date(d + "T00:00:00").getTime() - startedAt) / MS_PER_WEEK) + 1))
+          );
+          return { injury: inj, phases: phasesWithProgress, current, activityWeeks };
         })
       );
       if (active) setData(result);
@@ -76,29 +83,9 @@ export function PhasesOverviewScreen() {
               <div className="eyebrow mt-4" style={{ marginBottom: 12 }}>{injury.name}</div>
             )}
 
-            {/* Mini-timeline */}
-            <div className="card" style={{ padding: "14px 18px", marginBottom: 16 }}>
-              <div className="row gap-0" style={{ alignItems: "center" }}>
-                {phases.map((p, i) => {
-                  const isCurrent = p.id === current?.id;
-                  const isDone = current && p.phase_num < (current.phase_num ?? 0);
-                  return (
-                    <div key={p.id} className="row gap-0" style={{ flex: 1, alignItems: "center" }}>
-                      <div style={{
-                        width: 28, height: 28, borderRadius: 999, flexShrink: 0,
-                        background: isDone ? "var(--ink)" : isCurrent ? "var(--clay)" : "var(--line)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 14, border: isCurrent ? "2px solid var(--clay-deep)" : "none",
-                      }}>
-                        {isDone ? <Ico.check s={13} c="#EDE6D6" /> : PHASE_ICONS[i](14)}
-                      </div>
-                      {i < phases.length - 1 && (
-                        <div style={{ flex: 1, height: 2, background: isDone ? "var(--ink)" : "var(--line)" }} />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+            {/* Week calendar */}
+            <div className="card" style={{ padding: "14px 16px 12px", marginBottom: 16, overflow: "hidden" }}>
+              <div className="eyebrow" style={{ marginBottom: 10 }}>semanas</div>
             </div>
 
             {/* Phase cards */}
