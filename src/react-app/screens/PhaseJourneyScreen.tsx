@@ -260,10 +260,6 @@ export function PhaseJourneyScreen() {
             </div>
           );
         })()}
-        {phase.description && (
-          <div className="body mt-20" style={{ lineHeight: 1.6, color: "var(--muted)" }}>{phase.description}</div>
-        )}
-
         {exercises.length > 0 && (
           <button
             className="btn-pill mt-24"

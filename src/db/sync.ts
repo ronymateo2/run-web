@@ -53,8 +53,9 @@ export async function pullDelta(token: string, { force = false }: { force?: bool
   }
   for (const row of data.phase_criteria ?? []) {
     statements.push({
-      sql: `INSERT OR REPLACE INTO phase_criteria (id, phase_id, description, done)
-            VALUES (?, ?, ?, ?)`,
+      sql: `INSERT INTO phase_criteria (id, phase_id, description, done)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET phase_id = excluded.phase_id, description = excluded.description`,
       bind: [row.id, row.phase_id, row.description, row.done ?? 0],
     });
   }
