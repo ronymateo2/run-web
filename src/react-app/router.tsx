@@ -13,7 +13,7 @@ import { ProfileScreen } from "./screens/ProfileScreen";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 
 export const router = createBrowserRouter([
-  { path: "/", element: <Navigate to="/today" replace /> },
+  { path: "/", element: <Navigate to="/path" replace /> },
   { path: "/login", element: <LoginScreen /> },
   {
     element: <ProtectedRoute />,
