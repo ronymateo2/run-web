@@ -87,6 +87,10 @@ export async function pullDelta(token: string, { force = false }: { force?: bool
     await execBatch(statements);
   }
   await exec(`UPDATE users SET last_sync = ?`, [data.serverTime]);
+  // Force WAL checkpoint so last_sync survives worker death on F5.
+  // Without it, the write sits in the unflushed -wal file (synchronous=NORMAL)
+  // and is lost when the worker is terminated on pagehide, causing since=0 re-pulls.
+  await exec(`PRAGMA wal_checkpoint(PASSIVE)`);
 }
 
 export async function pushDelta(token: string): Promise<void> {
