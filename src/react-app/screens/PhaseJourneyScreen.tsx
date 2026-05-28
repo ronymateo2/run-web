@@ -146,7 +146,9 @@ export function PhaseJourneyScreen() {
         {/* Criteria checklist */}
         {criteria.length > 0 && (
           <>
-            <div className="title-md serif mt-24">Criterios de avance</div>
+            <div className="title-md serif mt-24">
+              criterios para abrir{nextPhase ? ` ${nextPhase.name}` : " la siguiente fase"}
+            </div>
             <div className="col gap-10 mt-12">
               {criteria.map(c => (
                 <button

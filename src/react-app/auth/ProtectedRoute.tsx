@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useAuth } from "./AuthContext";
 import { TabBar } from "../components/TabBar";
 
-const TABBAR_ROUTES = ["/today", "/body", "/path", "/learn", "/profile"];
+const TABBAR_ROOTS = ["/today", "/body", "/path", "/learn", "/profile"];
 
 export function ProtectedRoute() {
   const { user, loading } = useAuth();
@@ -27,7 +27,7 @@ export function ProtectedRoute() {
 
   if (!user) return <Navigate to="/login" replace />;
 
-  const showTabBar = TABBAR_ROUTES.includes(location.pathname);
+  const showTabBar = TABBAR_ROOTS.some((root) => location.pathname.startsWith(root));
 
   return (
     <>

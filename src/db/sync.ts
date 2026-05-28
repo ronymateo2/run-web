@@ -19,6 +19,7 @@ export async function pullDelta(token: string, { force = false }: { force?: bool
     injuries: Record<string, unknown>[];
     phases: Record<string, unknown>[];
     exercises: Record<string, unknown>[];
+    phase_criteria: Record<string, unknown>[];
     pain_checkins: Record<string, unknown>[];
     exercise_logs: Record<string, unknown>[];
     sst_results: Record<string, unknown>[];
@@ -48,6 +49,13 @@ export async function pullDelta(token: string, { force = false }: { force?: bool
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       bind: [row.id, row.phase_id, row.name, row.detail ?? null, row.sets ?? null,
              row.reps ?? null, row.duration_s ?? null, row.exercise_type, row.sort_order ?? 0],
+    });
+  }
+  for (const row of data.phase_criteria ?? []) {
+    statements.push({
+      sql: `INSERT OR REPLACE INTO phase_criteria (id, phase_id, description, done)
+            VALUES (?, ?, ?, ?)`,
+      bind: [row.id, row.phase_id, row.description, row.done ?? 0],
     });
   }
   for (const row of data.pain_checkins ?? []) {
