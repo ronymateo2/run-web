@@ -8,10 +8,10 @@ import { getActiveInjuries, getPhasesForInjury, getCurrentPhase, type Injury, ty
 import { getPhaseExerciseProgress, getSessionDates } from "../../db/queries/exercises";
 
 const PHASE_ICONS = [
-  (s?: number) => <Plant  size={s ?? 18} weight="regular" />,
-  (s?: number) => <Leaf   size={s ?? 18} weight="regular" />,
-  (s?: number) => <Flower size={s ?? 18} weight="regular" />,
-  (s?: number) => <Tree   size={s ?? 18} weight="regular" />,
+  (s?: number, c?: string) => <Plant  size={s ?? 18} weight="regular" color={c} />,
+  (s?: number, c?: string) => <Leaf   size={s ?? 18} weight="regular" color={c} />,
+  (s?: number, c?: string) => <Flower size={s ?? 18} weight="regular" color={c} />,
+  (s?: number, c?: string) => <Tree   size={s ?? 18} weight="regular" color={c} />,
 ];
 
 interface PhaseWithProgress extends Phase {
@@ -83,9 +83,37 @@ export function PhasesOverviewScreen() {
               <div className="eyebrow mt-4" style={{ marginBottom: 12 }}>{injury.name}</div>
             )}
 
-            {/* Week calendar */}
-            <div className="card" style={{ padding: "14px 16px 12px", marginBottom: 16, overflow: "hidden" }}>
-              <div className="eyebrow" style={{ marginBottom: 10 }}>semanas</div>
+            {/* Phase timeline */}
+            <div className="card" style={{ padding: "16px 20px", marginBottom: 16, overflow: "hidden" }}>
+              <div style={{ position: "relative" }}>
+                <div style={{
+                  position: "absolute", top: "50%", transform: "translateY(-50%)",
+                  left: 24, right: 24, height: 1, background: "var(--line)",
+                }} />
+                <div style={{ display: "flex", justifyContent: "space-between", position: "relative" }}>
+                  {phases.map((p, i) => {
+                    const isCurrent = p.id === current?.id;
+                    const isPast = current ? p.phase_num < (current.phase_num ?? 0) : false;
+                    const bg = isCurrent ? "var(--clay)" : "var(--line)";
+                    const iconColor = isCurrent ? "var(--bg)" : isPast ? "var(--ink)" : "var(--muted)";
+                    const sz = isCurrent ? 48 : 38;
+                    return (
+                      <div
+                        key={p.id}
+                        style={{
+                          width: sz, height: sz, borderRadius: "50%",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          background: bg, flexShrink: 0,
+                          cursor: isCurrent ? "pointer" : "default",
+                        }}
+                        onClick={() => isCurrent && navigate(`/path/phase/${p.id}`)}
+                      >
+                        {PHASE_ICONS[i](isCurrent ? 22 : 18, iconColor)}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* Phase cards */}

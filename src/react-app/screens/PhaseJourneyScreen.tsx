@@ -4,7 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
 import { Ico } from "../components/icons";
 import { getCriteria, computePhaseProgress, getPhasesForInjury, getActiveInjuries, getPhaseById, type Phase, type Injury, type PhaseCriteria } from "../../db/queries/injuries";
-import { getExercisesForPhase, getTodayLogs, getSessionDates, type Exercise } from "../../db/queries/exercises";
+import { getExercisesForPhase, getTodayLogs, getSessionDatesByInjury, type Exercise } from "../../db/queries/exercises";
 import { exec } from "../../db/client";
 import { localToday } from "../utils/timezone";
 
@@ -13,11 +13,12 @@ interface PhaseJourneyData {
   criteria: PhaseCriteria[];
   progressPct: number;
   injury: Injury | undefined;
+  allInjuries: Injury[];
   nextPhase: Phase | undefined;
   exercises: Exercise[];
   doneIds: Set<string>;
   weekDays: { label: string; date: string; isToday: boolean }[];
-  activeDates: Set<string>;
+  activeDatesByInjury: Map<string, Set<string>>;
 }
 
 const DAY_LABELS = ["L", "M", "M", "J", "V", "S", "D"];
@@ -58,9 +59,9 @@ export function PhaseJourneyScreen() {
     const today = localToday(user?.timezone);
     const logs = user ? await getTodayLogs(db, user.id, today) : [];
     const doneIds = new Set(logs.map(l => l.exercise_id));
-    const sessionDates = user ? new Set(await getSessionDates(db, user.id)) : new Set<string>();
+    const activeDatesByInjury = user ? await getSessionDatesByInjury(db, user.id) : new Map<string, Set<string>>();
     const weekDays = getWeekDays(user?.timezone);
-    setData({ phase, criteria, progressPct, injury, nextPhase, exercises, doneIds, weekDays, activeDates: sessionDates });
+    setData({ phase, criteria, progressPct, injury, allInjuries: injuries, nextPhase, exercises, doneIds, weekDays, activeDatesByInjury });
   }, [db, id, user]);
 
   useEffect(() => {
@@ -79,7 +80,7 @@ export function PhaseJourneyScreen() {
     </div>
   );
 
-  const { phase, criteria, progressPct, injury, nextPhase, exercises, doneIds, weekDays, activeDates } = data;
+  const { phase, criteria, progressPct, injury, allInjuries, nextPhase, exercises, doneIds, weekDays, activeDatesByInjury } = data;
   const locked = progressPct < phase.threshold_pct;
   const doneCnt = exercises.filter(e => doneIds.has(e.id)).length;
 
@@ -98,12 +99,15 @@ export function PhaseJourneyScreen() {
 
         {/* Injury name */}
         {injury && (
-          <div className="title-sm serif mt-16" style={{ color: "var(--clay-deep)", lineHeight: 1.1 }}>
+          <div className="eyebrow mt-16" style={{ color: "var(--clay-deep)" }}>
             {injury.name}
           </div>
         )}
-        <div className="body-sm mt-4" style={{ color: "var(--muted)" }}>
-          {phase.name} · Semanas {phase.week_start}–{phase.week_end}
+        <div className="title-lg mt-6" style={{ lineHeight: 1.1 }}>
+          {phase.name}
+        </div>
+        <div className="body-sm mt-4">
+          Semanas {phase.week_start}–{phase.week_end}
         </div>
 
         {/* Progress card */}
@@ -187,48 +191,75 @@ export function PhaseJourneyScreen() {
         )}
 
         {/* Weekly day calendar */}
-        <div className="mt-28">
-          <div className="eyebrow" style={{ marginBottom: 12 }}>Esta semana</div>
-          <div style={{ display: "flex", gap: 6 }}>
-            {weekDays.map(({ label, date, isToday }) => {
-              const active = activeDates.has(date);
-              return (
-                <div
-                  key={date}
-                  style={{
-                    flex: 1,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "10px 0",
-                    borderRadius: 10,
-                    background: isToday ? "var(--ink)" : active ? "var(--bg-2)" : "transparent",
-                    border: isToday ? "none" : "1px solid var(--line)",
-                  }}
-                >
-                  <span style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 12,
-                    fontWeight: isToday ? 700 : 400,
-                    color: isToday ? "#fff" : "var(--ink-3)",
-                    letterSpacing: "0.03em",
-                  }}>
-                    {label}
+        {(() => {
+          const INJURY_COLORS = ["var(--clay)", "var(--moss)", "var(--sun)", "#7B8FA1"];
+          const DOW_ES = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"];
+          const todayIdx = weekDays.findIndex(d => d.isToday);
+          const todayLabel = todayIdx >= 0 ? DOW_ES[todayIdx] : "";
+          const todayDayNum = todayIdx >= 0 ? todayIdx + 1 : "";
+          return (
+            <div className="card mt-20" style={{ padding: "18px 20px 20px" }}>
+              <div className="row between" style={{ marginBottom: 16, alignItems: "baseline" }}>
+                <div className="eyebrow">Esta semana</div>
+                {todayLabel && (
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--muted)", letterSpacing: "0.02em" }}>
+                    {todayLabel} · día {todayDayNum} de 7
                   </span>
-                  <div style={{
-                    width: 5,
-                    height: 5,
-                    borderRadius: 999,
-                    background: active
-                      ? isToday ? "rgba(255,255,255,0.75)" : "var(--moss)"
-                      : "transparent",
-                  }} />
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {weekDays.map(({ label, date, isToday }) => (
+                  <div
+                    key={date}
+                    style={{
+                      flex: 1, display: "flex", flexDirection: "column",
+                      alignItems: "center", gap: 7, padding: "12px 0",
+                      borderRadius: 10,
+                      background: isToday ? "var(--ink)" : "transparent",
+                      border: isToday ? "none" : "1px solid var(--line)",
+                    }}
+                  >
+                    <span style={{
+                      fontFamily: "var(--font-mono)", fontSize: 12,
+                      fontWeight: isToday ? 700 : 400,
+                      color: isToday ? "#fff" : "var(--ink-3)",
+                      letterSpacing: "0.03em",
+                    }}>
+                      {label}
+                    </span>
+                    {allInjuries.map((inj, i) => {
+                      const active = activeDatesByInjury.get(inj.id)?.has(date) ?? false;
+                      const color = INJURY_COLORS[i % INJURY_COLORS.length];
+                      return (
+                        <div key={inj.id} style={{
+                          width: 6, height: 6, borderRadius: 999,
+                          background: active
+                            ? isToday ? "rgba(255,255,255,0.8)" : color
+                            : isToday ? "rgba(255,255,255,0.15)" : "var(--line)",
+                        }} />
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+              {allInjuries.length > 0 && (
+                <div style={{ display: "flex", gap: 14, marginTop: 14, flexWrap: "wrap" }}>
+                  {allInjuries.map((inj, i) => (
+                    <div key={inj.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{
+                        width: 8, height: 8, borderRadius: 999, flexShrink: 0,
+                        background: INJURY_COLORS[i % INJURY_COLORS.length],
+                      }} />
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--muted)" }}>
+                        {inj.name}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              );
-            })}
-          </div>
-        </div>
+              )}
+            </div>
+          );
+        })()}
         {phase.description && (
           <div className="body mt-20" style={{ lineHeight: 1.6, color: "var(--muted)" }}>{phase.description}</div>
         )}

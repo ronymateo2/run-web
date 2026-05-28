@@ -1,5 +1,5 @@
 import { eq, and } from "drizzle-orm";
-import { exercises, exerciseLogs } from "../schema";
+import { exercises, exerciseLogs, phases } from "../schema";
 import type { DrizzleDb } from "../drizzle";
 
 export type Exercise = typeof exercises.$inferSelect;
@@ -78,6 +78,28 @@ export async function getSessionDates(db: DrizzleDb, userId: string): Promise<st
     .from(exerciseLogs)
     .where(eq(exerciseLogs.user_id, userId));
   return rows.map(r => r.session_date);
+}
+
+export async function getSessionDatesByInjury(
+  db: DrizzleDb,
+  userId: string,
+): Promise<Map<string, Set<string>>> {
+  const rows = await db
+    .selectDistinct({
+      session_date: exerciseLogs.session_date,
+      injury_id: phases.injury_id,
+    })
+    .from(exerciseLogs)
+    .innerJoin(exercises, eq(exerciseLogs.exercise_id, exercises.id))
+    .innerJoin(phases, eq(exercises.phase_id, phases.id))
+    .where(eq(exerciseLogs.user_id, userId));
+
+  const result = new Map<string, Set<string>>();
+  for (const row of rows) {
+    if (!result.has(row.injury_id)) result.set(row.injury_id, new Set());
+    result.get(row.injury_id)!.add(row.session_date);
+  }
+  return result;
 }
 
 export async function saveExerciseLog(db: DrizzleDb, log: NewExerciseLog): Promise<void> {
