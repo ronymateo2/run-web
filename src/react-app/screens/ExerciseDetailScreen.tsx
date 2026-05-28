@@ -74,7 +74,6 @@ function EditableNum({
 
   function open() {
     setEditing(true);
-    setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select(); }, 20);
   }
 
   function commit() {
@@ -88,10 +87,12 @@ function EditableNum({
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
         <input
           ref={inputRef}
+          autoFocus
           type="number"
           inputMode="numeric"
           value={local}
           onChange={e => setLocal(e.target.value)}
+          onFocus={e => e.target.select()}
           onBlur={commit}
           onKeyDown={e => e.key === "Enter" && commit()}
           style={{
