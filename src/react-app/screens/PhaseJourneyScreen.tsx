@@ -70,7 +70,7 @@ export function PhaseJourneyScreen() {
 
   async function toggleCriteria(criteriaId: string, current: boolean) {
     if (!db) return;
-    await exec(`UPDATE phase_criteria SET done = ? WHERE id = ?`, [current ? 0 : 1, criteriaId]);
+    await exec(`UPDATE phase_criteria SET done = ?, synced = 0 WHERE id = ?`, [current ? 0 : 1, criteriaId]);
     await loadData();
   }
 

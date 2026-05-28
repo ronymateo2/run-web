@@ -4,11 +4,17 @@
 import { queryAll, exec, execBatch } from "./client";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
+const LS_LAST_SYNC_KEY = "rurana_last_sync";
 
 export async function pullDelta(token: string, { force = false }: { force?: boolean } = {}): Promise<void> {
   const users = await queryAll<{ last_sync: number }>(`SELECT last_sync FROM users LIMIT 1`);
   // last_sync stored as ms (matches serverTime = Date.now()); API compares updated_at > since (also ms)
-  const since = force ? 0 : (users[0]?.last_sync ?? 0);
+  // Mirror in localStorage because OPFS WAL may not checkpoint before worker dies on F5.
+  const dbSync = users[0]?.last_sync ?? 0;
+  // Only use localStorage timestamp when OPFS DB has data (dbSync > 0).
+  // If OPFS is empty (SAHPool reinitialized on worker death), fall back to full pull.
+  const lsSync = dbSync > 0 ? parseInt(localStorage.getItem(LS_LAST_SYNC_KEY) ?? "0", 10) : 0;
+  const since = force ? 0 : Math.max(dbSync, lsSync);
   const res = await fetch(`${API_BASE}/api/sync/pull?since=${since}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -53,9 +59,9 @@ export async function pullDelta(token: string, { force = false }: { force?: bool
   }
   for (const row of data.phase_criteria ?? []) {
     statements.push({
-      sql: `INSERT INTO phase_criteria (id, phase_id, description, done)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET phase_id = excluded.phase_id, description = excluded.description`,
+      sql: `INSERT INTO phase_criteria (id, phase_id, description, done, synced)
+            VALUES (?, ?, ?, ?, 1)
+            ON CONFLICT(id) DO UPDATE SET phase_id = excluded.phase_id, description = excluded.description, done = excluded.done, synced = 1`,
       bind: [row.id, row.phase_id, row.description, row.done ?? 0],
     });
   }
@@ -87,19 +93,28 @@ export async function pullDelta(token: string, { force = false }: { force?: bool
     await execBatch(statements);
   }
   await exec(`UPDATE users SET last_sync = ?`, [data.serverTime]);
+  // Force WAL checkpoint so last_sync survives worker death on F5.
+  await exec(`PRAGMA wal_checkpoint(PASSIVE)`);
+  localStorage.setItem(LS_LAST_SYNC_KEY, String(data.serverTime));
 }
 
 export async function pushDelta(token: string): Promise<void> {
   const checkins = await queryAll<{ id: string }>(`SELECT * FROM pain_checkins WHERE synced = 0`);
   const logs = await queryAll<{ id: string }>(`SELECT * FROM exercise_logs WHERE synced = 0`);
   const sst = await queryAll<{ id: string }>(`SELECT * FROM sst_results WHERE synced = 0`);
+  const criteria = await queryAll<{ id: string; done: number }>(`SELECT id, done FROM phase_criteria WHERE synced = 0`);
 
-  if (checkins.length === 0 && logs.length === 0 && sst.length === 0) return;
+  if (checkins.length === 0 && logs.length === 0 && sst.length === 0 && criteria.length === 0) return;
 
   const res = await fetch(`${API_BASE}/api/sync/push`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ pain_checkins: checkins, exercise_logs: logs, sst_results: sst }),
+    body: JSON.stringify({
+      pain_checkins: checkins,
+      exercise_logs: logs,
+      sst_results: sst,
+      criteria_done: criteria.map((r) => ({ criteria_id: r.id, done: Boolean(r.done) })),
+    }),
   });
 
   if (res.ok) {
@@ -113,5 +128,6 @@ export async function pushDelta(token: string): Promise<void> {
     await markSynced("pain_checkins", checkins.map((r) => r.id));
     await markSynced("exercise_logs", logs.map((r) => r.id));
     await markSynced("sst_results", sst.map((r) => r.id));
+    await markSynced("phase_criteria", criteria.map((r) => r.id));
   }
 }

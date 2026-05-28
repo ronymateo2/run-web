@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS phases (
   week_end INTEGER NOT NULL, threshold_pct INTEGER NOT NULL DEFAULT 70, synced INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS phase_criteria (
-  id TEXT PRIMARY KEY, phase_id TEXT NOT NULL, description TEXT NOT NULL, done INTEGER NOT NULL DEFAULT 0
+  id TEXT PRIMARY KEY, phase_id TEXT NOT NULL, description TEXT NOT NULL, done INTEGER NOT NULL DEFAULT 0, synced INTEGER NOT NULL DEFAULT 1
 );
 CREATE TABLE IF NOT EXISTS exercises (
   id TEXT PRIMARY KEY, phase_id TEXT NOT NULL, name TEXT NOT NULL,
@@ -58,6 +58,7 @@ CREATE INDEX IF NOT EXISTS idx_sst_results_user_date ON sst_results(user_id, dat
 
 const MIGRATIONS: Array<{ id: number; sql: string }> = [
   { id: 1, sql: `ALTER TABLE users ADD COLUMN timezone TEXT` },
+  { id: 2, sql: `ALTER TABLE phase_criteria ADD COLUMN synced INTEGER NOT NULL DEFAULT 1` },
 ];
 
 const DB_LOCK_NAME = "rurana.sqlite.opfs";
