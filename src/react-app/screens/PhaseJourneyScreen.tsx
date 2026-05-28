@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
+import { useSync } from "../hooks/useSync";
 import { Ico } from "../components/icons";
 import { getCriteria, computePhaseProgress, getPhasesForInjury, getActiveInjuries, getPhaseById, type Phase, type Injury, type PhaseCriteria } from "../../db/queries/injuries";
 import { getExercisesForPhase, getTodayLogs, getSessionDatesByInjury, type Exercise } from "../../db/queries/exercises";
@@ -42,6 +43,7 @@ export function PhaseJourneyScreen() {
   const { id } = useParams<{ id: string }>();
   const { user, lastSyncAt } = useAuth();
   const db = useDb();
+  const push = useSync();
   const navigate = useNavigate();
   const [data, setData] = useState<PhaseJourneyData | null>(null);
 
@@ -72,6 +74,7 @@ export function PhaseJourneyScreen() {
     if (!db) return;
     await exec(`UPDATE phase_criteria SET done = ?, synced = 0 WHERE id = ?`, [current ? 0 : 1, criteriaId]);
     await loadData();
+    push();
   }
 
   if (!data) return (
