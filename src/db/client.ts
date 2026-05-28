@@ -1,7 +1,6 @@
-import { releaseProxy, wrap } from "comlink";
+import { wrap } from "comlink";
 import type { SqlValue, BindingSpec } from "@sqlite.org/sqlite-wasm";
 import DedicatedSqliteWorker from "./sqlite.worker?worker";
-import SharedSqliteWorker from "./sqlite.worker?sharedworker";
 
 interface DbWorkerApi {
   exec(sql: string, bind?: BindingSpec): Promise<void>;
@@ -61,14 +60,26 @@ const MIGRATIONS: Array<{ id: number; sql: string }> = [
   { id: 2, sql: `ALTER TABLE phase_criteria ADD COLUMN synced INTEGER NOT NULL DEFAULT 1` },
 ];
 
+// OPFS SAHPool allows only ONE connection at a time, so we can't open the DB worker in every tab.
+// Instead one tab is elected "leader" (it holds an exclusive Web Lock and owns the dedicated
+// worker); every other tab is a "follower" that forwards DB calls to the leader over a
+// BroadcastChannel and awaits the reply. When the leader tab closes it releases the lock — flushing
+// OPFS — and a waiting follower takes over leadership.
 const DB_LOCK_NAME = "rurana.sqlite.opfs";
+const RPC_CHANNEL = "rurana.sqlite.rpc";
 
-let proxyPromise: Promise<DbWorkerApi> | null = null;
+type RpcMethod = "exec" | "execBatch" | "query" | "queryObjects";
+type RpcRequest = { kind: "req"; id: string; method: RpcMethod; args: unknown[] };
+type RpcResponse = { kind: "res"; id: string; ok: boolean; result?: unknown; error?: string };
+
+let role: "pending" | "leader" | "follower" = "pending";
+let leaderProxy: DbWorkerApi | null = null;
 let workerInstance: Worker | null = null;
-let sharedWorkerInstance: SharedWorker | null = null;
-let sharedWorkerPort: MessagePort | null = null;
-let releaseDbLock: (() => void) | null = null;
-let lockAbortController: AbortController | null = null;
+let channel: BroadcastChannel | null = null;
+let roleReady: Promise<void> | null = null;
+let releaseLeadership: (() => void) | null = null;
+let leadershipAbort: AbortController | null = null;
+const pendingRpc = new Map<string, { resolve: (v: unknown) => void; reject: (e: unknown) => void }>();
 
 async function initSchema(proxy: DbWorkerApi): Promise<void> {
   await proxy.exec(SCHEMA_SQL);
@@ -96,103 +107,149 @@ async function initSchema(proxy: DbWorkerApi): Promise<void> {
   }
 }
 
-async function initSharedWorker(): Promise<DbWorkerApi> {
-  sharedWorkerInstance = new SharedSqliteWorker();
-  sharedWorkerPort = sharedWorkerInstance.port;
-  sharedWorkerPort.start();
-  const proxy = wrap<DbWorkerApi>(sharedWorkerPort);
-  await initSchema(proxy);
-  return proxy;
-}
-
-async function initDedicatedWorker(): Promise<DbWorkerApi> {
+// Spin up the dedicated worker and become the connection owner for this origin.
+async function becomeLeader(): Promise<void> {
   workerInstance = new DedicatedSqliteWorker();
   const proxy = wrap<DbWorkerApi>(workerInstance);
   await initSchema(proxy);
-  return proxy;
+  leaderProxy = proxy;
+  role = "leader";
 }
 
-function initDedicatedWorkerWithLock(): Promise<DbWorkerApi> {
+// Tear down the worker (flushes OPFS via db.close() + pauseVfs in the worker).
+async function teardownLeader(): Promise<void> {
+  await leaderProxy?.close().catch(console.warn);
+  workerInstance?.terminate();
+  workerInstance = null;
+  leaderProxy = null;
+}
+
+// Hold the exclusive lock until released (on pagehide / takeover), then tear down the worker.
+async function holdLeadershipUntilReleased(): Promise<void> {
+  await new Promise<void>((resolve) => { releaseLeadership = resolve; });
+  releaseLeadership = null;
+  await teardownLeader();
+}
+
+// Followers wait in the lock queue; when the current leader releases, the first waiter wins the
+// lock here and promotes itself to leader.
+function queueLeadershipTakeover(): void {
+  leadershipAbort = new AbortController();
+  void navigator.locks
+    .request(DB_LOCK_NAME, { mode: "exclusive", signal: leadershipAbort.signal }, async () => {
+      await becomeLeader();
+      await holdLeadershipUntilReleased();
+    })
+    .catch((error: unknown) => {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      console.warn("[db] leadership takeover failed", error);
+    });
+}
+
+async function elect(): Promise<void> {
+  channel = new BroadcastChannel(RPC_CHANNEL);
+  channel.onmessage = handleChannelMessage;
+
   if (typeof navigator === "undefined" || !navigator.locks) {
-    return initDedicatedWorker();
+    await becomeLeader();
+    return;
   }
 
-  lockAbortController = new AbortController();
-
-  let releaseLock!: () => void;
-  const lockReleased = new Promise<void>((resolve) => {
-    releaseLock = resolve;
+  // Try to grab leadership immediately; if the lock is busy another tab is already the leader.
+  // The lock is only held while the request callback's promise is pending, so the callback must
+  // keep awaiting holdLeadershipUntilReleased() — we signal the outcome via `decided` separately.
+  let resolveDecided!: (becameLeader: boolean) => void;
+  let rejectDecided!: (error: unknown) => void;
+  const decided = new Promise<boolean>((resolve, reject) => {
+    resolveDecided = resolve;
+    rejectDecided = reject;
   });
 
-  let resolveProxy!: (proxy: DbWorkerApi) => void;
-  let rejectProxy!: (error: unknown) => void;
-  const proxyReady = new Promise<DbWorkerApi>((resolve, reject) => {
-    resolveProxy = resolve;
-    rejectProxy = reject;
-  });
-
-  void navigator.locks.request(
-    DB_LOCK_NAME,
-    { mode: "exclusive", signal: lockAbortController.signal },
-    async () => {
-      releaseDbLock = releaseLock;
-      try {
-        const proxy = await initDedicatedWorker();
-        resolveProxy(proxy);
-        await lockReleased;
-        await proxy.close().catch(console.warn);
-      } catch (error) {
-        rejectProxy(error);
-      } finally {
-        workerInstance?.terminate();
-        workerInstance = null;
-        releaseDbLock = null;
-        lockAbortController = null;
-      }
+  void navigator.locks.request(DB_LOCK_NAME, { ifAvailable: true }, async (lock) => {
+    if (!lock) {
+      resolveDecided(false); // busy → another tab leads; release immediately (return)
+      return;
     }
-  ).catch((error: unknown) => {
-    if (error instanceof DOMException && error.name === "AbortError") return;
-    rejectProxy(error);
+    try {
+      await becomeLeader();
+    } catch (error) {
+      rejectDecided(error);
+      return;
+    }
+    resolveDecided(true);
+    await holdLeadershipUntilReleased(); // keep the lock held for as long as we lead
   });
 
-  return proxyReady;
-}
-
-function initWorker(): Promise<DbWorkerApi> {
-  if (typeof SharedWorker !== "undefined") {
-    return initSharedWorker();
+  if (!(await decided)) {
+    role = "follower";
+    queueLeadershipTakeover();
   }
-  return initDedicatedWorkerWithLock();
 }
 
-function getProxy(): Promise<DbWorkerApi> {
-  if (!proxyPromise) {
-    const pendingProxy = initWorker().catch((error: unknown) => {
-      proxyPromise = null;
+function ensureInit(): Promise<void> {
+  if (!roleReady) {
+    roleReady = elect().catch((error: unknown) => {
+      roleReady = null;
       throw error;
     });
-    proxyPromise = pendingProxy;
   }
-  return proxyPromise;
+  return roleReady;
+}
+
+// Leader executes the request against the worker and replies; followers resolve their pending RPCs.
+async function handleChannelMessage(event: MessageEvent): Promise<void> {
+  const msg = event.data as RpcRequest | RpcResponse;
+  if (msg.kind === "res") {
+    const pending = pendingRpc.get(msg.id);
+    if (!pending) return;
+    pendingRpc.delete(msg.id);
+    if (msg.ok) pending.resolve(msg.result);
+    else pending.reject(new Error(msg.error ?? "DB RPC error"));
+    return;
+  }
+  if (msg.kind === "req") {
+    if (role !== "leader" || !leaderProxy) return; // only the leader serves requests
+    const fn = leaderProxy[msg.method] as (...a: unknown[]) => Promise<unknown>;
+    let res: RpcResponse;
+    try {
+      const result = await fn.apply(leaderProxy, msg.args);
+      res = { kind: "res", id: msg.id, ok: true, result };
+    } catch (error) {
+      res = { kind: "res", id: msg.id, ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+    channel?.postMessage(res);
+  }
+}
+
+function rpcCall(method: RpcMethod, args: unknown[]): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const id = crypto.randomUUID();
+    pendingRpc.set(id, { resolve, reject });
+    channel?.postMessage({ kind: "req", id, method, args } satisfies RpcRequest);
+    setTimeout(() => {
+      if (pendingRpc.delete(id)) reject(new Error(`DB RPC timeout: ${method}`));
+    }, 15000);
+  });
+}
+
+// Route a DB call: leader runs it directly on the worker; followers forward it to the leader.
+async function dispatch(method: RpcMethod, args: unknown[]): Promise<unknown> {
+  await ensureInit();
+  if (role === "leader" && leaderProxy) {
+    const fn = leaderProxy[method] as (...a: unknown[]) => Promise<unknown>;
+    return fn.apply(leaderProxy, args);
+  }
+  return rpcCall(method, args);
 }
 
 export async function closeDatabaseWorker(): Promise<void> {
-  const proxyPromiseToClose = proxyPromise;
-  const lockWillCloseWorker = Boolean(releaseDbLock);
-  releaseDbLock?.();
-  lockAbortController?.abort();
-  const proxy = proxyPromiseToClose ? await proxyPromiseToClose.catch(() => null) : null;
-  if (sharedWorkerPort) {
-    (proxy as (DbWorkerApi & { [releaseProxy]?: () => void }) | null)?.[releaseProxy]?.();
-    sharedWorkerPort.close();
-    sharedWorkerPort = null;
-    sharedWorkerInstance = null;
-  } else if (!lockWillCloseWorker) {
-    await proxy?.close().catch(console.warn);
-    workerInstance?.terminate();
-    workerInstance = null;
-  }
-  proxyPromise = null;
+  leadershipAbort?.abort();
+  leadershipAbort = null;
+  if (role === "leader") releaseLeadership?.();
+  channel?.close();
+  channel = null;
+  roleReady = null;
+  role = "pending";
 }
 
 if (typeof window !== "undefined") {
@@ -211,27 +268,23 @@ if (typeof window !== "undefined") {
 }
 
 export async function exec(sql: string, bind?: unknown[]): Promise<void> {
-  const proxy = await getProxy();
-  await proxy.exec(sql, bind as BindingSpec | undefined);
+  await dispatch("exec", [sql, bind as BindingSpec | undefined]);
 }
 
 export async function execBatch(
   statements: Array<{ sql: string; bind?: unknown[] }>
 ): Promise<void> {
-  const proxy = await getProxy();
-  await proxy.execBatch(
-    statements.map((s) => ({ sql: s.sql, bind: s.bind as BindingSpec | undefined }))
-  );
+  await dispatch("execBatch", [
+    statements.map((s) => ({ sql: s.sql, bind: s.bind as BindingSpec | undefined })),
+  ]);
 }
 
 export async function queryAll<T>(sql: string, bind?: unknown[]): Promise<T[]> {
-  const proxy = await getProxy();
-  return proxy.queryObjects(sql, bind as BindingSpec | undefined) as Promise<T[]>;
+  return dispatch("queryObjects", [sql, bind as BindingSpec | undefined]) as Promise<T[]>;
 }
 
 export async function queryAllArray(sql: string, bind?: unknown[]): Promise<unknown[][]> {
-  const proxy = await getProxy();
-  return proxy.query(sql, bind as BindingSpec | undefined);
+  return dispatch("query", [sql, bind as BindingSpec | undefined]) as Promise<unknown[][]>;
 }
 
 export async function queryOne<T>(sql: string, bind?: unknown[]): Promise<T | null> {

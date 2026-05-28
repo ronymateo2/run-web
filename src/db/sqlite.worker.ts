@@ -91,14 +91,4 @@ const api = {
   },
 };
 
-const workerScope = self as unknown as {
-  onconnect?: (event: MessageEvent & { ports: MessagePort[] }) => void;
-};
-
-if ("onconnect" in workerScope) {
-  workerScope.onconnect = (event) => {
-    expose(api, event.ports[0]);
-  };
-} else {
-  expose(api);
-}
+expose(api);

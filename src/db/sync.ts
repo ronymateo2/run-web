@@ -9,6 +9,7 @@ export async function pullDelta(token: string, { force = false }: { force?: bool
   const users = await queryAll<{ last_sync: number }>(`SELECT last_sync FROM users LIMIT 1`);
   // last_sync stored as ms (matches serverTime = Date.now()); API compares updated_at > since (also ms)
   const since = force ? 0 : (users[0]?.last_sync ?? 0);
+
   const res = await fetch(`${API_BASE}/api/sync/pull?since=${since}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -87,9 +88,7 @@ export async function pullDelta(token: string, { force = false }: { force?: bool
     await execBatch(statements);
   }
   await exec(`UPDATE users SET last_sync = ?`, [data.serverTime]);
-  // Force WAL checkpoint so last_sync survives worker death on F5.
-  // Without it the write sits in the unflushed -wal file (synchronous=NORMAL)
-  // and is lost when the worker is terminated on reload, causing since=0 re-pulls.
+  // Checkpoint so last_sync reaches the main .db file; the leader worker flushes OPFS on close.
   await exec(`PRAGMA wal_checkpoint(PASSIVE)`);
 }
 
