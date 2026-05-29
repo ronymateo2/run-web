@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
@@ -109,7 +110,7 @@ export function PhaseJourneyScreen() {
 
   return (
     <div className="screen">
-      <div className="screen-body" style={{ paddingBottom: 100 }}>
+      <div className="screen-body" style={{ paddingBottom: exercises.length > 0 ? 160 : 100 }}>
 
         {/* Header */}
         <div className="row between mt-4" style={{ alignItems: "center" }}>
@@ -133,68 +134,87 @@ export function PhaseJourneyScreen() {
           Semanas {phase.week_start}–{phase.week_end}
         </div>
 
-        {/* Progress card */}
-        <div className="card mt-20" style={{ padding: "18px 20px 20px" }}>
-          <div className="eyebrow" style={{ marginBottom: 14 }}>Progreso</div>
-          <div className="row between" style={{ alignItems: "flex-end", marginBottom: 14 }}>
-            <div style={{
-              fontFamily: "var(--font-serif)",
-              fontSize: 44,
-              lineHeight: 1,
-              color: locked ? "var(--clay)" : "var(--moss)",
-            }}>
-              {progressPct}%
+        {/* Progress + criteria — combined card */}
+        <div className="card mt-20" style={{ padding: 0, overflow: "hidden" }}>
+
+          {/* Bar */}
+          <div style={{ padding: "14px 16px 10px" }}>
+            <div className="row between" style={{ alignItems: "center", marginBottom: 8 }}>
+              <span className="eyebrow">progreso de fase</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--ink)" }}>
+                {progressPct}% / {phase.threshold_pct}%
+              </span>
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div className="eyebrow" style={{ color: "var(--muted)" }}>meta</div>
-              <div className="num" style={{ fontSize: 28, lineHeight: 1, marginTop: 4, color: "var(--ink)" }}>
-                {phase.threshold_pct}%
+            <div style={{ position: "relative", height: 8, borderRadius: 999, background: "var(--line)" }}>
+              <div style={{
+                width: `${progressPct}%`, height: "100%",
+                background: locked ? "var(--sun)" : "var(--moss)",
+                borderRadius: 999, transition: "width 0.4s ease",
+              }} />
+              <div style={{
+                position: "absolute", top: 0, left: `${phase.threshold_pct}%`,
+                width: 2, height: "100%", background: "var(--clay)", borderRadius: 1,
+              }} />
+            </div>
+            <div style={{ position: "relative", height: 16 }}>
+              <span style={{
+                position: "absolute", left: `${phase.threshold_pct}%`,
+                transform: "translateX(-50%)", top: 3,
+                fontFamily: "var(--font-mono)", fontSize: 9,
+                color: "var(--clay)", letterSpacing: "0.07em",
+              }}>UMBRAL</span>
+            </div>
+          </div>
+
+          {/* Locked notification */}
+          {locked && (
+            <div style={{
+              margin: "0 12px 12px",
+              padding: "10px 12px",
+              borderRadius: 10,
+              background: "var(--ink)",
+              display: "flex", alignItems: "flex-start", gap: 10,
+            }}>
+              <div style={{
+                width: 24, height: 24, borderRadius: 999,
+                background: "rgba(255,255,255,0.12)", flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <Ico.lock s={12} c="#fff" />
+              </div>
+              <div className="body-sm" style={{ color: "rgba(255,255,255,0.85)" }}>
+                <strong style={{ color: "#fff" }}>{nextPhase?.name ?? "La siguiente fase"}</strong>
+                {" "}se abre al {phase.threshold_pct}%. Te faltan{" "}
+                <span style={{ color: "var(--sun)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
+                  {phase.threshold_pct - progressPct}%
+                </span>
+                {" "}— cuando los criterios estén en verde, paso solo.
               </div>
             </div>
-          </div>
-
-          {/* Progress bar */}
-          <div style={{ position: "relative", height: 10, borderRadius: 999, background: "var(--line)" }}>
-            <div style={{
-              width: `${progressPct}%`, height: "100%",
-              background: locked ? "var(--sun)" : "var(--moss)",
-              borderRadius: 999, transition: "width 0.4s ease",
-            }} />
-            <div style={{
-              position: "absolute", top: 0, left: `${phase.threshold_pct}%`,
-              width: 2, height: "100%", background: "var(--clay)", borderRadius: 1,
-            }} />
-          </div>
-
-          {locked && (
-            <div className="body-sm mt-10" style={{ color: "var(--clay-deep)", borderTop: "1px solid var(--line)", paddingTop: 10 }}>
-              Faltan{" "}
-              <span className="num" style={{ fontFamily: "var(--font-mono)" }}>{phase.threshold_pct - progressPct}%</span>
-              {" "}para desbloquear{" "}
-              {nextPhase ? `"${nextPhase.name}"` : "la siguiente fase"}.
-            </div>
           )}
-        </div>
 
-        {/* Criteria checklist */}
-        {criteria.length > 0 && (
-          <>
-            <div className="title-md serif mt-24">
-              criterios para abrir{nextPhase ? ` ${nextPhase.name}` : " la siguiente fase"}
-            </div>
-            <div className="col gap-10 mt-12">
+          {/* Criteria */}
+          {criteria.length > 0 && (
+            <>
+              <div style={{ padding: "10px 16px 6px" }}>
+                <span className="eyebrow">
+                  criterios para abrir{nextPhase ? ` ${nextPhase.name}` : " la siguiente fase"}
+                </span>
+              </div>
               {criteria.map(c => (
-                <button
+                <div
                   key={c.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => toggleCriteria(c.id, c.done)}
-                  className="card"
+                  onKeyDown={(e) => e.key === "Enter" && toggleCriteria(c.id, c.done)}
                   style={{
-                    padding: 14, display: "flex", alignItems: "center", gap: 14,
-                    cursor: "pointer", border: "none", textAlign: "left", width: "100%",
+                    padding: "10px 16px", display: "flex", alignItems: "center", gap: 12,
+                    cursor: "pointer",
                   }}
                 >
                   <div style={{
-                    width: 26, height: 26, borderRadius: 999, flexShrink: 0,
+                    width: 24, height: 24, borderRadius: 999, flexShrink: 0,
                     background: c.done ? "var(--moss)" : "transparent",
                     border: c.done ? "none" : "1.5px solid var(--line-2)",
                     display: "flex", alignItems: "center", justifyContent: "center",
@@ -207,11 +227,11 @@ export function PhaseJourneyScreen() {
                   }}>
                     {c.description}
                   </span>
-                </button>
+                </div>
               ))}
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </div>
 
         {/* Month calendar — F-badge (fase) over each trained day, one injury at a time */}
         {(() => {
@@ -317,16 +337,27 @@ export function PhaseJourneyScreen() {
             </div>
           );
         })()}
-        {exercises.length > 0 && (
-          <button
-            className="btn-pill mt-24"
-            style={{ width: "100%", justifyContent: "center", background: "var(--ink)", color: "var(--bone)" }}
-            onClick={() => navigate(`/path/phase/${phase.id}/exercises`)}
-          >
-            Ver ejercicios de hoy · {doneCnt}/{exercises.length}
-          </button>
-        )}
       </div>
+
+      {exercises.length > 0 && createPortal(
+        <button
+          className="btn-pill"
+          style={{
+            position: "fixed",
+            left: 16, right: 16,
+            width: "auto",
+            bottom: "calc(10px + var(--sab, 0px))",
+            justifyContent: "center",
+            background: "var(--ink)", color: "var(--bone)",
+            zIndex: 50,
+            boxShadow: "0 4px 20px rgba(31,58,46,0.25)",
+          }}
+          onClick={() => navigate(`/path/phase/${phase.id}/exercises`)}
+        >
+          Ver ejercicios de hoy · {doneCnt}/{exercises.length}
+        </button>,
+        document.body
+      )}
     </div>
   );
 }
