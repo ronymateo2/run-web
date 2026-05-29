@@ -18,7 +18,10 @@ export async function syncArticles(token: string): Promise<void> {
   const meta = await learnQueryOne<{ value: string }>(
     `SELECT value FROM _meta WHERE key = 'last_synced_at'`
   );
-  if (meta && Date.now() - parseInt(meta.value, 10) < SYNC_INTERVAL_MS) return;
+  if (meta && Date.now() - parseInt(meta.value, 10) < SYNC_INTERVAL_MS) {
+    const count = await learnQueryOne<{ n: number }>(`SELECT COUNT(*) as n FROM articles`);
+    if ((count?.n ?? 0) > 0) return;
+  }
 
   const res = await fetch(`${API_BASE}/api/learn`, {
     headers: { Authorization: `Bearer ${token}` },

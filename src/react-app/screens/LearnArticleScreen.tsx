@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import Markdown from "react-markdown";
 import { learnQueryOne } from "../../db/learn-client";
 import { type Article } from "../../db/learn-sync";
 import { Ico } from "../components/icons";
@@ -65,11 +66,8 @@ export function LearnArticleScreen() {
             <div style={{ height: 1, background: "var(--line)", margin: "16px 0" }} />
 
             {article.content && (
-              <div
-                className="body"
-                style={{ lineHeight: 1.7, whiteSpace: "pre-wrap" }}
-              >
-                {article.content}
+              <div className="md-body">
+                <Markdown>{article.content}</Markdown>
               </div>
             )}
 

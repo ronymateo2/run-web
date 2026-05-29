@@ -19,16 +19,18 @@ export function LearnScreen() {
     let active = true;
     (async () => {
       const local = await learnQueryAll<Article>(
-        `SELECT * FROM articles ORDER BY sort_order ASC, published_at DESC`
+        `SELECT id, title, subtitle, notion_url, tags, published_at, sort_order FROM articles ORDER BY sort_order ASC, published_at DESC`
       );
       if (active) setArticles(local);
 
-      await syncArticles(token).catch(() => {});
+      await syncArticles(token).catch(console.error);
 
-      const fresh = await learnQueryAll<Article>(
-        `SELECT * FROM articles ORDER BY sort_order ASC, published_at DESC`
-      );
-      if (active) setArticles(fresh);
+      if (local.length === 0) {
+        const fresh = await learnQueryAll<Article>(
+          `SELECT id, title, subtitle, notion_url, tags, published_at, sort_order FROM articles ORDER BY sort_order ASC, published_at DESC`
+        );
+        if (active) setArticles(fresh);
+      }
     })();
     return () => { active = false; };
   }, [token]);
