@@ -11,12 +11,16 @@ interface Props {
   duration_s?: number;
   mins?: number;
   done: boolean;
+  setsDone?: number;
+  setsTotal?: number;
   phase?: string;
   accent?: string;
 }
 
-export function ExerciseRow({ id, name, sets, reps, duration_s, mins, done, phase, accent = "var(--ink-2)" }: Props) {
+export function ExerciseRow({ id, name, sets, reps, duration_s, mins, done, setsDone = 0, setsTotal = 0, phase, accent = "var(--ink-2)" }: Props) {
   const navigate = useNavigate();
+  const partial = !done && setsDone > 0 && setsDone < setsTotal;
+  const remaining = setsTotal - setsDone;
   return (
     <motion.div
       className="card"
@@ -32,16 +36,27 @@ export function ExerciseRow({ id, name, sets, reps, duration_s, mins, done, phas
       <div style={{
         width: 32, height: 32, borderRadius: 999, flexShrink: 0,
         background: done ? "var(--ink)" : "transparent",
-        border: done ? "none" : "1.5px dashed var(--line-2)",
+        border: done ? "none" : partial ? "1.5px solid var(--clay)" : "1.5px dashed var(--line-2)",
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
-        {done && <Ico.check s={16} c="#EDE6D6" />}
+        {done
+          ? <Ico.check s={16} c="#EDE6D6" />
+          : partial && (
+            <span className="num" style={{ fontSize: 11, fontWeight: 700, color: "var(--clay)" }}>
+              {setsDone}/{setsTotal}
+            </span>
+          )}
       </div>
       <div className="col" style={{ flex: 1, minWidth: 0 }}>
         <span className="body" style={{
           fontWeight: 600, color: done ? "var(--muted)" : "var(--ink)",
           textDecoration: done ? "line-through" : "none",
         }}>{name}</span>
+        {partial && (
+          <span className="body-sm" style={{ color: "var(--clay)", fontWeight: 600 }}>
+            Falta {remaining} {remaining === 1 ? "serie" : "series"}
+          </span>
+        )}
       </div>
       <div className="col" style={{ alignItems: "flex-end", gap: 4 }}>
         {phase && (

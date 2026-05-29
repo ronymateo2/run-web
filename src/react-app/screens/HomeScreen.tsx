@@ -5,13 +5,13 @@ import { useAuth } from "../auth/AuthContext";
 import { localToday, localDayName } from "../utils/timezone";
 import { useDb } from "../hooks/useDb";
 
-import { ExerciseRow } from "../components/ExerciseRow";
+import { ExerciseList, setsDoneMap, countDone } from "../components/ExerciseList";
 import { NudgeSST } from "../components/NudgeSST";
 import { BodyFigure } from "../components/BodyFigure";
 import { ZoneRow } from "../components/ZoneRow";
 import { Ico } from "../components/icons";
 import { getActiveInjuries, getTodayFocusInjuries, getCurrentPhase, type Injury, type Phase } from "../../db/queries/injuries";
-import { getExercisesForPhase, getTodayLogs, type Exercise, type ExerciseLog } from "../../db/queries/exercises";
+import { getExercisesForPhase, getTodayLogs, type Exercise } from "../../db/queries/exercises";
 import { getTodayCheckin, type PainCheckin } from "../../db/queries/checkins";
 import { getTodaySst, isSstPreferredToday, type SstResult } from "../../db/queries/sst";
 import { pullDelta, pushDelta } from "../../db/sync";
@@ -26,7 +26,7 @@ interface FocusBlock {
 interface HomeData {
   injuries: Injury[];
   focusBlocks: FocusBlock[];
-  doneIds: Set<string>;
+  setsDone: Map<string, number>;
   checkin: PainCheckin | null;
   sstResult: SstResult | null;
   sstDue: boolean;
@@ -52,11 +52,10 @@ export function HomeScreen() {
       })
     );
     const logs = await getTodayLogs(db, user.id, dateStr);
-    const doneIds = new Set(logs.map((l: ExerciseLog) => l.exercise_id));
     const checkin = await getTodayCheckin(db, user.id, dateStr);
     const sstResult = await getTodaySst(db, user.id, dateStr);
     const sstDue = isSstPreferredToday(user?.timezone);
-    setData({ injuries, focusBlocks, doneIds, checkin, sstResult, sstDue });
+    setData({ injuries, focusBlocks, setsDone: setsDoneMap(logs), checkin, sstResult, sstDue });
   }, [db, user]);
 
   useEffect(() => {
@@ -95,7 +94,7 @@ export function HomeScreen() {
     );
   }
 
-  const { focusBlocks, doneIds, checkin, sstResult, sstDue, injuries } = data;
+  const { focusBlocks, setsDone, checkin, sstResult, sstDue, injuries } = data;
   const focus = focusBlocks[0]?.injury ?? null;
   const isDualInjury = injuries.length >= 2;
   const isMultiFocus = focusBlocks.length >= 2;
@@ -193,7 +192,7 @@ export function HomeScreen() {
 
         {/* Today's exercises — one block per focus injury */}
         {focusBlocks.map((block) => {
-          const blockDone = block.exercises.filter(e => doneIds.has(e.id)).length;
+          const blockDone = countDone(block.exercises, setsDone);
           return block.exercises.length > 0 ? (
             <div key={block.injury.id}>
               <div className="row between mt-24" style={{ alignItems: "baseline" }}>
@@ -211,16 +210,7 @@ export function HomeScreen() {
                   style={{ background: "var(--ink)" }}
                 />
               </div>
-              <div className="col gap-10 mt-16">
-                {block.exercises.map((e) => (
-                  <ExerciseRow
-                    key={e.id} id={e.id} name={e.name} detail={e.detail ?? undefined}
-                    sets={e.sets ?? undefined} reps={e.reps ?? undefined} duration_s={e.duration_s ?? undefined}
-                    mins={estimateMins(e.sets ?? undefined, e.reps ?? undefined, e.duration_s ?? undefined)}
-                    done={doneIds.has(e.id)} phase={block.phase?.name}
-                  />
-                ))}
-              </div>
+              <ExerciseList exercises={block.exercises} setsDone={setsDone} phaseName={block.phase?.name} />
             </div>
           ) : null;
         })}
@@ -246,12 +236,6 @@ export function HomeScreen() {
 
     </div>
   );
-}
-
-function estimateMins(sets?: number, reps?: number, duration_s?: number): number | undefined {
-  if (sets && reps) return Math.ceil((sets * reps * 4) / 60);
-  if (sets && duration_s) return Math.ceil((sets * duration_s) / 60);
-  return undefined;
 }
 
 function zoneLabel(key: string): string {

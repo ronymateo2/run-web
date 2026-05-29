@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
 import { Ico } from "../components/icons";
-import { ExerciseRow } from "../components/ExerciseRow";
+import { ExerciseList, setsDoneMap, countDone } from "../components/ExerciseList";
 import { getPhaseById, type Phase } from "../../db/queries/injuries";
 import { getExercisesForPhase, getTodayLogs, type Exercise } from "../../db/queries/exercises";
 import { localToday } from "../utils/timezone";
@@ -11,7 +11,7 @@ import { localToday } from "../utils/timezone";
 interface PhaseExercisesData {
   phase: Phase;
   exercises: Exercise[];
-  doneIds: Set<string>;
+  setsDone: Map<string, number>;
 }
 
 export function PhaseExercisesScreen() {
@@ -28,13 +28,22 @@ export function PhaseExercisesScreen() {
     const exercises = await getExercisesForPhase(db, id);
     const today = localToday(user?.timezone);
     const logs = user ? await getTodayLogs(db, user.id, today) : [];
-    const doneIds = new Set(logs.map(l => l.exercise_id));
-    setData({ phase, exercises, doneIds });
+    setData({ phase, exercises, setsDone: setsDoneMap(logs) });
   }, [db, id, user]);
 
   useEffect(() => {
     loadData();
   }, [loadData, lastSyncAt]);
+
+  // Restore scroll to the exercise the user was last viewing (set in ExerciseRow).
+  useEffect(() => {
+    if (!data) return;
+    const lastId = sessionStorage.getItem("lastExerciseId");
+    if (!lastId) return;
+    sessionStorage.removeItem("lastExerciseId");
+    const el = document.querySelector(`[data-exercise-id="${lastId}"]`);
+    if (el) requestAnimationFrame(() => el.scrollIntoView({ block: "center" }));
+  }, [data]);
 
   if (!data) return (
     <div className="screen">
@@ -44,8 +53,8 @@ export function PhaseExercisesScreen() {
     </div>
   );
 
-  const { phase, exercises, doneIds } = data;
-  const doneCnt = exercises.filter(e => doneIds.has(e.id)).length;
+  const { phase, exercises, setsDone } = data;
+  const doneCnt = countDone(exercises, setsDone);
 
   return (
     <div className="screen">
@@ -78,21 +87,7 @@ export function PhaseExercisesScreen() {
           />
         </div>
 
-        <div className="col gap-10 mt-16">
-          {exercises.map((e) => (
-            <ExerciseRow
-              key={e.id}
-              id={e.id}
-              name={e.name}
-              detail={e.detail ?? undefined}
-              sets={e.sets ?? undefined}
-              reps={e.reps ?? undefined}
-              duration_s={e.duration_s ?? undefined}
-              mins={estimateMins(e.sets ?? undefined, e.reps ?? undefined, e.duration_s ?? undefined)}
-              done={doneIds.has(e.id)}
-            />
-          ))}
-        </div>
+        <ExerciseList exercises={exercises} setsDone={setsDone} />
 
         {exercises.length === 0 && (
           <div style={{ paddingTop: 32, textAlign: "center" }}>
@@ -102,10 +97,4 @@ export function PhaseExercisesScreen() {
       </div>
     </div>
   );
-}
-
-function estimateMins(sets?: number, reps?: number, duration_s?: number): number | undefined {
-  if (sets && reps) return Math.ceil((sets * reps * 4) / 60);
-  if (sets && duration_s) return Math.ceil((sets * duration_s) / 60);
-  return undefined;
 }
