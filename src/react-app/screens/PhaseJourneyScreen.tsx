@@ -5,7 +5,7 @@ import { useDb } from "../hooks/useDb";
 import { useSync } from "../hooks/useSync";
 import { Ico } from "../components/icons";
 import { getCriteria, computePhaseProgress, getPhasesForInjury, getActiveInjuries, getPhaseById, type Phase, type Injury, type PhaseCriteria } from "../../db/queries/injuries";
-import { getExercisesForPhase, getTodayLogs, getSessionDatesByInjury, type Exercise } from "../../db/queries/exercises";
+import { getExercisesForPhase, getTodayLogs, getSessionPhasesByDate, type Exercise, type DaySession } from "../../db/queries/exercises";
 import { exec } from "../../db/client";
 import { localToday } from "../utils/timezone";
 
@@ -18,25 +18,43 @@ interface PhaseJourneyData {
   nextPhase: Phase | undefined;
   exercises: Exercise[];
   doneIds: Set<string>;
-  weekDays: { label: string; date: string; isToday: boolean }[];
-  activeDatesByInjury: Map<string, Set<string>>;
+  month: MonthGrid;
+  sessionsByDate: Map<string, DaySession[]>;
+}
+
+interface MonthCell {
+  date: string | null; // null = leading/trailing blank
+  dayNum: number;
+  isToday: boolean;
+}
+interface MonthGrid {
+  label: string; // "mayo 2026"
+  cells: MonthCell[]; // padded to start on Monday
 }
 
 const DAY_LABELS = ["L", "M", "M", "J", "V", "S", "D"];
 
-function getWeekDays(tz?: string | null): { label: string; date: string; isToday: boolean }[] {
+function getMonthGrid(tz?: string | null): MonthGrid {
   const today = localToday(tz);
   const ref = new Date(today + "T12:00:00");
-  const dow = ref.getDay(); // 0=Sun
-  const mondayOffset = dow === 0 ? -6 : 1 - dow;
-  const monday = new Date(ref);
-  monday.setDate(ref.getDate() + mondayOffset);
-  return DAY_LABELS.map((label, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    const date = d.toLocaleDateString("en-CA");
-    return { label, date, isToday: date === today };
-  });
+  const year = ref.getFullYear();
+  const month = ref.getMonth();
+
+  const first = new Date(year, month, 1, 12);
+  const dow = first.getDay(); // 0=Sun
+  const lead = dow === 0 ? 6 : dow - 1; // blanks before day 1 (Mon-start)
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const cells: MonthCell[] = [];
+  for (let i = 0; i < lead; i++) cells.push({ date: null, dayNum: 0, isToday: false });
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month, d, 12).toLocaleDateString("en-CA");
+    cells.push({ date, dayNum: d, isToday: date === today });
+  }
+  while (cells.length % 7 !== 0) cells.push({ date: null, dayNum: 0, isToday: false });
+
+  const label = ref.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+  return { label, cells };
 }
 
 export function PhaseJourneyScreen() {
@@ -46,6 +64,7 @@ export function PhaseJourneyScreen() {
   const push = useSync();
   const navigate = useNavigate();
   const [data, setData] = useState<PhaseJourneyData | null>(null);
+  const [selectedInjuryId, setSelectedInjuryId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!db || !id) return;
@@ -61,9 +80,9 @@ export function PhaseJourneyScreen() {
     const today = localToday(user?.timezone);
     const logs = user ? await getTodayLogs(db, user.id, today) : [];
     const doneIds = new Set(logs.map(l => l.exercise_id));
-    const activeDatesByInjury = user ? await getSessionDatesByInjury(db, user.id) : new Map<string, Set<string>>();
-    const weekDays = getWeekDays(user?.timezone);
-    setData({ phase, criteria, progressPct, injury, allInjuries: injuries, nextPhase, exercises, doneIds, weekDays, activeDatesByInjury });
+    const sessionsByDate = user ? await getSessionPhasesByDate(db, user.id) : new Map<string, DaySession[]>();
+    const month = getMonthGrid(user?.timezone);
+    setData({ phase, criteria, progressPct, injury, allInjuries: injuries, nextPhase, exercises, doneIds, month, sessionsByDate });
   }, [db, id, user]);
 
   useEffect(() => {
@@ -83,7 +102,8 @@ export function PhaseJourneyScreen() {
     </div>
   );
 
-  const { phase, criteria, progressPct, injury, allInjuries, nextPhase, exercises, doneIds, weekDays, activeDatesByInjury } = data;
+  const { phase, criteria, progressPct, injury, allInjuries, nextPhase, exercises, doneIds, month, sessionsByDate } = data;
+  const selInjuryId = selectedInjuryId ?? phase.injury_id;
   const locked = progressPct < phase.threshold_pct;
   const doneCnt = exercises.filter(e => doneIds.has(e.id)).length;
 
@@ -193,73 +213,107 @@ export function PhaseJourneyScreen() {
           </>
         )}
 
-        {/* Weekly day calendar */}
+        {/* Month calendar — F-badge (fase) over each trained day, one injury at a time */}
         {(() => {
           const INJURY_COLORS = ["var(--clay)", "var(--moss)", "var(--sun)", "#7B8FA1"];
-          const DOW_ES = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"];
-          const todayIdx = weekDays.findIndex(d => d.isToday);
-          const todayLabel = todayIdx >= 0 ? DOW_ES[todayIdx] : "";
-          const todayDayNum = todayIdx >= 0 ? todayIdx + 1 : "";
+          const selIdx = allInjuries.findIndex(inj => inj.id === selInjuryId);
+          const selColor = INJURY_COLORS[(selIdx < 0 ? 0 : selIdx) % INJURY_COLORS.length];
+          // highest phase trained on a day for the selected injury (null = none)
+          const phaseFor = (date: string | null): number | null => {
+            if (!date) return null;
+            const nums = (sessionsByDate.get(date) ?? [])
+              .filter(s => s.injury_id === selInjuryId)
+              .map(s => s.phase_num);
+            return nums.length ? Math.max(...nums) : null;
+          };
           return (
             <div className="card mt-20" style={{ padding: "18px 20px 20px" }}>
-              <div className="row between" style={{ marginBottom: 16, alignItems: "baseline" }}>
-                <div className="eyebrow">Esta semana</div>
-                {todayLabel && (
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--muted)", letterSpacing: "0.02em" }}>
-                    {todayLabel} · día {todayDayNum} de 7
-                  </span>
-                )}
+              <div className="row between" style={{ marginBottom: 14, alignItems: "baseline" }}>
+                <div className="eyebrow">Calendario</div>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--muted)", letterSpacing: "0.02em", textTransform: "capitalize" }}>
+                  {month.label}
+                </span>
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                {weekDays.map(({ label, date, isToday }) => (
-                  <div
-                    key={date}
-                    style={{
-                      flex: 1, display: "flex", flexDirection: "column",
-                      alignItems: "center", gap: 7, padding: "12px 0",
-                      borderRadius: 10,
-                      background: isToday ? "var(--ink)" : "transparent",
-                      border: isToday ? "none" : "1px solid var(--line)",
-                    }}
-                  >
-                    <span style={{
-                      fontFamily: "var(--font-mono)", fontSize: 12,
-                      fontWeight: isToday ? 700 : 400,
-                      color: isToday ? "#fff" : "var(--ink-3)",
-                      letterSpacing: "0.03em",
-                    }}>
-                      {label}
-                    </span>
-                    {allInjuries.map((inj, i) => {
-                      const active = activeDatesByInjury.get(inj.id)?.has(date) ?? false;
-                      const color = INJURY_COLORS[i % INJURY_COLORS.length];
-                      return (
-                        <div key={inj.id} style={{
-                          width: 6, height: 6, borderRadius: 999,
-                          background: active
-                            ? isToday ? "rgba(255,255,255,0.8)" : color
-                            : isToday ? "rgba(255,255,255,0.15)" : "var(--line)",
+
+              {/* Injury selector */}
+              {allInjuries.length > 1 && (
+                <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+                  {allInjuries.map((inj, i) => {
+                    const active = inj.id === selInjuryId;
+                    const c = INJURY_COLORS[i % INJURY_COLORS.length];
+                    return (
+                      <button
+                        key={inj.id}
+                        onClick={() => setSelectedInjuryId(inj.id)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 6,
+                          padding: "5px 10px", borderRadius: 999, cursor: "pointer",
+                          fontFamily: "var(--font-mono)", fontSize: 11,
+                          border: active ? "none" : "1px solid var(--line)",
+                          background: active ? c : "transparent",
+                          color: active ? "#fff" : "var(--muted)",
+                        }}
+                      >
+                        <div style={{
+                          width: 7, height: 7, borderRadius: 999, flexShrink: 0,
+                          background: active ? "#fff" : c,
                         }} />
-                      );
-                    })}
+                        {inj.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Weekday header */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 6 }}>
+                {DAY_LABELS.map((label, i) => (
+                  <div key={i} style={{
+                    textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 10,
+                    color: "var(--ink-3)", letterSpacing: "0.03em",
+                  }}>
+                    {label}
                   </div>
                 ))}
               </div>
-              {allInjuries.length > 0 && (
-                <div style={{ display: "flex", gap: 14, marginTop: 14, flexWrap: "wrap" }}>
-                  {allInjuries.map((inj, i) => (
-                    <div key={inj.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <div style={{
-                        width: 8, height: 8, borderRadius: 999, flexShrink: 0,
-                        background: INJURY_COLORS[i % INJURY_COLORS.length],
-                      }} />
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--muted)" }}>
-                        {inj.name}
+
+              {/* Day grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+                {month.cells.map((cell, idx) => {
+                  if (!cell.date) return <div key={idx} />;
+                  const ph = phaseFor(cell.date);
+                  return (
+                    <div key={cell.date} style={{
+                      position: "relative", aspectRatio: "1",
+                      display: "flex", flexDirection: "column",
+                      alignItems: "center", justifyContent: "center", gap: 2,
+                      borderRadius: 8,
+                      background: cell.isToday ? "var(--ink)" : "transparent",
+                      border: cell.isToday ? "none" : "1px solid var(--line)",
+                    }}>
+                      {/* F-badge over the day (F1 style) */}
+                      <div style={{ minHeight: 12 }}>
+                        {ph !== null && (
+                          <span style={{
+                            fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700,
+                            lineHeight: 1, padding: "2px 4px", borderRadius: 4,
+                            color: "#fff", background: cell.isToday ? "rgba(255,255,255,0.25)" : selColor,
+                          }}>
+                            F{ph}
+                          </span>
+                        )}
+                      </div>
+                      <span style={{
+                        fontFamily: "var(--font-mono)", fontSize: 12,
+                        fontWeight: cell.isToday ? 700 : 400,
+                        color: cell.isToday ? "#fff" : ph !== null ? "var(--ink)" : "var(--ink-3)",
+                      }}>
+                        {cell.dayNum}
                       </span>
                     </div>
-                  ))}
-                </div>
-              )}
+                  );
+                })}
+              </div>
             </div>
           );
         })()}

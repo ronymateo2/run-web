@@ -102,6 +102,34 @@ export async function getSessionDatesByInjury(
   return result;
 }
 
+export interface DaySession {
+  injury_id: string;
+  phase_num: number;
+}
+
+export async function getSessionPhasesByDate(
+  db: DrizzleDb,
+  userId: string,
+): Promise<Map<string, DaySession[]>> {
+  const rows = await db
+    .selectDistinct({
+      session_date: exerciseLogs.session_date,
+      injury_id: phases.injury_id,
+      phase_num: phases.phase_num,
+    })
+    .from(exerciseLogs)
+    .innerJoin(exercises, eq(exerciseLogs.exercise_id, exercises.id))
+    .innerJoin(phases, eq(exercises.phase_id, phases.id))
+    .where(eq(exerciseLogs.user_id, userId));
+
+  const result = new Map<string, DaySession[]>();
+  for (const row of rows) {
+    if (!result.has(row.session_date)) result.set(row.session_date, []);
+    result.get(row.session_date)!.push({ injury_id: row.injury_id, phase_num: row.phase_num });
+  }
+  return result;
+}
+
 export async function saveExerciseLog(db: DrizzleDb, log: NewExerciseLog): Promise<void> {
   await db.insert(exerciseLogs)
     .values({ ...log, synced: 0 })
