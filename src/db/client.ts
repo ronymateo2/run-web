@@ -71,6 +71,7 @@ const RPC_CHANNEL = "rurana.sqlite.rpc";
 type RpcMethod = "exec" | "execBatch" | "query" | "queryObjects";
 type RpcRequest = { kind: "req"; id: string; method: RpcMethod; args: unknown[] };
 type RpcResponse = { kind: "res"; id: string; ok: boolean; result?: unknown; error?: string };
+type RpcReady = { kind: "ready" };
 
 let role: "pending" | "leader" | "follower" = "pending";
 let leaderProxy: DbWorkerApi | null = null;
@@ -79,7 +80,10 @@ let channel: BroadcastChannel | null = null;
 let roleReady: Promise<void> | null = null;
 let releaseLeadership: (() => void) | null = null;
 let leadershipAbort: AbortController | null = null;
-const pendingRpc = new Map<string, { resolve: (v: unknown) => void; reject: (e: unknown) => void }>();
+const pendingRpc = new Map<
+  string,
+  { resolve: (v: unknown) => void; reject: (e: unknown) => void; req: RpcRequest }
+>();
 
 async function initSchema(proxy: DbWorkerApi): Promise<void> {
   await proxy.exec(SCHEMA_SQL);
@@ -109,11 +113,42 @@ async function initSchema(proxy: DbWorkerApi): Promise<void> {
 
 // Spin up the dedicated worker and become the connection owner for this origin.
 async function becomeLeader(): Promise<void> {
-  workerInstance = new DedicatedSqliteWorker();
-  const proxy = wrap<DbWorkerApi>(workerInstance);
-  await initSchema(proxy);
+  const worker = new DedicatedSqliteWorker();
+  const proxy = wrap<DbWorkerApi>(worker);
+  try {
+    await initSchema(proxy);
+  } catch (error) {
+    // OPFS SAHPool init failed (e.g. previous leader's access handle not yet released).
+    // Drop this worker so the retry opens a fresh one.
+    worker.terminate();
+    throw error;
+  }
+  workerInstance = worker;
   leaderProxy = proxy;
   role = "leader";
+  // Run any RPCs this tab queued while it was still a follower (self-promotion case).
+  for (const [id, pending] of pendingRpc) {
+    pendingRpc.delete(id);
+    const fn = proxy[pending.req.method] as (...a: unknown[]) => Promise<unknown>;
+    fn.apply(proxy, pending.req.args).then(pending.resolve, pending.reject);
+  }
+  // Tell followers a leader is up so they can resend requests dropped during the gap.
+  channel?.postMessage({ kind: "ready" } satisfies RpcReady);
+}
+
+// Keep retrying promotion while we hold the exclusive lock: the OPFS access handle from a tab that
+// just reloaded can take a moment to free, and the new leader MUST eventually win or nobody serves.
+async function becomeLeaderWithRetry(signal?: AbortSignal): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    if (signal?.aborted) throw new DOMException("aborted", "AbortError");
+    try {
+      await becomeLeader();
+      return;
+    } catch (error) {
+      if (attempt >= 50) throw error; // ~5s of 100ms retries before giving up
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  }
 }
 
 // Tear down the worker (flushes OPFS via db.close() + pauseVfs in the worker).
@@ -135,9 +170,10 @@ async function holdLeadershipUntilReleased(): Promise<void> {
 // lock here and promotes itself to leader.
 function queueLeadershipTakeover(): void {
   leadershipAbort = new AbortController();
+  const signal = leadershipAbort.signal;
   void navigator.locks
-    .request(DB_LOCK_NAME, { mode: "exclusive", signal: leadershipAbort.signal }, async () => {
-      await becomeLeader();
+    .request(DB_LOCK_NAME, { mode: "exclusive", signal }, async () => {
+      await becomeLeaderWithRetry(signal);
       await holdLeadershipUntilReleased();
     })
     .catch((error: unknown) => {
@@ -171,7 +207,7 @@ async function elect(): Promise<void> {
       return;
     }
     try {
-      await becomeLeader();
+      await becomeLeaderWithRetry();
     } catch (error) {
       rejectDecided(error);
       return;
@@ -198,7 +234,12 @@ function ensureInit(): Promise<void> {
 
 // Leader executes the request against the worker and replies; followers resolve their pending RPCs.
 async function handleChannelMessage(event: MessageEvent): Promise<void> {
-  const msg = event.data as RpcRequest | RpcResponse;
+  const msg = event.data as RpcRequest | RpcResponse | RpcReady;
+  if (msg.kind === "ready") {
+    // A new leader came up — resend in-flight requests that may have been dropped during the gap.
+    for (const { req } of pendingRpc.values()) channel?.postMessage(req);
+    return;
+  }
   if (msg.kind === "res") {
     const pending = pendingRpc.get(msg.id);
     if (!pending) return;
@@ -224,8 +265,9 @@ async function handleChannelMessage(event: MessageEvent): Promise<void> {
 function rpcCall(method: RpcMethod, args: unknown[]): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const id = crypto.randomUUID();
-    pendingRpc.set(id, { resolve, reject });
-    channel?.postMessage({ kind: "req", id, method, args } satisfies RpcRequest);
+    const req: RpcRequest = { kind: "req", id, method, args };
+    pendingRpc.set(id, { resolve, reject, req });
+    channel?.postMessage(req);
     setTimeout(() => {
       if (pendingRpc.delete(id)) reject(new Error(`DB RPC timeout: ${method}`));
     }, 15000);

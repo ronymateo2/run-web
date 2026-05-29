@@ -31,7 +31,10 @@ export function LearnScreen() {
         );
         if (active) setArticles(fresh);
       }
-    })();
+    })().catch((error) => {
+      console.error(error);
+      if (active) setArticles([]); // show empty state instead of an endless spinner
+    });
     return () => { active = false; };
   }, [token]);
 
