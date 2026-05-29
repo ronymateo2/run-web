@@ -291,3 +291,17 @@ export async function queryOne<T>(sql: string, bind?: unknown[]): Promise<T | nu
   const rows = await queryAll<T>(sql, bind);
   return rows[0] ?? null;
 }
+
+// DevTools console access. On in dev; in prod set localStorage.__db_debug="1" then reload.
+// Usage: await db.queryAll("SELECT * FROM injuries")
+if (typeof window !== "undefined") {
+  if (import.meta.env.DEV || localStorage.getItem("__db_debug") === "1") {
+    (window as unknown as Record<string, unknown>).db = {
+      exec,
+      execBatch,
+      queryAll,
+      queryAllArray,
+      queryOne,
+    };
+  }
+}
