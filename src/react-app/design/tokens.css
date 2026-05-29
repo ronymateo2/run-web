@@ -344,6 +344,11 @@ body {
   padding: 4px 0 4px 14px; color: var(--ink-3);
 }
 .md-body hr { border: none; border-top: 1px solid var(--line); margin: 1.4em 0; }
+.md-body table { width: 100%; border-collapse: collapse; margin: 0 0 1em; font-size: 14px; }
+.md-body th, .md-body td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.md-body th { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); border-bottom: 2px solid var(--line-2); }
+.md-body tr:last-child td { border-bottom: none; }
+.md-body { overflow-x: auto; }
 
 /* Scrollbar hide for mobile feel */
 .screen::-webkit-scrollbar { display: none; }

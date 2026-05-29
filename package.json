@@ -25,6 +25,7 @@
 		"react-dom": "19.2.1",
 		"react-markdown": "^10.1.0",
 		"react-router-dom": "^7.15.1",
+		"remark-gfm": "^4.0.1",
 		"uuid": "^14.0.0"
 	},
 	"devDependencies": {

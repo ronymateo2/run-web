@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { learnQueryOne } from "../../db/learn-client";
 import { type Article } from "../../db/learn-sync";
 import { Ico } from "../components/icons";
@@ -67,7 +68,7 @@ export function LearnArticleScreen() {
 
             {article.content && (
               <div className="md-body">
-                <Markdown>{article.content}</Markdown>
+                <Markdown remarkPlugins={[remarkGfm]}>{article.content}</Markdown>
               </div>
             )}
 
