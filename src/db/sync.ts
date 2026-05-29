@@ -69,10 +69,10 @@ export async function pullDelta(token: string, { force = false }: { force?: bool
   }
   for (const row of data.exercise_logs ?? []) {
     statements.push({
-      sql: `INSERT OR REPLACE INTO exercise_logs (id, user_id, exercise_id, session_date, reps_done, pain_during, rpe, note, completed_at, synced)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      sql: `INSERT OR REPLACE INTO exercise_logs (id, user_id, exercise_id, session_date, reps_done, pain_during, rpe, note, completed_at, deleted_at, synced)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       bind: [row.id, row.user_id, row.exercise_id, row.session_date, row.reps_done ?? null,
-             row.pain_during ?? null, row.rpe ?? null, row.note ?? null, row.completed_at ?? null],
+             row.pain_during ?? null, row.rpe ?? null, row.note ?? null, row.completed_at ?? null, row.deleted_at ?? null],
     });
   }
   for (const row of data.sst_results ?? []) {

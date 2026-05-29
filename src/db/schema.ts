@@ -84,6 +84,8 @@ export const exerciseLogs = sqliteTable("exercise_logs", {
   rpe: integer("rpe"),
   note: text("note"),
   completed_at: integer("completed_at"),
+  // Soft delete: deselected sets keep their row with deleted_at set; re-checking nulls it.
+  deleted_at: integer("deleted_at"),
   synced: integer("synced").default(0),
 });
 

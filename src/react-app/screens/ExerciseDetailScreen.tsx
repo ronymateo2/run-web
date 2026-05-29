@@ -7,7 +7,7 @@ import { useSync } from "../hooks/useSync";
 import { localToday } from "../utils/timezone";
 import { Ico } from "../components/icons";
 import {
-  getExerciseById, saveExerciseLog, getLogsForExercise,
+  getExerciseById, saveExerciseLog, softDeleteExerciseLog, getLogsForExercise,
   type Exercise, type ExerciseLog,
 } from "../../db/queries/exercises";
 
@@ -37,11 +37,14 @@ function initSets(count: number, defaultValue: number): SetRow[] {
   }));
 }
 
+// Set index is the last segment of the log id (`${user}:${exercise}:${date}:${i}`),
+// so logs land on their real set row even when completion is non-contiguous.
 function logsToSets(logs: ExerciseLog[], count: number, defaultValue: number): SetRow[] {
   const base = initSets(count, defaultValue);
-  logs.forEach((log, i) => {
-    if (i < base.length) {
-      base[i] = {
+  logs.forEach(log => {
+    const idx = Number(log.id.split(":").pop());
+    if (Number.isInteger(idx) && idx >= 0 && idx < base.length) {
+      base[idx] = {
         rpe: log.rpe ?? DEFAULT_RPE,
         value: log.reps_done ?? defaultValue,
         painDuring: log.pain_during ?? 0,
@@ -147,6 +150,7 @@ export function ExerciseDetailScreen() {
 
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [sets, setSets] = useState<SetRow[]>([]);
+  const [hadLogs, setHadLogs] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const totalSets = exercise?.sets ?? 3;
@@ -163,6 +167,7 @@ export function ExerciseDetailScreen() {
     if (!db || !user || !exercise) return;
     const sessionDate = localToday(user?.timezone);
     getLogsForExercise(db, user.id, exercise.id, sessionDate).then(logs => {
+      setHadLogs(logs.length > 0);
       setSets(
         logs.length > 0
           ? logsToSets(logs, totalSets, defaultValue)
@@ -184,22 +189,26 @@ export function ExerciseDetailScreen() {
   }
 
   async function handleSave() {
-    if (!db || !user || !exercise || completedCount === 0) return;
+    if (!db || !user || !exercise || (completedCount === 0 && !hadLogs)) return;
     setSaving(true);
     const sessionDate = localToday(user?.timezone);
     const now = Date.now();
     for (let i = 0; i < sets.length; i++) {
-      if (!sets[i].completed) continue;
-      await saveExerciseLog(db, {
-        id: `${user.id}:${exercise.id}:${sessionDate}:${i}`,
-        user_id: user.id,
-        exercise_id: exercise.id,
-        session_date: sessionDate,
-        reps_done: sets[i].value,
-        pain_during: sets[i].painDuring,
-        rpe: sets[i].rpe,
-        completed_at: now + i,
-      });
+      const id = `${user.id}:${exercise.id}:${sessionDate}:${i}`;
+      if (sets[i].completed) {
+        await saveExerciseLog(db, {
+          id,
+          user_id: user.id,
+          exercise_id: exercise.id,
+          session_date: sessionDate,
+          reps_done: sets[i].value,
+          pain_during: sets[i].painDuring,
+          rpe: sets[i].rpe,
+          completed_at: now + i,
+        });
+      } else {
+        await softDeleteExerciseLog(db, id);
+      }
     }
     push();
     setSaving(false);
@@ -209,10 +218,14 @@ export function ExerciseDetailScreen() {
   const saveLabel = saving
     ? "Guardando..."
     : completedCount === 0
-    ? "Completa al menos una serie"
+    ? hadLogs
+      ? "Borrar registro"
+      : "Completa al menos una serie"
     : completedCount === totalSets
     ? "Registrar todas las series"
     : `Registrar ${completedCount} de ${totalSets} series`;
+
+  const canSave = completedCount > 0 || hadLogs;
 
   return (
     <div className="screen screen-dark" style={{ position: "relative" }}>
@@ -441,11 +454,11 @@ export function ExerciseDetailScreen() {
           <motion.button
             className="btn-pill"
             onClick={handleSave}
-            disabled={saving || completedCount === 0}
-            whileTap={completedCount > 0 && !saving ? { scale: 0.97 } : {}}
+            disabled={saving || !canSave}
+            whileTap={canSave && !saving ? { scale: 0.97 } : {}}
             transition={{ type: "spring", stiffness: 400, damping: 25 }}
             style={{
-              opacity: completedCount === 0 ? 0.35 : 1,
+              opacity: !canSave ? 0.35 : 1,
               pointerEvents: "auto",
             }}
           >

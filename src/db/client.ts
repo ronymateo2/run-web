@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS pain_checkins (
 CREATE TABLE IF NOT EXISTS exercise_logs (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, exercise_id TEXT NOT NULL,
   session_date TEXT NOT NULL, reps_done INTEGER, pain_during INTEGER, rpe INTEGER,
-  note TEXT, completed_at INTEGER, synced INTEGER DEFAULT 0
+  note TEXT, completed_at INTEGER, deleted_at INTEGER, synced INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS sst_results (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, injury_id TEXT NOT NULL,
@@ -58,6 +58,7 @@ CREATE INDEX IF NOT EXISTS idx_sst_results_user_date ON sst_results(user_id, dat
 const MIGRATIONS: Array<{ id: number; sql: string }> = [
   { id: 1, sql: `ALTER TABLE users ADD COLUMN timezone TEXT` },
   { id: 2, sql: `ALTER TABLE phase_criteria ADD COLUMN synced INTEGER NOT NULL DEFAULT 1` },
+  { id: 3, sql: `ALTER TABLE exercise_logs ADD COLUMN deleted_at INTEGER` },
 ];
 
 // OPFS SAHPool allows only ONE connection at a time, so we can't open the DB worker in every tab.

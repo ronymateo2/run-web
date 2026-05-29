@@ -1,10 +1,14 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { exercises, exerciseLogs, phases } from "../schema";
 import type { DrizzleDb } from "../drizzle";
 
 export type Exercise = typeof exercises.$inferSelect;
 export type ExerciseLog = typeof exerciseLogs.$inferSelect;
-export type NewExerciseLog = Omit<typeof exerciseLogs.$inferInsert, "synced">;
+export type NewExerciseLog = Omit<typeof exerciseLogs.$inferInsert, "synced" | "deleted_at">;
+
+// Soft-deleted rows (deselected sets) are excluded from every read/count. Use this
+// predicate everywhere so the filter can't be forgotten.
+const notDeleted = isNull(exerciseLogs.deleted_at);
 
 export async function getExercisesForPhase(db: DrizzleDb, phaseId: string): Promise<Exercise[]> {
   return db.select().from(exercises)
@@ -19,7 +23,7 @@ export async function getExerciseById(db: DrizzleDb, id: string): Promise<Exerci
 
 export async function getTodayLogs(db: DrizzleDb, userId: string, date: string): Promise<ExerciseLog[]> {
   return db.select().from(exerciseLogs)
-    .where(and(eq(exerciseLogs.user_id, userId), eq(exerciseLogs.session_date, date)));
+    .where(and(eq(exerciseLogs.user_id, userId), eq(exerciseLogs.session_date, date), notDeleted));
 }
 
 export async function getLogsForExercise(
@@ -30,6 +34,7 @@ export async function getLogsForExercise(
       eq(exerciseLogs.user_id, userId),
       eq(exerciseLogs.exercise_id, exerciseId),
       eq(exerciseLogs.session_date, date),
+      notDeleted,
     ))
     .orderBy(exerciseLogs.completed_at);
 }
@@ -50,6 +55,7 @@ export async function getPhaseExerciseProgress(
     .from(exerciseLogs)
     .where(and(
       eq(exerciseLogs.user_id, userId),
+      notDeleted,
     ));
 
   // group logs by exercise_id → session_date → count
@@ -108,7 +114,7 @@ export async function getPhaseProgress(
     session_date: exerciseLogs.session_date,
   })
     .from(exerciseLogs)
-    .where(eq(exerciseLogs.user_id, userId));
+    .where(and(eq(exerciseLogs.user_id, userId), notDeleted));
 
   // count sets done per (exercise, date)
   const setsByKey = new Map<string, number>();
@@ -132,7 +138,7 @@ export async function getSessionDates(db: DrizzleDb, userId: string): Promise<st
   const rows = await db
     .selectDistinct({ session_date: exerciseLogs.session_date })
     .from(exerciseLogs)
-    .where(eq(exerciseLogs.user_id, userId));
+    .where(and(eq(exerciseLogs.user_id, userId), notDeleted));
   return rows.map(r => r.session_date);
 }
 
@@ -148,7 +154,7 @@ export async function getSessionDatesByInjury(
     .from(exerciseLogs)
     .innerJoin(exercises, eq(exerciseLogs.exercise_id, exercises.id))
     .innerJoin(phases, eq(exercises.phase_id, phases.id))
-    .where(eq(exerciseLogs.user_id, userId));
+    .where(and(eq(exerciseLogs.user_id, userId), notDeleted));
 
   const result = new Map<string, Set<string>>();
   for (const row of rows) {
@@ -176,7 +182,7 @@ export async function getSessionPhasesByDate(
     .from(exerciseLogs)
     .innerJoin(exercises, eq(exerciseLogs.exercise_id, exercises.id))
     .innerJoin(phases, eq(exercises.phase_id, phases.id))
-    .where(eq(exerciseLogs.user_id, userId));
+    .where(and(eq(exerciseLogs.user_id, userId), notDeleted));
 
   const result = new Map<string, DaySession[]>();
   for (const row of rows) {
@@ -186,9 +192,18 @@ export async function getSessionPhasesByDate(
   return result;
 }
 
+// Soft delete a deselected set: keep the row, set deleted_at, mark unsynced so the
+// flag propagates to D1. No-op if the row never existed (set was never saved).
+export async function softDeleteExerciseLog(db: DrizzleDb, id: string): Promise<void> {
+  await db.update(exerciseLogs)
+    .set({ deleted_at: Date.now(), synced: 0 })
+    .where(eq(exerciseLogs.id, id));
+}
+
 export async function saveExerciseLog(db: DrizzleDb, log: NewExerciseLog): Promise<void> {
+  // deleted_at: null on insert/update reactivates a previously soft-deleted set.
   await db.insert(exerciseLogs)
-    .values({ ...log, synced: 0 })
+    .values({ ...log, deleted_at: null, synced: 0 })
     .onConflictDoUpdate({
       target: exerciseLogs.id,
       set: {
@@ -197,6 +212,8 @@ export async function saveExerciseLog(db: DrizzleDb, log: NewExerciseLog): Promi
         rpe: log.rpe,
         note: log.note,
         completed_at: log.completed_at,
+        deleted_at: null,
+        synced: 0,
       },
     });
 }
