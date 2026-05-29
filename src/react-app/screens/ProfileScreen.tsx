@@ -219,6 +219,11 @@ export function ProfileScreen() {
             </button>
           </div>
         </div>
+
+        {/* Build stamp — para verificar qué versión cargó (útil en iOS PWA) */}
+        <div className="body-sm" style={{ marginTop: 28, textAlign: "center", color: "var(--muted)", opacity: 0.6 }}>
+          build {__BUILD__}
+        </div>
       </div>
 
     </div>

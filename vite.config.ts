@@ -9,6 +9,7 @@ export default defineConfig({
 		cloudflare(),
 		VitePWA({
 			registerType: "autoUpdate",
+			injectRegister: false,
 			includeAssets: ["favicon.ico", "favicon.svg", "apple-touch-icon.png"],
 			manifest: {
 				name: "Rurana",
@@ -43,6 +44,13 @@ export default defineConfig({
 			},
 		}),
 	],
+	define: {
+		__BUILD__: JSON.stringify(
+			process.env.GITHUB_SHA
+				? process.env.GITHUB_SHA.slice(0, 7)
+				: new Date().toISOString(),
+		),
+	},
 	optimizeDeps: {
 		exclude: ["@sqlite.org/sqlite-wasm"],
 	},
