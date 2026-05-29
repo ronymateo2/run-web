@@ -321,7 +321,7 @@ body {
 .zone-slider:focus { outline: none; }
 
 /* Markdown body */
-.md-body { font-size: 15px; line-height: 1.7; color: var(--ink); }
+.md-body { font-size: 16px; line-height: 1.8; color: var(--ink); }
 .md-body p { margin: 0 0 1em; }
 .md-body p:last-child { margin-bottom: 0; }
 .md-body h1, .md-body h2, .md-body h3 {
@@ -357,4 +357,5 @@ body {
   .eyebrow { font-size: 11px; }
   .tab { font-size: 11px; }
   .tab .tab-ico { width: 24px; height: 24px; }
+  .md-body { font-size: 18px; }
 }
