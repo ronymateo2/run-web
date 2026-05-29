@@ -10,6 +10,7 @@ import { PhaseJourneyScreen } from "./screens/PhaseJourneyScreen";
 import { PhaseExercisesScreen } from "./screens/PhaseExercisesScreen";
 import { ProgressScreen } from "./screens/ProgressScreen";
 import { LearnScreen } from "./screens/LearnScreen";
+import { LearnArticleScreen } from "./screens/LearnArticleScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
       { path: "/path/phase/:id/exercises", element: <PhaseExercisesScreen /> },
       { path: "/path/progress", element: <ProgressScreen /> },
       { path: "/learn", element: <LearnScreen /> },
+      { path: "/learn/:id", element: <LearnArticleScreen /> },
       { path: "/profile", element: <ProfileScreen /> },
     ],
   },
