@@ -72,6 +72,62 @@ export async function getPhaseExerciseProgress(
   return Math.round((done / allExercises.length) * 100);
 }
 
+/**
+ * Phase progress as a fraction of the planned work over the phase.
+ *
+ * Denominator = weeks × focus_days/week × exercises in phase
+ *   (total exercise-completions expected across the whole phase).
+ * Numerator   = Σ per (exercise, session_date) of min(sets_done / sets_required, 1)
+ *   so a partially-done exercise counts as a fraction (3 of 6 sets = 0.5).
+ *
+ * Each exercise_logs row = one set performed.
+ */
+export async function getPhaseProgress(
+  db: DrizzleDb,
+  phase: { id: string; week_start: number; week_end: number },
+  focusDaysJson: string | null | undefined,
+  userId: string,
+): Promise<number> {
+  const phaseExercises = await db.select({ id: exercises.id, sets: exercises.sets })
+    .from(exercises)
+    .where(eq(exercises.phase_id, phase.id));
+  if (phaseExercises.length === 0) return 0;
+
+  const weeks = phase.week_end - phase.week_start + 1;
+  let focusDays = 0;
+  try { focusDays = focusDaysJson ? (JSON.parse(focusDaysJson) as string[]).length : 0; }
+  catch { focusDays = 0; }
+  const denom = weeks * focusDays * phaseExercises.length;
+  if (denom <= 0) return 0;
+
+  const ids = new Set(phaseExercises.map(e => e.id));
+  const required = new Map(phaseExercises.map(e => [e.id, e.sets ?? 1]));
+
+  const logs = await db.select({
+    exercise_id: exerciseLogs.exercise_id,
+    session_date: exerciseLogs.session_date,
+  })
+    .from(exerciseLogs)
+    .where(eq(exerciseLogs.user_id, userId));
+
+  // count sets done per (exercise, date)
+  const setsByKey = new Map<string, number>();
+  for (const log of logs) {
+    if (!ids.has(log.exercise_id)) continue;
+    const k = `${log.exercise_id}|${log.session_date}`;
+    setsByKey.set(k, (setsByKey.get(k) ?? 0) + 1);
+  }
+
+  let done = 0;
+  for (const [k, sets] of setsByKey) {
+    const exId = k.slice(0, k.indexOf("|"));
+    const req = required.get(exId) ?? 1;
+    done += Math.min(sets / req, 1);
+  }
+
+  return Math.min(100, Math.round((done / denom) * 100));
+}
+
 export async function getSessionDates(db: DrizzleDb, userId: string): Promise<string[]> {
   const rows = await db
     .selectDistinct({ session_date: exerciseLogs.session_date })
