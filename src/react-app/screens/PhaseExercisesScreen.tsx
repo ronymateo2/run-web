@@ -58,7 +58,7 @@ export function PhaseExercisesScreen() {
 
   return (
     <div className="screen">
-      <div className="screen-body" style={{ paddingBottom: 100 }}>
+      <div className="screen-body" style={{ paddingBottom: 170 }}>
 
         <div className="row between mt-4" style={{ alignItems: "center" }}>
           <button

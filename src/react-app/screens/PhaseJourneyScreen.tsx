@@ -110,7 +110,7 @@ export function PhaseJourneyScreen() {
 
   return (
     <div className="screen">
-      <div className="screen-body" style={{ paddingBottom: exercises.length > 0 ? 160 : 100 }}>
+      <div className="screen-body" style={{ paddingBottom: exercises.length > 0 ? 230 : 170 }}>
 
         {/* Header */}
         <div className="row between mt-4" style={{ alignItems: "center" }}>
@@ -346,7 +346,7 @@ export function PhaseJourneyScreen() {
             position: "fixed",
             left: 16, right: 16,
             width: "auto",
-            bottom: "calc(10px + var(--sab, 0px))",
+            bottom: "calc(88px + var(--sab, 0px))",
             justifyContent: "center",
             background: "var(--ink)", color: "var(--bone)",
             zIndex: 50,
