@@ -26,6 +26,7 @@ export function ExerciseRow({ id, name, sets, reps, duration_s, mins, done, sets
     <motion.div
       className="card"
       data-exercise-id={id}
+      variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
       whileTap={{ scale: 0.975 }}
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
       style={{ padding: 14, display: "flex", alignItems: "center", gap: 14, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}

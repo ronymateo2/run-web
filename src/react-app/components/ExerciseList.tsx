@@ -1,5 +1,11 @@
+import { motion } from "motion/react";
 import { ExerciseRow } from "./ExerciseRow";
 import type { Exercise, ExerciseLog } from "../../db/queries/exercises";
+
+const listVariants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.045, delayChildren: 0.03 } },
+};
 
 /** Count sets logged per exercise (each log row = one set). */
 export function setsDoneMap(logs: ExerciseLog[]): Map<string, number> {
@@ -27,7 +33,12 @@ interface Props {
 
 export function ExerciseList({ exercises, setsDone, phaseName }: Props) {
   return (
-    <div className="col gap-10 mt-16">
+    <motion.div
+      className="col gap-10 mt-16"
+      variants={listVariants}
+      initial="hidden"
+      animate="show"
+    >
       {exercises.map((e) => {
         const total = e.sets ?? 1;
         const sd = setsDone.get(e.id) ?? 0;
@@ -49,6 +60,6 @@ export function ExerciseList({ exercises, setsDone, phaseName }: Props) {
           />
         );
       })}
-    </div>
+    </motion.div>
   );
 }
