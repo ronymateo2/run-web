@@ -6,6 +6,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useSync } from "../hooks/useSync";
 import { localToday } from "../utils/timezone";
 import { Ico } from "../components/icons";
+import { BackButton } from "../components/BackButton";
 import {
   getExerciseById, saveExerciseLog, softDeleteExerciseLog, getLogsForExercise,
   type Exercise, type ExerciseLog,
@@ -230,17 +231,11 @@ export function ExerciseDetailScreen() {
   return (
     <div className="screen screen-dark" style={{ position: "relative" }}>
       <div className="screen-body" style={{
-        paddingBottom: 120, paddingTop: 24,
+        paddingBottom: 120,
         display: "flex", flexDirection: "column", flex: 1,
       }}>
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <button
-            onClick={() => navigate(-1)}
-            style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}
-          >
-            <Ico.chevL s={22} c="var(--bone)" />
-          </button>
+        <div className="screen-nav" style={{ justifyContent: "flex-start" }}>
+          <BackButton fallbackPath="/today" color="var(--bone)" />
         </div>
 
         {/* Title */}

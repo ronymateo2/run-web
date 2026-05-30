@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import { learnQueryOne } from "../../db/learn-client";
 import { type Article } from "../../db/learn-sync";
 import { Ico } from "../components/icons";
+import { BackButton } from "../components/BackButton";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("es", { year: "numeric", month: "long", day: "numeric" });
@@ -27,17 +28,9 @@ export function LearnArticleScreen() {
   return (
     <div className="screen">
       <div className="screen-body" style={{ paddingBottom: 100 }}>
-        <button
-          onClick={() => navigate(-1)}
-          style={{
-            display: "flex", alignItems: "center", gap: 6,
-            background: "none", border: "none", padding: "12px 0",
-            cursor: "pointer", color: "var(--muted)", marginTop: 8,
-          }}
-        >
-          <Ico.chevL s={16} c="var(--muted)" />
-          <span className="body-sm">Aprende</span>
-        </button>
+        <div className="screen-nav" style={{ justifyContent: "flex-start" }}>
+          <BackButton fallbackPath="/learn" color="var(--muted)" label="Aprende" />
+        </div>
 
         {article === undefined && (
           <div style={{ paddingTop: 32, textAlign: "center" }}>

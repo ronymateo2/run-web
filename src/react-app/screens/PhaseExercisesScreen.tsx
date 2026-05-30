@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
 import { Ico } from "../components/icons";
+import { BackButton } from "../components/BackButton";
 import { ExerciseList, setsDoneMap, countDone } from "../components/ExerciseList";
 import { getPhaseById, type Phase } from "../../db/queries/injuries";
 import { getExercisesForPhase, getTodayLogs, type Exercise } from "../../db/queries/exercises";
@@ -59,16 +60,10 @@ export function PhaseExercisesScreen() {
   return (
     <div className="screen">
       <div className="screen-body" style={{ paddingBottom: 170 }}>
-
-        <div className="row between mt-4" style={{ alignItems: "center" }}>
-          <button
-            onClick={() => navigate(`/path/phase/${phase.id}`)}
-            style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}
-          >
-            <Ico.chevL s={22} c="var(--ink)" />
-          </button>
+        <div className="screen-nav">
+          <BackButton fallbackPath={`/path/phase/${phase.id}`} color="var(--ink)" />
           <div className="eyebrow">Fase {phase.phase_num}</div>
-          <div style={{ width: 30 }} />
+          <div style={{ width: 34 }} />
         </div>
 
         <div className="row between mt-20" style={{ alignItems: "baseline" }}>

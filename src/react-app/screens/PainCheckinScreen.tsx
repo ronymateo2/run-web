@@ -7,6 +7,7 @@ import { useSync } from "../hooks/useSync";
 import { BodyFigure, type HeatMap } from "../components/BodyFigure";
 import { ZoneRow } from "../components/ZoneRow";
 import { Ico } from "../components/icons";
+import { BackButton } from "../components/BackButton";
 import { saveCheckin, getTodayCheckin } from "../../db/queries/checkins";
 
 const ZONES: { key: keyof HeatMap; label: string }[] = [
@@ -50,16 +51,10 @@ export function PainCheckinScreen() {
   return (
     <div className="screen">
       <div className="screen-body" style={{ paddingBottom: 100 }}>
-        {/* Header */}
-        <div className="row between mt-4" style={{ alignItems: "center" }}>
-          <button
-            onClick={() => navigate(-1)}
-            style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}
-          >
-            <Ico.chevL s={22} c="var(--ink)" />
-          </button>
+        <div className="screen-nav">
+          <BackButton fallbackPath="/today" color="var(--ink)" />
           <div className="eyebrow">Check-in de dolor</div>
-          <div style={{ width: 30 }} />
+          <div style={{ width: 34 }} />
         </div>
 
         <div className="title-lg serif mt-16">

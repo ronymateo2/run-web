@@ -5,6 +5,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
 import { useSync } from "../hooks/useSync";
 import { Ico } from "../components/icons";
+import { BackButton } from "../components/BackButton";
 import { getCriteria, getPhasesForInjury, getActiveInjuries, getPhaseById, type Phase, type Injury, type PhaseCriteria } from "../../db/queries/injuries";
 import { getExercisesForPhase, getTodayLogs, getSessionPhasesByDate, getPhaseProgress, type Exercise, type DaySession } from "../../db/queries/exercises";
 import { exec } from "../../db/client";
@@ -111,14 +112,10 @@ export function PhaseJourneyScreen() {
   return (
     <div className="screen">
       <div className="screen-body" style={{ paddingBottom: exercises.length > 0 ? 230 : 170 }}>
-
-        {/* Header */}
-        <div className="row between mt-4" style={{ alignItems: "center" }}>
-          <button onClick={() => navigate("/path")} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-            <Ico.chevL s={22} c="var(--ink)" />
-          </button>
+        <div className="screen-nav">
+          <BackButton fallbackPath="/path" color="var(--ink)" />
           <div className="eyebrow">Fase {phase.phase_num}</div>
-          <div style={{ width: 30 }} />
+          <div style={{ width: 34 }} />
         </div>
 
         {/* Injury name */}

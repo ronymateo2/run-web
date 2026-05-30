@@ -5,6 +5,7 @@ import { localToday } from "../utils/timezone";
 import { useDb } from "../hooks/useDb";
 import { useSync } from "../hooks/useSync";
 import { Ico } from "../components/icons";
+import { BackButton } from "../components/BackButton";
 import { getActiveInjuries, getTodayFocusInjury } from "../../db/queries/injuries";
 import { saveSstResult } from "../../db/queries/sst";
 
@@ -96,16 +97,13 @@ export function SqueezeTestScreen() {
 
   return (
     <div className="screen screen-dark">
-      <div className="screen-body" style={{ paddingTop: 24, paddingBottom: 80, display: "flex", flexDirection: "column", flex: 1 }}>
-        {/* Header */}
-        <div className="row between" style={{ alignItems: "center" }}>
-          <button onClick={() => navigate(-1)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-            <Ico.chevL s={22} c="var(--bone)" />
-          </button>
+      <div className="screen-body" style={{ paddingBottom: 80, display: "flex", flexDirection: "column", flex: 1 }}>
+        <div className="screen-nav">
+          <BackButton fallbackPath="/today" color="var(--bone)" />
           <span className="eyebrow" style={{ color: "rgba(237,230,214,0.55)" }}>
             5-Second Squeeze Test
           </span>
-          <div style={{ width: 30 }} />
+          <div style={{ width: 34 }} />
         </div>
 
         {phase === "intro" && (

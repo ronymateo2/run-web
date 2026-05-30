@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
 import { useSync } from "../hooks/useSync";
 import { Ico } from "../components/icons";
+import { BackButton } from "../components/BackButton";
 import {
   getInjuryById, getPhasesForInjury, updateInjuryEdit, softDeletePhase,
   type Injury, type Phase,
@@ -72,13 +73,10 @@ export function InjuryEditScreen() {
   return (
     <div className="screen">
       <div className="screen-body" style={{ paddingBottom: 120 }}>
-        {/* Header */}
-        <div className="row between mt-4" style={{ alignItems: "center" }}>
-          <button onClick={() => navigate(-1)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-            <Ico.chevL s={22} c="var(--ink)" />
-          </button>
+        <div className="screen-nav">
+          <BackButton fallbackPath="/path" color="var(--ink)" />
           <div className="eyebrow">Editar lesión</div>
-          <div style={{ width: 30 }} />
+          <div style={{ width: 34 }} />
         </div>
 
         <div className="eyebrow mt-16" style={{ color: "var(--clay-deep)" }}>{injury.zone}</div>

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
 import { Ico } from "../components/icons";
+import { BackButton } from "../components/BackButton";
 import { getRecentCheckins, type PainCheckin } from "../../db/queries/checkins";
 import { getRecentSst, type SstResult } from "../../db/queries/sst";
 
@@ -68,13 +69,10 @@ export function ProgressScreen() {
   return (
     <div className="screen">
       <div className="screen-body" style={{ paddingBottom: 100 }}>
-        {/* Header */}
-        <div className="row between mt-4" style={{ alignItems: "center" }}>
-          <button onClick={() => navigate("/path")} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-            <Ico.chevL s={22} c="var(--ink)" />
-          </button>
+        <div className="screen-nav">
+          <BackButton fallbackPath="/path" color="var(--ink)" />
           <div className="eyebrow">Progreso</div>
-          <div style={{ width: 30 }} />
+          <div style={{ width: 34 }} />
         </div>
 
         <div className="title-lg serif mt-12">La marea del dolor.</div>
