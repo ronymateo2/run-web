@@ -27,9 +27,7 @@ export function LearnArticleScreen() {
 
   return (
     <div className="screen">
-      <ScreenNav style={{ justifyContent: "flex-start" }}>
-        <BackButton fallbackPath="/learn" color="var(--muted)" label="Aprende" />
-      </ScreenNav>
+      <ScreenNav back={<BackButton fallbackPath="/learn" color="var(--muted)" label="Aprende" />} />
       <div className="screen-body" style={{ paddingBottom: 100 }}>
 
         {article === undefined && (

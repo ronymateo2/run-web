@@ -98,8 +98,7 @@ export function SqueezeTestScreen() {
 
   return (
     <div className="screen screen-dark">
-      <ScreenNav>
-        <BackButton fallbackPath="/today" color="var(--bone)" />
+      <ScreenNav back={<BackButton fallbackPath="/today" color="var(--bone)" />}>
         <span className="eyebrow" style={{ color: "rgba(237,230,214,0.55)" }}>
           5-Second Squeeze Test
         </span>

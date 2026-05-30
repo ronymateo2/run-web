@@ -73,8 +73,7 @@ export function InjuryEditScreen() {
 
   return (
     <div className="screen">
-      <ScreenNav>
-        <BackButton fallbackPath="/path" color="var(--ink)" />
+      <ScreenNav back={<BackButton fallbackPath="/path" color="var(--ink)" />}>
         <div className="eyebrow">Editar lesión</div>
         <div style={{ width: 34 }} />
       </ScreenNav>

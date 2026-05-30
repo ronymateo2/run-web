@@ -128,8 +128,7 @@ export function PhaseEditScreen() {
 
   return (
     <div className="screen">
-      <ScreenNav>
-        <BackButton fallbackPath={isCreate ? `/path/injury/${id}/edit` : `/path/injury/${injuryId}/edit`} color="var(--ink)" />
+      <ScreenNav back={<BackButton fallbackPath={isCreate ? `/path/injury/${id}/edit` : `/path/injury/${injuryId}/edit`} color="var(--ink)" />}>
         <div className="eyebrow">{isCreate ? "Nueva fase" : `Fase ${phaseNum}`}</div>
         <div style={{ width: 34 }} />
       </ScreenNav>

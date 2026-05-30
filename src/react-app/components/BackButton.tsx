@@ -40,7 +40,6 @@ export function BackButton({ fallbackPath, color = "var(--ink)", label, onClick 
         justifyContent: "center",
         gap: 6,
         color: color,
-        marginLeft: label ? -10 : 0,
         paddingRight: label ? 12 : 0,
         paddingLeft: label ? 10 : 0,
         borderRadius: 999,

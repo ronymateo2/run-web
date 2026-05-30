@@ -112,8 +112,7 @@ export function PhaseJourneyScreen() {
 
   return (
     <div className="screen">
-      <ScreenNav>
-        <BackButton fallbackPath="/path" color="var(--ink)" />
+      <ScreenNav back={<BackButton fallbackPath="/path" color="var(--ink)" />}>
         <div className="eyebrow">Fase {phase.phase_num}</div>
         <div style={{ width: 34 }} />
       </ScreenNav>

@@ -1,12 +1,12 @@
-import React, { useRef, useState, useEffect, type ReactNode, type CSSProperties } from "react";
-import { BackButton } from "./BackButton";
+import { useRef, useState, useEffect, type ReactNode, type CSSProperties } from "react";
 
 interface ScreenNavProps {
-  children: ReactNode;
+  back?: ReactNode;
+  children?: ReactNode;
   style?: CSSProperties;
 }
 
-export function ScreenNav({ children, style }: ScreenNavProps) {
+export function ScreenNav({ back, children, style }: ScreenNavProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
 
@@ -19,30 +19,17 @@ export function ScreenNav({ children, style }: ScreenNavProps) {
     return () => screen.removeEventListener("scroll", onScroll);
   }, []);
 
-  const kids = React.Children.toArray(children);
-  const first = kids[0];
-  const rest = kids.slice(1);
-  const firstEl = first as React.ReactElement<any>;
-  const isSoloBack = React.isValidElement(first) && firstEl.type === BackButton && !firstEl.props.label;
-
   return (
     <>
       <div ref={ref} className="screen-nav" style={style}>
-        {first && (
-          <div className={`back-btn-wrap${scrolled ? " is-scrolled" : ""}${isSoloBack ? " is-solo" : ""}`}>
-            {React.isValidElement(first)
-              ? React.cloneElement(first as React.ReactElement<any>, {
-                  style: {
-                    ...(first as React.ReactElement<any>).props.style,
-                    marginLeft: 0,
-                  },
-                })
-              : first}
+        {back && (
+          <div className={`back-btn-wrap${scrolled ? " is-scrolled" : ""}`}>
+            {back}
           </div>
         )}
-        {rest.length > 0 && (
+        {!!children && (
           <div className={`nav-rest${scrolled ? " is-hidden" : ""}`}>
-            {rest}
+            {children}
           </div>
         )}
       </div>

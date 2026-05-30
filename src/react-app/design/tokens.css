@@ -300,10 +300,6 @@ body {
   margin-left: -10px;
   transition: background 0.25s ease, backdrop-filter 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
-.back-btn-wrap.is-solo {
-  width: 44px;
-  height: 44px;
-}
 .back-btn-wrap.is-scrolled {
   background: rgba(255,255,255,0.45);
   -webkit-backdrop-filter: blur(20px) saturate(180%);

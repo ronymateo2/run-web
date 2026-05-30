@@ -231,9 +231,7 @@ export function ExerciseDetailScreen() {
 
   return (
     <div className="screen screen-dark" style={{ position: "relative" }}>
-      <ScreenNav style={{ justifyContent: "flex-start" }}>
-        <BackButton fallbackPath="/today" color="var(--bone)" />
-      </ScreenNav>
+      <ScreenNav back={<BackButton fallbackPath="/today" color="var(--bone)" />} />
       <div className="screen-body" style={{
         paddingBottom: 120,
         display: "flex", flexDirection: "column", flex: 1,

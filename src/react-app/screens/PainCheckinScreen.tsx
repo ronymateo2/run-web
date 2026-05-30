@@ -51,8 +51,7 @@ export function PainCheckinScreen() {
 
   return (
     <div className="screen">
-      <ScreenNav>
-        <BackButton fallbackPath="/today" color="var(--ink)" />
+      <ScreenNav back={<BackButton fallbackPath="/today" color="var(--ink)" />}>
         <div className="eyebrow">Check-in de dolor</div>
         <div style={{ width: 34 }} />
       </ScreenNav>
