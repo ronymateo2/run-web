@@ -27,6 +27,7 @@ export function InjuryEditScreen() {
   const [currentPhaseId, setCurrentPhaseId] = useState<string>("");
   const [focusDays, setFocusDays] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const loadData = useCallback(async () => {
     if (!db || !id) return;
@@ -54,10 +55,10 @@ export function InjuryEditScreen() {
     navigate(-1);
   }
 
-  async function handleDeletePhase(phaseId: string) {
-    if (!db) return;
-    if (!confirm("¿Eliminar esta fase y sus criterios?")) return;
-    await softDeletePhase(phaseId);
+  async function confirmDeletePhase() {
+    if (!db || !deleteTarget) return;
+    await softDeletePhase(deleteTarget.id);
+    setDeleteTarget(null);
     push();
     await loadData();
   }
@@ -113,8 +114,8 @@ export function InjuryEditScreen() {
                   key={d.key}
                   onClick={() => toggleDay(d.key)}
                   style={{
-                    width: 40, height: 40, borderRadius: 999, cursor: "pointer",
-                    fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 600,
+                    width: 34, height: 34, borderRadius: 999, cursor: "pointer",
+                    fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 600,
                     border: active ? "none" : "1px solid var(--line)",
                     background: active ? "var(--moss)" : "transparent",
                     color: active ? "#fff" : "var(--muted)",
@@ -153,16 +154,16 @@ export function InjuryEditScreen() {
                   <div className="eyebrow">Fase {p.phase_num} · semana {p.week_start}–{p.week_end}</div>
                   <div className="body" style={{ fontWeight: 600, marginTop: 2 }}>{p.name}</div>
                 </button>
-                <div className="row gap-8" style={{ alignItems: "center" }}>
+                <div className="row gap-4" style={{ alignItems: "center" }}>
                   <button
-                    style={{ background: "none", border: "none", cursor: "pointer", padding: 6 }}
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 8 }}
                     onClick={() => navigate(`/path/phase/${p.id}/edit`)}
                   >
                     <Ico.pencil s={16} c="var(--muted)" />
                   </button>
                   <button
-                    style={{ background: "none", border: "none", cursor: "pointer", padding: 6 }}
-                    onClick={() => handleDeletePhase(p.id)}
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 8 }}
+                    onClick={() => setDeleteTarget({ id: p.id, name: p.name })}
                   >
                     <Ico.trash s={16} c="var(--clay)" />
                   </button>
@@ -178,6 +179,35 @@ export function InjuryEditScreen() {
           </button>
         </div>
       </div>
+
+      {deleteTarget && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 200, display: "flex", alignItems: "flex-end" }}
+          onClick={() => setDeleteTarget(null)}
+        >
+          <div
+            style={{ background: "var(--bg)", borderRadius: "20px 20px 0 0", padding: "28px 20px 48px", width: "100%" }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="title-md serif">¿Eliminar fase?</div>
+            <div className="body-sm mt-8" style={{ color: "var(--ink-3)" }}>
+              <strong style={{ color: "var(--ink)" }}>{deleteTarget.name}</strong> y sus criterios serán eliminados. No se puede deshacer.
+            </div>
+            <div className="col gap-10 mt-24">
+              <button
+                className="btn-pill"
+                style={{ background: "var(--clay)", color: "#fff" }}
+                onClick={confirmDeletePhase}
+              >
+                Eliminar fase
+              </button>
+              <button className="btn-pill ghost" onClick={() => setDeleteTarget(null)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

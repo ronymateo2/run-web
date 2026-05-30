@@ -19,7 +19,9 @@ export function TabBar() {
   return (
     <nav className="tab-bar">
       {TABS.map((tab) => {
-        const active = pathname.startsWith(tab.path);
+        const active = tab.id === "path"
+          ? pathname.startsWith("/path") && !/\/edit$|\/phase\/new$/.test(pathname)
+          : pathname.startsWith(tab.path);
         return (
           <button
             key={tab.id}

@@ -117,7 +117,12 @@ export function CuerpoScreen() {
         {data?.injuriesWithPhase && data.injuriesWithPhase.length >= 2 ? (
           <div className="col gap-12 mt-20">
             {data.injuriesWithPhase.map(({ injury: inj, phase }) => (
-              <div key={inj.id} className="card" style={{ padding: 18 }}>
+              <button
+                key={inj.id}
+                className="card"
+                style={{ padding: 18, width: "100%", textAlign: "left", cursor: "pointer", border: "none", background: "var(--card)" }}
+                onClick={() => navigate(`/path/injury/${inj.id}/edit`)}
+              >
                 <div className="row between" style={{ alignItems: "flex-start" }}>
                   <div className="col gap-4" style={{ flex: 1 }}>
                     <div className="eyebrow">{inj.zone}</div>
@@ -135,19 +140,23 @@ export function CuerpoScreen() {
                       {inj.status === "active" ? "Activa" : inj.status === "paused" ? "En pausa" : "Completada"}
                     </span>
                   </div>
-                  <button
-                    style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}
-                    onClick={() => navigate(`/path/injury/${inj.id}/edit`)}
-                  >
-                    <Ico.chevR s={18} c="var(--muted)" />
-                  </button>
+                  <Ico.chevR s={18} c="var(--muted)" />
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         ) : (
           // Single injury + body figure
-          <div className="card mt-20" style={{ padding: 18 }}>
+          <div
+            className="card mt-20"
+            style={{
+              padding: 18,
+              cursor: data?.injuriesWithPhase?.length === 1 ? "pointer" : undefined,
+            }}
+            onClick={data?.injuriesWithPhase?.length === 1
+              ? () => navigate(`/path/injury/${data.injuriesWithPhase[0].injury.id}/edit`)
+              : undefined}
+          >
             <div className="row between" style={{ alignItems: "flex-start" }}>
               <div className="col gap-4" style={{ flex: 1 }}>
                 <div className="eyebrow">mapa de calor · últimos 7 días</div>
@@ -162,15 +171,6 @@ export function CuerpoScreen() {
                 <BodyFigure w={96} heat={data?.heatAvg} />
               </div>
             </div>
-            {data?.injuriesWithPhase?.length === 1 && (
-              <button
-                className="btn-pill ghost mt-12"
-                style={{ height: 40 }}
-                onClick={() => navigate(`/path/injury/${data.injuriesWithPhase[0].injury.id}/edit`)}
-              >
-                Editar lesión <Ico.pencil s={14} c="var(--ink)" />
-              </button>
-            )}
           </div>
         )}
 
