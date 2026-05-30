@@ -53,6 +53,10 @@ CREATE TABLE IF NOT EXISTS sst_results (
 CREATE INDEX IF NOT EXISTS idx_pain_checkins_user_date ON pain_checkins(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_exercise_logs_user_date ON exercise_logs(user_id, session_date);
 CREATE INDEX IF NOT EXISTS idx_sst_results_user_date ON sst_results(user_id, date);
+CREATE INDEX IF NOT EXISTS idx_injuries_user ON injuries(user_id);
+CREATE INDEX IF NOT EXISTS idx_phases_injury ON phases(injury_id);
+CREATE INDEX IF NOT EXISTS idx_exercises_phase ON exercises(phase_id);
+CREATE INDEX IF NOT EXISTS idx_phase_criteria_phase ON phase_criteria(phase_id);
 `;
 
 const MIGRATIONS: Array<{ id: number; sql: string }> = [
