@@ -60,7 +60,7 @@ export function getTodayFocusInjuries(injuries: Injury[], tz?: string | null): I
     try { return (JSON.parse(inj.focus_days) as string[]).includes(dow); }
     catch { return false; }
   });
-  return focused.length > 0 ? focused : injuries.slice(0, 1);
+  return focused;
 }
 
 export function getTodayFocusInjury(injuries: Injury[]): Injury | null {

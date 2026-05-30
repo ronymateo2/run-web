@@ -224,9 +224,6 @@ export function HomeScreen() {
               background: "transparent", boxShadow: "none",
             }}>
               <div className="eyebrow">Mantenimiento · {inj.name}</div>
-              <div className="body-sm mt-4" style={{ color: "var(--ink-3)", lineHeight: 1.5 }}>
-                Isométricos suaves — 1 set de 10s × 5. Sin carga adicional hoy.
-              </div>
             </div>
           ))}
 
