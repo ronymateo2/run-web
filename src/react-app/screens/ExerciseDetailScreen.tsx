@@ -157,6 +157,7 @@ export function ExerciseDetailScreen() {
   const [sets, setSets] = useState<SetRow[]>([]);
   const [hadLogs, setHadLogs] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [videoOpen, setVideoOpen] = useState(false);
 
   const totalSets = exercise?.sets ?? 3;
   const isTimeBased = !!exercise?.duration_s && !exercise?.reps;
@@ -259,9 +260,26 @@ export function ExerciseDetailScreen() {
       }}>
 
         {/* Title */}
-        <div style={{ textAlign: "center", marginTop: 28, marginBottom: 36 }}>
-          <div className="title-xl serif" style={{ color: "var(--bone)", lineHeight: 1.05 }}>
-            {exercise?.name ?? "Ejercicio"}
+        <div style={{ textAlign: "center", marginTop: 8, marginBottom: 24 }}>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
+          }}>
+            <div className="title-xl serif" style={{ color: "var(--bone)", lineHeight: 1.05 }}>
+              {exercise?.name ?? "Ejercicio"}
+            </div>
+            {exercise?.video_url && (
+              <button
+                onClick={() => setVideoOpen(true)}
+                aria-label="Ver video"
+                style={{
+                  background: "none", border: "none", cursor: "pointer", padding: 4,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <Ico.video s={32} c="var(--bone)" />
+              </button>
+            )}
           </div>
           {exercise?.detail && (
             <div className="body" style={{
@@ -269,11 +287,6 @@ export function ExerciseDetailScreen() {
               maxWidth: 480, marginLeft: "auto", marginRight: "auto",
             }}>
               {exercise.detail}
-            </div>
-          )}
-          {exercise?.video_url && (
-            <div style={{ marginTop: 20 }}>
-              <VideoEmbed url={exercise.video_url} />
             </div>
           )}
         </div>
@@ -487,6 +500,68 @@ export function ExerciseDetailScreen() {
           </motion.button>
         </div>
       )}
+
+      {/* Video sheet */}
+      <AnimatePresence>
+        {videoOpen && exercise?.video_url && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setVideoOpen(false)}
+              style={{
+                position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 50,
+              }}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 320, damping: 34 }}
+              style={{
+                position: "fixed", top: 48, bottom: 0, left: 0, right: 0, zIndex: 51,
+                background: "#1A2A20",
+                borderTopLeftRadius: 22, borderTopRightRadius: 22,
+                boxShadow: "0 -8px 40px rgba(0,0,0,0.45)",
+                display: "flex", flexDirection: "column",
+                overflow: "hidden",
+              }}
+            >
+              <div style={{
+                width: 40, height: 4, borderRadius: 999,
+                background: "rgba(245,240,232,0.25)",
+                margin: "12px auto 0", flexShrink: 0,
+              }} />
+              <div style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "14px 20px", flexShrink: 0,
+              }}>
+                <span style={{
+                  fontSize: 11, fontFamily: "var(--font-mono)", letterSpacing: "0.12em",
+                  color: "rgba(245,240,232,0.55)",
+                }}>
+                  VIDEO
+                </span>
+                <button
+                  onClick={() => setVideoOpen(false)}
+                  aria-label="Cerrar"
+                  style={{
+                    background: "none", border: "none", cursor: "pointer", padding: 4,
+                    display: "flex", alignItems: "center",
+                  }}
+                >
+                  <Ico.close s={20} c="rgba(245,240,232,0.70)" />
+                </button>
+              </div>
+              <div style={{ flex: 1, minHeight: 0 }}>
+                <VideoEmbed url={exercise.video_url} fill />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

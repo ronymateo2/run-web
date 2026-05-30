@@ -1,6 +1,12 @@
 // Renders a reference video for an exercise. YouTube/Vimeo URLs embed as a 16:9 iframe;
 // anything else falls back to a button that opens the link in a new tab.
 
+// Prepend https:// when the stored URL has no protocol, so it never resolves
+// as a relative SPA link (which would trigger a router 404).
+export function normalize(url: string): string {
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+}
+
 function embedUrl(url: string): string | null {
   try {
     const u = new URL(url);
@@ -10,6 +16,10 @@ function embedUrl(url: string): string | null {
       return id ? `https://www.youtube.com/embed/${id}` : null;
     }
     if (host === "youtube.com" || host === "m.youtube.com") {
+      if (u.pathname.startsWith("/shorts/")) {
+        const id = u.pathname.split("/").filter(Boolean)[1];
+        return id ? `https://www.youtube.com/embed/${id}` : null;
+      }
       const id = u.searchParams.get("v");
       return id ? `https://www.youtube.com/embed/${id}` : null;
     }
@@ -23,12 +33,16 @@ function embedUrl(url: string): string | null {
   return null;
 }
 
-export function VideoEmbed({ url }: { url: string }) {
+export function VideoEmbed({ url: rawUrl, fill = false }: { url: string; fill?: boolean }) {
+  const url = normalize(rawUrl);
   const embed = embedUrl(url);
 
   if (embed) {
     return (
-      <div style={{
+      <div style={fill ? {
+        position: "relative", width: "100%", height: "100%",
+        overflow: "hidden", background: "rgba(0,0,0,0.30)",
+      } : {
         position: "relative", width: "100%", aspectRatio: "16 / 9",
         borderRadius: 14, overflow: "hidden", background: "rgba(0,0,0,0.30)",
         maxWidth: 480, marginLeft: "auto", marginRight: "auto",

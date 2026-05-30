@@ -6,6 +6,7 @@ import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
 import { getExerciseById, saveExercise, type Exercise } from "../../db/queries/exercises";
+import { normalize } from "../components/VideoEmbed";
 
 type Measure = "reps" | "time";
 
@@ -62,7 +63,7 @@ export function ExerciseEditScreen() {
       duration_s: measure === "time" ? n : null,
       exercise_type: type,
       sort_order: exercise.sort_order ?? 0,
-      video_url: videoUrl.trim() || null,
+      video_url: videoUrl.trim() ? normalize(videoUrl.trim()) : null,
     });
     push();
     navigate(-1);
