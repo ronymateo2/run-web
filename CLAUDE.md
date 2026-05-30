@@ -24,9 +24,12 @@ Fonts: Instrument Serif + Manrope + JetBrains Mono.
 
 ## Auth flow
 1. `GoogleLogin` button in `LoginScreen` → Google `credential` (id_token JWT)
-2. POST to `run-api /api/auth/google` → gets back our JWT
-3. JWT stored in localStorage + local SQLite `users.jwt`
-4. `AuthContext.tsx` restores session on mount, triggers background sync
+2. POST to `run-api /api/auth/google` with `credentials: "include"` → API sets an httpOnly session cookie (the JWT never reaches JS)
+3. Only the **user profile** is cached in localStorage (`rurana_session`) + local SQLite for offline display — no token stored client-side
+4. `AuthContext.tsx` restores session from the cached profile (optimistic; expired cookie → sync 401s silently); all API calls use `credentials: "include"`
+5. `signOut` calls `POST /api/auth/logout` to clear the cookie
+
+> `AuthContext.token` is a non-secret **presence marker** (the user id), kept only so existing `if (!token)` gates/deps keep working. It is not a credential.
 
 ## Env vars (`.env.local`)
 ```

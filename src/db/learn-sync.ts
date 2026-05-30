@@ -14,7 +14,7 @@ export interface Article {
   sort_order: number;
 }
 
-export async function syncArticles(token: string): Promise<void> {
+export async function syncArticles(): Promise<void> {
   const meta = await learnQueryOne<{ value: string }>(
     `SELECT value FROM _meta WHERE key = 'last_synced_at'`
   );
@@ -24,7 +24,7 @@ export async function syncArticles(token: string): Promise<void> {
   }
 
   const res = await fetch(`${API_BASE}/api/learn`, {
-    headers: { Authorization: `Bearer ${token}` },
+    credentials: "include",
   });
   if (!res.ok) throw new Error(`learn sync failed: ${res.status}`);
 

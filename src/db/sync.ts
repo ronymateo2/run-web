@@ -5,13 +5,14 @@ import { queryAll, exec, execBatch } from "./client";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 
-export async function pullDelta(token: string, { force = false }: { force?: boolean } = {}): Promise<void> {
+export async function pullDelta({ force = false }: { force?: boolean } = {}): Promise<void> {
   const users = await queryAll<{ last_sync: number }>(`SELECT last_sync FROM users LIMIT 1`);
   // last_sync stored as ms (matches serverTime = Date.now()); API compares updated_at > since (also ms)
   const since = force ? 0 : (users[0]?.last_sync ?? 0);
 
+  // Auth via httpOnly session cookie (credentials: include); no JS-held token.
   const res = await fetch(`${API_BASE}/api/sync/pull?since=${since}`, {
-    headers: { Authorization: `Bearer ${token}` },
+    credentials: "include",
   });
   if (!res.ok) return;
 
@@ -92,7 +93,7 @@ export async function pullDelta(token: string, { force = false }: { force?: bool
   await exec(`PRAGMA wal_checkpoint(PASSIVE)`);
 }
 
-export async function pushDelta(token: string): Promise<void> {
+export async function pushDelta(): Promise<void> {
   const checkins = await queryAll<{ id: string }>(`SELECT * FROM pain_checkins WHERE synced = 0`);
   const logs = await queryAll<{ id: string }>(`SELECT * FROM exercise_logs WHERE synced = 0`);
   const sst = await queryAll<{ id: string }>(`SELECT * FROM sst_results WHERE synced = 0`);
@@ -102,7 +103,8 @@ export async function pushDelta(token: string): Promise<void> {
 
   const res = await fetch(`${API_BASE}/api/sync/push`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       pain_checkins: checkins,
       exercise_logs: logs,

@@ -76,8 +76,8 @@ export function HomeScreen() {
     if (!db || !token || syncing) return;
     setSyncing(true);
     try {
-      await pushDelta(token);
-      await pullDelta(token, { force: true });
+      await pushDelta();
+      await pullDelta({ force: true });
       await loadData();
     } finally {
       setSyncing(false);

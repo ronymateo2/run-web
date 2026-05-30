@@ -23,7 +23,7 @@ export function LearnScreen() {
       );
       if (active) setArticles(local);
 
-      await syncArticles(token).catch(console.error);
+      await syncArticles().catch(console.error);
 
       if (local.length === 0) {
         const fresh = await learnQueryAll<Article>(

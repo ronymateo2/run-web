@@ -43,7 +43,7 @@ export function ProfileScreen() {
         await exec(`DELETE FROM ${table}`);
       }
       await exec(`UPDATE users SET last_sync = 0`);
-      await pullDelta(token, { force: true });
+      await pullDelta({ force: true });
       setResetDone(true);
     } finally {
       setResetting(false);

@@ -48,34 +48,37 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
         const drizzleDb = await getDrizzle();
         let row = await getSessionUser(drizzleDb);
 
-        if (!row?.jwt) {
+        if (!row) {
           const saved = localStorage.getItem(LS_KEY);
           if (saved) {
-            const parsed = JSON.parse(saved) as { user: AuthUser; jwt: string };
+            const parsed = JSON.parse(saved) as { user: AuthUser };
             await exec(`
-              INSERT INTO users (id, email, name, avatar_url, jwt, last_sync, created_at)
-              VALUES (?, ?, ?, ?, ?, 0, ?)
-              ON CONFLICT(id) DO UPDATE SET name = excluded.name, avatar_url = excluded.avatar_url, jwt = excluded.jwt
-            `, [parsed.user.id, parsed.user.email, parsed.user.name, parsed.user.avatar_url ?? null, parsed.jwt, Date.now()]);
+              INSERT INTO users (id, email, name, avatar_url, last_sync, created_at)
+              VALUES (?, ?, ?, ?, 0, ?)
+              ON CONFLICT(id) DO UPDATE SET name = excluded.name, avatar_url = excluded.avatar_url
+            `, [parsed.user.id, parsed.user.email, parsed.user.name, parsed.user.avatar_url ?? null, Date.now()]);
             row = await getSessionUser(drizzleDb);
           }
         }
 
-        if (row?.jwt) {
+        // Session lives in the httpOnly cookie (not JS-readable). A stored profile
+        // means "optimistically signed in"; if the cookie expired, sync calls 401
+        // and silently no-op until the user signs in again.
+        if (row?.id) {
           setUser({
-            id: row.id ?? '',
+            id: row.id,
             email: row.email ?? '',
             name: row.name ?? '',
             avatar_url: row.avatar_url ?? undefined,
             timezone: row.timezone ?? undefined,
           });
-          setToken(row.jwt);
+          setToken(row.id); // presence marker only; not a credential
           setLoading(false);
           if (navigator.onLine) {
-            pullDelta(row.jwt)
+            pullDelta()
               .then(() => setLastSyncAt(Date.now()))
               .catch(() => {});
-            pushDelta(row.jwt).catch(() => {});
+            pushDelta().catch(() => {});
           }
           return;
         }
@@ -92,26 +95,27 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
     try {
       const apiRes = await fetch(`${API_BASE}/api/auth/google`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id_token: idToken }),
       });
       if (!apiRes.ok) { console.error("Auth failed"); return; }
 
-      const { token: jwt, user: apiUser } = await apiRes.json() as { token: string; user: AuthUser & { timezone?: string | null } };
+      const { user: apiUser } = await apiRes.json() as { user: AuthUser & { timezone?: string | null } };
 
       const timezone = apiUser.timezone ?? null;
       await exec(`
-        INSERT INTO users (id, email, name, avatar_url, jwt, timezone, last_sync, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, 0, ?)
-        ON CONFLICT(id) DO UPDATE SET name = excluded.name, avatar_url = excluded.avatar_url, jwt = excluded.jwt, timezone = COALESCE(excluded.timezone, timezone)
-      `, [apiUser.id, apiUser.email, apiUser.name, apiUser.avatar_url ?? null, jwt, timezone, Date.now()]);
+        INSERT INTO users (id, email, name, avatar_url, timezone, last_sync, created_at)
+        VALUES (?, ?, ?, ?, ?, 0, ?)
+        ON CONFLICT(id) DO UPDATE SET name = excluded.name, avatar_url = excluded.avatar_url, timezone = COALESCE(excluded.timezone, timezone)
+      `, [apiUser.id, apiUser.email, apiUser.name, apiUser.avatar_url ?? null, timezone, Date.now()]);
 
       const userWithTz: AuthUser = { ...apiUser, timezone: timezone ?? undefined };
-      localStorage.setItem(LS_KEY, JSON.stringify({ user: userWithTz, jwt }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ user: userWithTz }));
       setUser(userWithTz);
-      setToken(jwt);
+      setToken(apiUser.id); // presence marker only; the JWT is the httpOnly cookie
       if (navigator.onLine) {
-        pullDelta(jwt)
+        pullDelta()
           .then(() => setLastSyncAt(Date.now()))
           .catch(() => {});
       }
@@ -133,6 +137,12 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     googleLogout();
+    // Clear the httpOnly cookie server-side, then drop local state.
+    try {
+      await fetch(`${API_BASE}/api/auth/logout`, { method: "POST", credentials: "include" });
+    } catch {
+      // ignore network errors; clear local state regardless
+    }
     await exec(`UPDATE users SET jwt = NULL`);
     localStorage.removeItem(LS_KEY);
     setUser(null);
@@ -145,7 +155,8 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
     if (navigator.onLine && token) {
       fetch(`${API_BASE}/api/users/me`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ timezone: tz }),
       }).catch(() => {});
     }

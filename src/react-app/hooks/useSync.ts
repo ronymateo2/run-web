@@ -7,6 +7,6 @@ export function useSync() {
 
   return useCallback(async () => {
     if (!token) return;
-    await pushDelta(token).catch(() => {});
+    await pushDelta().catch(() => {});
   }, [token]);
 }
