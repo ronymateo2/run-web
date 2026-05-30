@@ -55,40 +55,21 @@ export default defineConfig({
 		rollupOptions: {
 			output: {
 				manualChunks(id) {
-					if (id.includes("node_modules")) {
-						if (
-							id.includes("react") ||
-							id.includes("react-dom") ||
-							id.includes("react-router-dom") ||
-							id.includes("@react-oauth/google")
-						) {
-							return "vendor-react";
-						}
-						if (							
-							id.includes("drizzle-orm")
-						) {
-							return "vendor-data";
-						}
-						if (
-							id.includes("motion") ||
-							id.includes("@phosphor-icons")
-						) {
-							return "vendor-ui";
-						}
-						if (
-							id.includes("react-markdown") ||
-							id.includes("remark-")
-						) {
-							return "vendor-markdown";
-						}
-						if (
-							id.includes("@sqlite.org/sqlite-wasm") ||
-							id.includes("comlink")
-						) {
-							return "vendor-sqlite";
-						}
-						return "vendor";
+					if (!id.includes("node_modules")) return;
+
+					const chunks = [
+						[/react|react-dom|react-router-dom|@react-oauth\/google/, "vendor-react"],
+						[/drizzle-orm/, "vendor-data"],
+						[/motion|@phosphor-icons/, "vendor-ui"],
+						[/react-markdown|remark-/, "vendor-markdown"],
+						[/@sqlite\.org\/sqlite-wasm|comlink/, "vendor-sqlite"],
+					] as const;
+
+					for (const [test, name] of chunks) {
+						if (test.test(id)) return name;
 					}
+
+					return "vendor";
 				},
 			},
 		},
