@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { learnQueryOne } from "../../db/learn-client";
 import { type Article } from "../../db/learn-sync";
 import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
+import { ScreenNav } from "../components/ScreenNav";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("es", { year: "numeric", month: "long", day: "numeric" });
@@ -13,7 +14,6 @@ function formatDate(iso: string): string {
 
 export function LearnArticleScreen() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const [article, setArticle] = useState<Article | null | undefined>(undefined);
 
   useEffect(() => {
@@ -27,10 +27,10 @@ export function LearnArticleScreen() {
 
   return (
     <div className="screen">
+      <ScreenNav style={{ justifyContent: "flex-start" }}>
+        <BackButton fallbackPath="/learn" color="var(--muted)" label="Aprende" />
+      </ScreenNav>
       <div className="screen-body" style={{ paddingBottom: 100 }}>
-        <div className="screen-nav" style={{ justifyContent: "flex-start" }}>
-          <BackButton fallbackPath="/learn" color="var(--muted)" label="Aprende" />
-        </div>
 
         {article === undefined && (
           <div style={{ paddingTop: 32, textAlign: "center" }}>

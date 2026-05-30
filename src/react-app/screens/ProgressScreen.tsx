@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
-import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
+import { ScreenNav } from "../components/ScreenNav";
 import { getRecentCheckins, type PainCheckin } from "../../db/queries/checkins";
 import { getRecentSst, type SstResult } from "../../db/queries/sst";
 
@@ -31,7 +30,6 @@ interface ProgressData {
 export function ProgressScreen() {
   const { user, lastSyncAt } = useAuth();
   const db = useDb();
-  const navigate = useNavigate();
   const [data, setData] = useState<ProgressData | null>(null);
 
   useEffect(() => {
@@ -68,12 +66,12 @@ export function ProgressScreen() {
 
   return (
     <div className="screen">
+      <ScreenNav>
+        <BackButton fallbackPath="/path" color="var(--ink)" />
+        <div className="eyebrow">Progreso</div>
+        <div style={{ width: 34 }} />
+      </ScreenNav>
       <div className="screen-body" style={{ paddingBottom: 100 }}>
-        <div className="screen-nav">
-          <BackButton fallbackPath="/path" color="var(--ink)" />
-          <div className="eyebrow">Progreso</div>
-          <div style={{ width: 34 }} />
-        </div>
 
         <div className="title-lg serif mt-12">La marea del dolor.</div>
         <div className="body-sm mt-4">Últimos 30 días · por zona.</div>

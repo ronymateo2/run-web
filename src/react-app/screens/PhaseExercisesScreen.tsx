@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
-import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
+import { ScreenNav } from "../components/ScreenNav";
 import { ExerciseList, setsDoneMap, countDone } from "../components/ExerciseList";
 import { getPhaseById, type Phase } from "../../db/queries/injuries";
 import { getExercisesForPhase, getTodayLogs, type Exercise } from "../../db/queries/exercises";
@@ -19,7 +19,6 @@ export function PhaseExercisesScreen() {
   const { id } = useParams<{ id: string }>();
   const { user, lastSyncAt } = useAuth();
   const db = useDb();
-  const navigate = useNavigate();
   const [data, setData] = useState<PhaseExercisesData | null>(null);
 
   const loadData = useCallback(async () => {
@@ -59,12 +58,12 @@ export function PhaseExercisesScreen() {
 
   return (
     <div className="screen">
+      <ScreenNav>
+        <BackButton fallbackPath={`/path/phase/${phase.id}`} color="var(--ink)" />
+        <div className="eyebrow">Fase {phase.phase_num}</div>
+        <div style={{ width: 34 }} />
+      </ScreenNav>
       <div className="screen-body" style={{ paddingBottom: 170 }}>
-        <div className="screen-nav">
-          <BackButton fallbackPath={`/path/phase/${phase.id}`} color="var(--ink)" />
-          <div className="eyebrow">Fase {phase.phase_num}</div>
-          <div style={{ width: 34 }} />
-        </div>
 
         <div className="row between mt-20" style={{ alignItems: "baseline" }}>
           <div className="title-md serif">Ejercicios de hoy</div>

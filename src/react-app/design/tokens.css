@@ -47,7 +47,7 @@ body {
 
 /* Screen shell — full-height app shell */
 .screen {
-  min-height: 100dvh;
+  height: 100dvh;
   background: var(--bg);
   font-family: var(--font-sans);
   color: var(--ink);
@@ -273,55 +273,54 @@ body {
 .aire-aire .title-xl { font-size: 52px; }
 .aire-aire .title-lg { font-size: 38px; }
 
-/* Navigation header (scrolls with content) */
+/* Navigation header — fixed on viewport */
 .screen-nav {
+  position: fixed;
+  top: calc(14px + var(--sat, 0px));
+  left: 0;
+  right: 0;
+  z-index: 50;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 0 -22px;
   padding: 6px 22px 10px;
-}
-.screen-dark .screen-nav {
   background: transparent;
+  pointer-events: none;
+}
+.screen-nav > * {
+  pointer-events: auto;
 }
 
-/* Floating back button — appears on scroll */
-.back-btn-float {
-  position: fixed;
-  top: calc(14px + var(--sat, 0px));
-  left: 16px;
-  width: 44px;
-  height: 44px;
-  border-radius: 999px;
-  display: flex;
+/* Circular glass backdrop on the back button only */
+.back-btn-wrap {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  border-radius: 999px;
+  margin-left: -10px;
+  transition: background 0.25s ease, backdrop-filter 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.back-btn-wrap.is-solo {
+  width: 44px;
+  height: 44px;
+}
+.back-btn-wrap.is-scrolled {
   background: rgba(255,255,255,0.45);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid rgba(255,255,255,0.35);
   box-shadow: 0 1px 2px rgba(31,58,46,0.04), 0 8px 24px rgba(31,58,46,0.08);
-  cursor: pointer;
-  z-index: 90;
-  opacity: 0;
-  transform: scale(0.80) translateY(-6px);
-  pointer-events: none;
-  transition: opacity 0.20s ease, transform 0.20s var(--ease-spring);
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
 }
-.back-btn-float.is-visible {
-  opacity: 1;
-  transform: scale(1) translateY(0);
-  pointer-events: auto;
-}
-.back-btn-float.dark {
+.screen-dark .back-btn-wrap.is-scrolled {
   background: rgba(30,30,30,0.45);
   border-color: rgba(255,255,255,0.12);
   box-shadow: 0 1px 2px rgba(0,0,0,0.15), 0 8px 24px rgba(0,0,0,0.25);
 }
-.back-btn-float.is-visible:active {
-  transform: scale(0.90);
+
+/* Spacer pushes content down so it doesn't sit under the fixed nav */
+.screen-nav-spacer {
+  height: 20px;
+  flex-shrink: 0;
 }
 .aire-aire .title-md { font-size: 28px; }
 

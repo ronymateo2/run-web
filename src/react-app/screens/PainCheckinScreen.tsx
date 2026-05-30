@@ -8,6 +8,7 @@ import { BodyFigure, type HeatMap } from "../components/BodyFigure";
 import { ZoneRow } from "../components/ZoneRow";
 import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
+import { ScreenNav } from "../components/ScreenNav";
 import { saveCheckin, getTodayCheckin } from "../../db/queries/checkins";
 
 const ZONES: { key: keyof HeatMap; label: string }[] = [
@@ -50,12 +51,12 @@ export function PainCheckinScreen() {
 
   return (
     <div className="screen">
+      <ScreenNav>
+        <BackButton fallbackPath="/today" color="var(--ink)" />
+        <div className="eyebrow">Check-in de dolor</div>
+        <div style={{ width: 34 }} />
+      </ScreenNav>
       <div className="screen-body" style={{ paddingBottom: 100 }}>
-        <div className="screen-nav">
-          <BackButton fallbackPath="/today" color="var(--ink)" />
-          <div className="eyebrow">Check-in de dolor</div>
-          <div style={{ width: 34 }} />
-        </div>
 
         <div className="title-lg serif mt-16">
           ¿Cómo sientes el cuerpo hoy?

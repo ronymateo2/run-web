@@ -4,6 +4,7 @@ import { useDb } from "../hooks/useDb";
 import { useSync } from "../hooks/useSync";
 import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
+import { ScreenNav } from "../components/ScreenNav";
 import {
   getPhaseById, getPhasesForInjury, getCriteria, savePhase, saveCriteria, softDeleteCriteria,
   type PhaseCriteria,
@@ -127,12 +128,12 @@ export function PhaseEditScreen() {
 
   return (
     <div className="screen">
+      <ScreenNav>
+        <BackButton fallbackPath={isCreate ? `/path/injury/${id}/edit` : `/path/injury/${injuryId}/edit`} color="var(--ink)" />
+        <div className="eyebrow">{isCreate ? "Nueva fase" : `Fase ${phaseNum}`}</div>
+        <div style={{ width: 34 }} />
+      </ScreenNav>
       <div className="screen-body" style={{ paddingBottom: 120 }}>
-        <div className="screen-nav">
-          <BackButton fallbackPath={isCreate ? `/path/injury/${id}/edit` : `/path/injury/${injuryId}/edit`} color="var(--ink)" />
-          <div className="eyebrow">{isCreate ? "Nueva fase" : `Fase ${phaseNum}`}</div>
-          <div style={{ width: 34 }} />
-        </div>
 
         <div className="title-lg serif mt-16">{isCreate ? "Crear fase" : "Editar fase"}</div>
 

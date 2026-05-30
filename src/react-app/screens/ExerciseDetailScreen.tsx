@@ -7,6 +7,7 @@ import { useSync } from "../hooks/useSync";
 import { localToday } from "../utils/timezone";
 import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
+import { ScreenNav } from "../components/ScreenNav";
 import {
   getExerciseById, saveExerciseLog, softDeleteExerciseLog, getLogsForExercise,
   type Exercise, type ExerciseLog,
@@ -230,13 +231,13 @@ export function ExerciseDetailScreen() {
 
   return (
     <div className="screen screen-dark" style={{ position: "relative" }}>
+      <ScreenNav style={{ justifyContent: "flex-start" }}>
+        <BackButton fallbackPath="/today" color="var(--bone)" />
+      </ScreenNav>
       <div className="screen-body" style={{
         paddingBottom: 120,
         display: "flex", flexDirection: "column", flex: 1,
       }}>
-        <div className="screen-nav" style={{ justifyContent: "flex-start" }}>
-          <BackButton fallbackPath="/today" color="var(--bone)" />
-        </div>
 
         {/* Title */}
         <div style={{ textAlign: "center", marginTop: 28, marginBottom: 36 }}>
