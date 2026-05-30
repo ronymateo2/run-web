@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, type ReactNode, type CSSProperties } from "react";
+import { useRef, useEffect, type ReactNode, type CSSProperties } from "react";
 
 interface ScreenNavProps {
   back?: ReactNode;
@@ -7,13 +7,20 @@ interface ScreenNavProps {
 }
 
 export function ScreenNav({ back, children, style }: ScreenNavProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [scrolled, setScrolled] = useState(false);
+  const navRef = useRef<HTMLDivElement>(null);
+  const backRef = useRef<HTMLDivElement>(null);
+  const restRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const screen = ref.current?.closest(".screen");
-    if (!screen) return;
-    const onScroll = () => setScrolled(screen.scrollTop > 8);
+    const screen = navRef.current?.closest(".screen");
+    if (!screen || !backRef.current || !restRef.current) return;
+
+    const onScroll = () => {
+      const isScrolled = screen.scrollTop > 8;
+      backRef.current!.classList.toggle("is-scrolled", isScrolled);
+      restRef.current!.classList.toggle("is-hidden", isScrolled);
+    };
+
     screen.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     return () => screen.removeEventListener("scroll", onScroll);
@@ -21,14 +28,14 @@ export function ScreenNav({ back, children, style }: ScreenNavProps) {
 
   return (
     <>
-      <div ref={ref} className="screen-nav" style={style}>
+      <div ref={navRef} className="screen-nav" style={style}>
         {back && (
-          <div className={`back-btn-wrap${scrolled ? " is-scrolled" : ""}`}>
+          <div ref={backRef} className="back-btn-wrap">
             {back}
           </div>
         )}
         {!!children && (
-          <div className={`nav-rest${scrolled ? " is-hidden" : ""}`}>
+          <div ref={restRef} className="nav-rest">
             {children}
           </div>
         )}
