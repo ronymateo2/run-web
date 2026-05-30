@@ -6,6 +6,8 @@ import { Ico } from "../components/icons";
 import { COMMON_TIMEZONES, detectTimezone } from "../utils/timezone";
 import { exec } from "../../db/client";
 import { pullDelta } from "../../db/sync";
+import { learnExec } from "../../db/learn-client";
+import { syncArticles } from "../../db/learn-sync";
 
 export function ProfileScreen() {
   const { user, token, signOut, setTimezone } = useAuth();
@@ -39,11 +41,16 @@ export function ProfileScreen() {
     setResetting(true);
     setResetDone(false);
     try {
-      for (const table of ["exercises", "phases", "injuries", "exercise_logs", "pain_checkins", "sst_results"]) {
+      for (const table of ["exercises", "phases", "phase_criteria", "injuries", "exercise_logs", "pain_checkins", "sst_results"]) {
         await exec(`DELETE FROM ${table}`);
       }
       await exec(`UPDATE users SET last_sync = 0`);
       await pullDelta({ force: true });
+      // Learn DB is a separate OPFS database with its own sync — clear it too.
+      // Drop _meta so syncArticles skips its throttle and pulls fresh.
+      await learnExec(`DELETE FROM articles`);
+      await learnExec(`DELETE FROM _meta`);
+      await syncArticles();
       setResetDone(true);
     } finally {
       setResetting(false);
