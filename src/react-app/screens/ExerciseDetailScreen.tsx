@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { useDb } from "../hooks/useDb";
 import { useAuth } from "../auth/AuthContext";
@@ -148,7 +148,9 @@ export function ExerciseDetailScreen() {
   const db = useDb();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const push = useSync();
+  const exerciseIds: string[] = location.state?.exerciseIds ?? [];
 
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [sets, setSets] = useState<SetRow[]>([]);
@@ -214,7 +216,13 @@ export function ExerciseDetailScreen() {
     }
     push();
     setSaving(false);
-    navigate(-1);
+    const currentIndex = exerciseIds.indexOf(id!);
+    const nextId = exerciseIds[currentIndex + 1];
+    if (nextId) {
+      navigate(`/today/exercise/${nextId}`, { state: { exerciseIds }, replace: true });
+    } else {
+      navigate(-1);
+    }
   }
 
   const saveLabel = saving

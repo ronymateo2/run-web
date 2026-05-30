@@ -45,6 +45,7 @@ export function ExerciseList({ exercises, setsDone, phaseName }: Props) {
             setsTotal={total}
             done={sd >= total}
             phase={phaseName}
+            exerciseIds={exercises.map(ex => ex.id)}
           />
         );
       })}

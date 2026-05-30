@@ -15,9 +15,10 @@ interface Props {
   setsTotal?: number;
   phase?: string;
   accent?: string;
+  exerciseIds?: string[];
 }
 
-export function ExerciseRow({ id, name, sets, reps, duration_s, mins, done, setsDone = 0, setsTotal = 0, phase, accent = "var(--ink-2)" }: Props) {
+export function ExerciseRow({ id, name, sets, reps, duration_s, mins, done, setsDone = 0, setsTotal = 0, phase, accent = "var(--ink-2)", exerciseIds }: Props) {
   const navigate = useNavigate();
   const partial = !done && setsDone > 0 && setsDone < setsTotal;
   const remaining = setsTotal - setsDone;
@@ -30,7 +31,7 @@ export function ExerciseRow({ id, name, sets, reps, duration_s, mins, done, sets
       style={{ padding: 14, display: "flex", alignItems: "center", gap: 14, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
       onClick={() => {
         sessionStorage.setItem("lastExerciseId", id);
-        navigate(`/today/exercise/${id}`);
+        navigate(`/today/exercise/${id}`, { state: { exerciseIds } });
       }}
     >
       <div style={{
