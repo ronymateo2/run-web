@@ -63,6 +63,7 @@ export const exercises = sqliteTable("exercises", {
     enum: ["isometric", "strength", "mobility", "cardio"],
   }).notNull(),
   sort_order: integer("sort_order").default(0),
+  video_url: text("video_url"),
   synced: integer("synced").default(0),
 });
 

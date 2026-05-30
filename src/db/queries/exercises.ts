@@ -6,6 +6,21 @@ export type Exercise = typeof exercises.$inferSelect;
 export type ExerciseLog = typeof exerciseLogs.$inferSelect;
 export type NewExerciseLog = Omit<typeof exerciseLogs.$inferInsert, "synced" | "deleted_at">;
 
+// Authoring an exercise: editable fields plus phase_id/name/detail carried unchanged so
+// the full-row push to D1 doesn't null them. reps XOR duration_s (the other is null).
+export type ExerciseInput = {
+  id: string;
+  phase_id: string;
+  name: string;
+  detail: string | null;
+  sets: number | null;
+  reps: number | null;
+  duration_s: number | null;
+  exercise_type: Exercise["exercise_type"];
+  sort_order: number | null;
+  video_url: string | null;
+};
+
 // Soft-deleted rows (deselected sets) are excluded from every read/count. Use this
 // predicate everywhere so the filter can't be forgotten.
 const notDeleted = isNull(exerciseLogs.deleted_at);
@@ -198,6 +213,27 @@ export async function softDeleteExerciseLog(db: DrizzleDb, id: string): Promise<
   await db.update(exerciseLogs)
     .set({ deleted_at: Date.now(), synced: 0 })
     .where(eq(exerciseLogs.id, id));
+}
+
+// Upsert an exercise edit locally; synced=0 so pushDelta carries it to D1.
+export async function saveExercise(db: DrizzleDb, ex: ExerciseInput): Promise<void> {
+  await db.insert(exercises)
+    .values({ ...ex, synced: 0 })
+    .onConflictDoUpdate({
+      target: exercises.id,
+      set: {
+        phase_id: ex.phase_id,
+        name: ex.name,
+        detail: ex.detail,
+        sets: ex.sets,
+        reps: ex.reps,
+        duration_s: ex.duration_s,
+        exercise_type: ex.exercise_type,
+        sort_order: ex.sort_order,
+        video_url: ex.video_url,
+        synced: 0,
+      },
+    });
 }
 
 export async function saveExerciseLog(db: DrizzleDb, log: NewExerciseLog): Promise<void> {

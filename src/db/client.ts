@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS phase_criteria (
 CREATE TABLE IF NOT EXISTS exercises (
   id TEXT PRIMARY KEY, phase_id TEXT NOT NULL, name TEXT NOT NULL,
   detail TEXT, sets INTEGER, reps INTEGER, duration_s INTEGER,
-  exercise_type TEXT NOT NULL, sort_order INTEGER DEFAULT 0, synced INTEGER DEFAULT 0
+  exercise_type TEXT NOT NULL, sort_order INTEGER DEFAULT 0, video_url TEXT, synced INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS pain_checkins (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, injury_id TEXT, date TEXT NOT NULL,
@@ -65,6 +65,7 @@ const MIGRATIONS: Array<{ id: number; sql: string }> = [
   { id: 3, sql: `ALTER TABLE exercise_logs ADD COLUMN deleted_at INTEGER` },
   { id: 4, sql: `ALTER TABLE phases ADD COLUMN deleted_at INTEGER` },
   { id: 5, sql: `ALTER TABLE phase_criteria ADD COLUMN deleted_at INTEGER` },
+  { id: 6, sql: `ALTER TABLE exercises ADD COLUMN video_url TEXT` },
 ];
 
 // OPFS SAHPool allows only ONE connection at a time, so we can't open the DB worker in every tab.

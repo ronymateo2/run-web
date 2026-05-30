@@ -8,6 +8,7 @@ import { localToday } from "../utils/timezone";
 import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
+import { VideoEmbed } from "../components/VideoEmbed";
 import {
   getExerciseById, saveExerciseLog, softDeleteExerciseLog, getLogsForExercise,
   type Exercise, type ExerciseLog,
@@ -239,7 +240,19 @@ export function ExerciseDetailScreen() {
 
   return (
     <div className="screen screen-dark" style={{ position: "relative" }}>
-      <ScreenNav back={<BackButton fallbackPath="/today" color="var(--bone)" />} />
+      <ScreenNav back={<BackButton fallbackPath="/today" color="var(--bone)" />}>
+        <div style={{ flex: 1 }} />
+        <button
+          onClick={() => navigate(`/today/exercise/${id}/edit`)}
+          style={{
+            background: "none", border: "none", cursor: "pointer", padding: 6,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+          aria-label="Editar ejercicio"
+        >
+          <Ico.pencil s={20} c="var(--bone)" />
+        </button>
+      </ScreenNav>
       <div className="screen-body" style={{
         paddingBottom: 120,
         display: "flex", flexDirection: "column", flex: 1,
@@ -256,6 +269,11 @@ export function ExerciseDetailScreen() {
               maxWidth: 480, marginLeft: "auto", marginRight: "auto",
             }}>
               {exercise.detail}
+            </div>
+          )}
+          {exercise?.video_url && (
+            <div style={{ marginTop: 20 }}>
+              <VideoEmbed url={exercise.video_url} />
             </div>
           )}
         </div>

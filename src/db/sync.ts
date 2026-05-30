@@ -47,10 +47,10 @@ export async function pullDelta({ force = false }: { force?: boolean } = {}): Pr
   }
   for (const row of data.exercises ?? []) {
     statements.push({
-      sql: `INSERT OR REPLACE INTO exercises (id, phase_id, name, detail, sets, reps, duration_s, exercise_type, sort_order, synced)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      sql: `INSERT OR REPLACE INTO exercises (id, phase_id, name, detail, sets, reps, duration_s, exercise_type, sort_order, video_url, synced)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       bind: [row.id, row.phase_id, row.name, row.detail ?? null, row.sets ?? null,
-             row.reps ?? null, row.duration_s ?? null, row.exercise_type, row.sort_order ?? 0],
+             row.reps ?? null, row.duration_s ?? null, row.exercise_type, row.sort_order ?? 0, row.video_url ?? null],
     });
   }
   for (const row of data.phase_criteria ?? []) {
@@ -102,12 +102,14 @@ export async function pushDelta(): Promise<void> {
   const injuries = await queryAll<{ id: string; current_phase_id: string | null; focus_days: string | null }>(
     `SELECT id, current_phase_id, focus_days FROM injuries WHERE synced = 0`);
   const phaseRows = await queryAll<{ id: string }>(`SELECT * FROM phases WHERE synced = 0`);
+  // Exercise authoring (config/video/type). Full row pushed; server upserts with ownership guard.
+  const exerciseRows = await queryAll<{ id: string }>(`SELECT * FROM exercises WHERE synced = 0`);
   // phase_criteria rows ride a channel separate from criteria_done (which carries per-user done state).
   const criteriaRows = await queryAll<{ id: string; phase_id: string; description: string; deleted_at: number | null }>(
     `SELECT id, phase_id, description, deleted_at FROM phase_criteria WHERE synced = 0`);
 
   if (checkins.length === 0 && logs.length === 0 && sst.length === 0 && criteria.length === 0 &&
-      injuries.length === 0 && phaseRows.length === 0 && criteriaRows.length === 0) return;
+      injuries.length === 0 && phaseRows.length === 0 && exerciseRows.length === 0 && criteriaRows.length === 0) return;
 
   const res = await fetch(`${API_BASE}/api/sync/push`, {
     method: "POST",
@@ -120,6 +122,7 @@ export async function pushDelta(): Promise<void> {
       criteria_done: criteria.map((r) => ({ criteria_id: r.id, done: Boolean(r.done) })),
       injuries,
       phases: phaseRows,
+      exercises: exerciseRows,
       phase_criteria: criteriaRows,
     }),
   });
@@ -137,6 +140,7 @@ export async function pushDelta(): Promise<void> {
     await markSynced("sst_results", sst.map((r) => r.id));
     await markSynced("injuries", injuries.map((r) => r.id));
     await markSynced("phases", phaseRows.map((r) => r.id));
+    await markSynced("exercises", exerciseRows.map((r) => r.id));
     // Covers both the criteria_done and phase_criteria channels (same rows).
     await markSynced("phase_criteria", Array.from(new Set([...criteria.map((r) => r.id), ...criteriaRows.map((r) => r.id)])));
   }
