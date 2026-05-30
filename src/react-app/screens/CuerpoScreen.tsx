@@ -137,7 +137,7 @@ export function CuerpoScreen() {
                   </div>
                   <button
                     style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}
-                    onClick={() => navigate(`/path`)}
+                    onClick={() => navigate(`/path/injury/${inj.id}/edit`)}
                   >
                     <Ico.chevR s={18} c="var(--muted)" />
                   </button>
@@ -162,6 +162,15 @@ export function CuerpoScreen() {
                 <BodyFigure w={96} heat={data?.heatAvg} />
               </div>
             </div>
+            {data?.injuriesWithPhase?.length === 1 && (
+              <button
+                className="btn-pill ghost mt-12"
+                style={{ height: 40 }}
+                onClick={() => navigate(`/path/injury/${data.injuriesWithPhase[0].injury.id}/edit`)}
+              >
+                Editar lesión <Ico.pencil s={14} c="var(--ink)" />
+              </button>
+            )}
           </div>
         )}
 

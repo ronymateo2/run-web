@@ -39,10 +39,10 @@ export async function pullDelta({ force = false }: { force?: boolean } = {}): Pr
   }
   for (const row of data.phases ?? []) {
     statements.push({
-      sql: `INSERT OR REPLACE INTO phases (id, injury_id, phase_num, name, description, week_start, week_end, threshold_pct, synced)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      sql: `INSERT OR REPLACE INTO phases (id, injury_id, phase_num, name, description, week_start, week_end, threshold_pct, deleted_at, synced)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       bind: [row.id, row.injury_id, row.phase_num, row.name, row.description ?? null,
-             row.week_start, row.week_end, row.threshold_pct],
+             row.week_start, row.week_end, row.threshold_pct, row.deleted_at ?? null],
     });
   }
   for (const row of data.exercises ?? []) {
@@ -55,10 +55,10 @@ export async function pullDelta({ force = false }: { force?: boolean } = {}): Pr
   }
   for (const row of data.phase_criteria ?? []) {
     statements.push({
-      sql: `INSERT INTO phase_criteria (id, phase_id, description, done, synced)
-            VALUES (?, ?, ?, ?, 1)
-            ON CONFLICT(id) DO UPDATE SET phase_id = excluded.phase_id, description = excluded.description, done = excluded.done, synced = 1`,
-      bind: [row.id, row.phase_id, row.description, row.done ?? 0],
+      sql: `INSERT INTO phase_criteria (id, phase_id, description, done, deleted_at, synced)
+            VALUES (?, ?, ?, ?, ?, 1)
+            ON CONFLICT(id) DO UPDATE SET phase_id = excluded.phase_id, description = excluded.description, done = excluded.done, deleted_at = excluded.deleted_at, synced = 1`,
+      bind: [row.id, row.phase_id, row.description, row.done ?? 0, row.deleted_at ?? null],
     });
   }
   for (const row of data.pain_checkins ?? []) {
@@ -98,8 +98,16 @@ export async function pushDelta(): Promise<void> {
   const logs = await queryAll<{ id: string }>(`SELECT * FROM exercise_logs WHERE synced = 0`);
   const sst = await queryAll<{ id: string }>(`SELECT * FROM sst_results WHERE synced = 0`);
   const criteria = await queryAll<{ id: string; done: number }>(`SELECT id, done FROM phase_criteria WHERE synced = 0`);
+  // Admin-style edits. injuries: only current_phase_id + focus_days sync (UPDATE-only server-side).
+  const injuries = await queryAll<{ id: string; current_phase_id: string | null; focus_days: string | null }>(
+    `SELECT id, current_phase_id, focus_days FROM injuries WHERE synced = 0`);
+  const phaseRows = await queryAll<{ id: string }>(`SELECT * FROM phases WHERE synced = 0`);
+  // phase_criteria rows ride a channel separate from criteria_done (which carries per-user done state).
+  const criteriaRows = await queryAll<{ id: string; phase_id: string; description: string; deleted_at: number | null }>(
+    `SELECT id, phase_id, description, deleted_at FROM phase_criteria WHERE synced = 0`);
 
-  if (checkins.length === 0 && logs.length === 0 && sst.length === 0 && criteria.length === 0) return;
+  if (checkins.length === 0 && logs.length === 0 && sst.length === 0 && criteria.length === 0 &&
+      injuries.length === 0 && phaseRows.length === 0 && criteriaRows.length === 0) return;
 
   const res = await fetch(`${API_BASE}/api/sync/push`, {
     method: "POST",
@@ -110,6 +118,9 @@ export async function pushDelta(): Promise<void> {
       exercise_logs: logs,
       sst_results: sst,
       criteria_done: criteria.map((r) => ({ criteria_id: r.id, done: Boolean(r.done) })),
+      injuries,
+      phases: phaseRows,
+      phase_criteria: criteriaRows,
     }),
   });
 
@@ -124,6 +135,9 @@ export async function pushDelta(): Promise<void> {
     await markSynced("pain_checkins", checkins.map((r) => r.id));
     await markSynced("exercise_logs", logs.map((r) => r.id));
     await markSynced("sst_results", sst.map((r) => r.id));
-    await markSynced("phase_criteria", criteria.map((r) => r.id));
+    await markSynced("injuries", injuries.map((r) => r.id));
+    await markSynced("phases", phaseRows.map((r) => r.id));
+    // Covers both the criteria_done and phase_criteria channels (same rows).
+    await markSynced("phase_criteria", Array.from(new Set([...criteria.map((r) => r.id), ...criteriaRows.map((r) => r.id)])));
   }
 }

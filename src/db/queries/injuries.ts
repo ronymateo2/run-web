@@ -1,6 +1,7 @@
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, and, isNull } from "drizzle-orm";
 import { injuries, phases, phaseCriteria } from "../schema";
 import type { DrizzleDb } from "../drizzle";
+import { exec, execBatch } from "../client";
 
 export type Injury = typeof injuries.$inferSelect;
 export type Phase = typeof phases.$inferSelect;
@@ -21,24 +22,27 @@ export async function getInjuryById(db: DrizzleDb, id: string): Promise<Injury |
 }
 
 export async function getPhaseById(db: DrizzleDb, id: string): Promise<Phase | null> {
-  const rows = await db.select().from(phases).where(eq(phases.id, id));
+  const rows = await db.select().from(phases)
+    .where(and(eq(phases.id, id), isNull(phases.deleted_at)));
   return rows[0] ?? null;
 }
 
 export async function getPhasesForInjury(db: DrizzleDb, injuryId: string): Promise<Phase[]> {
   return db.select().from(phases)
-    .where(eq(phases.injury_id, injuryId))
+    .where(and(eq(phases.injury_id, injuryId), isNull(phases.deleted_at)))
     .orderBy(asc(phases.phase_num));
 }
 
 export async function getCurrentPhase(db: DrizzleDb, injury: Injury): Promise<Phase | null> {
   if (!injury.current_phase_id) return null;
-  const rows = await db.select().from(phases).where(eq(phases.id, injury.current_phase_id));
+  const rows = await db.select().from(phases)
+    .where(and(eq(phases.id, injury.current_phase_id), isNull(phases.deleted_at)));
   return rows[0] ?? null;
 }
 
 export async function getCriteria(db: DrizzleDb, phaseId: string): Promise<PhaseCriteria[]> {
-  const rows = await db.select().from(phaseCriteria).where(eq(phaseCriteria.phase_id, phaseId));
+  const rows = await db.select().from(phaseCriteria)
+    .where(and(eq(phaseCriteria.phase_id, phaseId), isNull(phaseCriteria.deleted_at)));
   return rows.map(r => ({ ...r, done: Boolean(r.done) }));
 }
 
@@ -61,4 +65,57 @@ export function getTodayFocusInjuries(injuries: Injury[], tz?: string | null): I
 
 export function getTodayFocusInjury(injuries: Injury[]): Injury | null {
   return getTodayFocusInjuries(injuries)[0] ?? null;
+}
+
+// --- Writes (mark synced=0; caller triggers push()). Server enforces ownership. ---
+
+export interface PhaseInput {
+  id: string;
+  injury_id: string;
+  phase_num: number;
+  name: string;
+  description: string | null;
+  week_start: number;
+  week_end: number;
+  threshold_pct: number;
+}
+
+export async function updateInjuryEdit(
+  injuryId: string, currentPhaseId: string | null, focusDays: string[],
+): Promise<void> {
+  const focus = focusDays.length ? JSON.stringify(focusDays) : null;
+  await exec(
+    `UPDATE injuries SET current_phase_id = ?, focus_days = ?, synced = 0 WHERE id = ?`,
+    [currentPhaseId, focus, injuryId],
+  );
+}
+
+export async function savePhase(p: PhaseInput): Promise<void> {
+  await exec(
+    `INSERT OR REPLACE INTO phases (id, injury_id, phase_num, name, description, week_start, week_end, threshold_pct, deleted_at, synced)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 0)`,
+    [p.id, p.injury_id, p.phase_num, p.name, p.description, p.week_start, p.week_end, p.threshold_pct],
+  );
+}
+
+export async function softDeletePhase(phaseId: string): Promise<void> {
+  const now = Date.now();
+  // Cascade: hide the phase and its criteria together.
+  await execBatch([
+    { sql: `UPDATE phases SET deleted_at = ?, synced = 0 WHERE id = ?`, bind: [now, phaseId] },
+    { sql: `UPDATE phase_criteria SET deleted_at = ?, synced = 0 WHERE phase_id = ?`, bind: [now, phaseId] },
+  ]);
+}
+
+export async function saveCriteria(c: { id: string; phase_id: string; description: string }): Promise<void> {
+  // Preserve existing `done` on edit; default 0 on create. Never written by the sync channel.
+  await exec(
+    `INSERT OR REPLACE INTO phase_criteria (id, phase_id, description, done, deleted_at, synced)
+     VALUES (?, ?, ?, COALESCE((SELECT done FROM phase_criteria WHERE id = ?), 0), NULL, 0)`,
+    [c.id, c.phase_id, c.description, c.id],
+  );
+}
+
+export async function softDeleteCriteria(id: string): Promise<void> {
+  await exec(`UPDATE phase_criteria SET deleted_at = ?, synced = 0 WHERE id = ?`, [Date.now(), id]);
 }

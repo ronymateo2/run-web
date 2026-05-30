@@ -2,7 +2,7 @@ import {
   Flame, Drop, Leaf, Sparkle, Play, Check, ArrowRight,
   CaretRight, CaretLeft, X, Hand, Bell, Book, ChartBar,
   House, Person, Path, Lock, ArrowCounterClockwise,
-  User, Globe, SignOut,
+  User, Globe, SignOut, Plus, TrashSimple, PencilSimple,
 } from '@phosphor-icons/react';
 
 interface IcoProps { s?: number; c?: string; }
@@ -34,4 +34,7 @@ export const Ico = {
   user:    (p?: IcoProps) => <User    size={sz(p, 20)} color={cl(p)} weight="regular" />,
   globe:   (p?: IcoProps) => <Globe   size={sz(p)}     color={cl(p)} weight="regular" />,
   logout:  (p?: IcoProps) => <SignOut size={sz(p)}     color={cl(p)} weight="regular" />,
+  plus:    (p?: IcoProps) => <Plus    size={sz(p, 16)} color={cl(p)} weight="bold"    />,
+  trash:   (p?: IcoProps) => <TrashSimple size={sz(p, 16)} color={cl(p)} weight="regular" />,
+  pencil:  (p?: IcoProps) => <PencilSimple size={sz(p, 16)} color={cl(p)} weight="regular" />,
 };

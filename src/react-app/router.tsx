@@ -8,6 +8,8 @@ import { CuerpoScreen } from "./screens/CuerpoScreen";
 import { PhasesOverviewScreen } from "./screens/PhasesOverviewScreen";
 import { PhaseJourneyScreen } from "./screens/PhaseJourneyScreen";
 import { PhaseExercisesScreen } from "./screens/PhaseExercisesScreen";
+import { InjuryEditScreen } from "./screens/InjuryEditScreen";
+import { PhaseEditScreen } from "./screens/PhaseEditScreen";
 import { ProgressScreen } from "./screens/ProgressScreen";
 import { LearnScreen } from "./screens/LearnScreen";
 import { LearnArticleScreen } from "./screens/LearnArticleScreen";
@@ -26,6 +28,9 @@ export const router = createBrowserRouter([
       { path: "/today/sst", element: <SqueezeTestScreen /> },
       { path: "/body", element: <CuerpoScreen /> },
       { path: "/path", element: <PhasesOverviewScreen /> },
+      { path: "/path/injury/:id/edit", element: <InjuryEditScreen /> },
+      { path: "/path/injury/:id/phase/new", element: <PhaseEditScreen /> },
+      { path: "/path/phase/:id/edit", element: <PhaseEditScreen /> },
       { path: "/path/phase/:id", element: <PhaseJourneyScreen /> },
       { path: "/path/phase/:id/exercises", element: <PhaseExercisesScreen /> },
       { path: "/path/progress", element: <ProgressScreen /> },

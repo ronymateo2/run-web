@@ -39,6 +39,7 @@ export const phases = sqliteTable("phases", {
   week_start: integer("week_start").notNull(),
   week_end: integer("week_end").notNull(),
   threshold_pct: integer("threshold_pct").notNull().default(70),
+  deleted_at: integer("deleted_at"),
   synced: integer("synced").default(0),
 });
 
@@ -47,6 +48,7 @@ export const phaseCriteria = sqliteTable("phase_criteria", {
   phase_id: text("phase_id").notNull(),
   description: text("description").notNull(),
   done: integer("done").notNull().default(0),
+  deleted_at: integer("deleted_at"),
 });
 
 export const exercises = sqliteTable("exercises", {
