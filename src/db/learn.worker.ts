@@ -24,7 +24,12 @@ const INIT_PRAGMAS = `
   PRAGMA synchronous=NORMAL;
 `;
 
-const ready = sqlite3InitModule({ print: () => {}, printErr: console.error }).then(
+const initModule = sqlite3InitModule as (config?: {
+  print?: (msg: string) => void;
+  printErr?: (msg: string) => void;
+}) => ReturnType<typeof sqlite3InitModule>;
+
+const ready = initModule({ print: () => {}, printErr: console.error }).then(
   async (sqlite3) => {
     try {
       poolUtil = await sqlite3.installOpfsSAHPoolVfs({
@@ -48,7 +53,8 @@ const api = {
   async exec(sql: string, bind: BindingSpec): Promise<void> {
     await ready;
     if (!db) throw new Error("SQLite database is closed");
-    db.exec(bind ? { sql, bind } : sql);
+    if (bind) db.exec({ sql, bind });
+    else db.exec(sql);
   },
 
   async query(sql: string, bind?: BindingSpec): Promise<SqlValue[][]> {
@@ -73,7 +79,8 @@ const api = {
     db.exec("BEGIN");
     try {
       for (const { sql, bind } of statements) {
-        db.exec(bind ? { sql, bind } : sql);
+        if (bind) db.exec({ sql, bind });
+        else db.exec(sql);
       }
       db.exec("COMMIT");
     } catch (error) {
