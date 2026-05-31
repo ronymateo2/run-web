@@ -224,14 +224,16 @@ export function PhaseEditScreen() {
             <div className="title-md serif mt-24">Criterios</div>
             <div className="col gap-10 mt-12">
               {criteria.map((c, i) => (
-                <div key={c.id} className="card row gap-8" style={{ padding: 12, alignItems: "center" }}>
-                  <input
-                    style={{ ...inputStyle, border: "none", background: "transparent", padding: "4px 0", flex: 1 }}
+                <div key={c.id} className="card row gap-8" style={{ padding: 12, alignItems: "flex-start" }}>
+                  <textarea
+                    rows={1}
+                    style={{ ...inputStyle, border: "none", background: "transparent", padding: "4px 0", flex: 1, minWidth: 0, resize: "none", overflow: "hidden", lineHeight: 1.4 }}
                     value={c.description}
-                    onChange={e => setCriteria(prev => prev.map((x, j) => j === i ? { ...x, description: e.target.value } : x))}
+                    ref={el => { if (el) { el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; } }}
+                    onChange={e => { e.target.style.height = "auto"; e.target.style.height = `${e.target.scrollHeight}px`; setCriteria(prev => prev.map((x, j) => j === i ? { ...x, description: e.target.value } : x)); }}
                     onBlur={() => handleSaveCriteria(c)}
                   />
-                  <button style={{ background: "none", border: "none", cursor: "pointer", padding: 6 }} onClick={() => handleDeleteCriteria(c.id)}>
+                  <button style={{ background: "none", border: "none", cursor: "pointer", padding: 6, flexShrink: 0 }} onClick={() => handleDeleteCriteria(c.id)}>
                     <Ico.trash s={16} c="var(--clay)" />
                   </button>
                 </div>
