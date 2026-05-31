@@ -7,7 +7,7 @@ import { useSync } from "../hooks/useSync";
 import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
-import { getCriteria, getPhasesForInjury, getActiveInjuries, getPhaseById, type Phase, type Injury, type PhaseCriteria } from "../../db/queries/injuries";
+import { getCriteria, getPhasesForInjury, getActiveInjuries, getPhaseById, effectiveFocusDays, type Phase, type Injury, type PhaseCriteria } from "../../db/queries/injuries";
 import { getExercisesForPhase, getTodayLogs, getSessionPhasesByDate, getPhaseProgress, type Exercise, type DaySession } from "../../db/queries/exercises";
 import { exec } from "../../db/client";
 import { localToday } from "../utils/timezone";
@@ -76,7 +76,7 @@ export function PhaseJourneyScreen() {
     const criteria = await getCriteria(db, id);
     const injuries = user ? await getActiveInjuries(db, user.id) : [];
     const injury = injuries.find(i => i.id === phase.injury_id);
-    const progressPct = user ? await getPhaseProgress(db, phase, injury?.focus_days, user.id) : 0;
+    const progressPct = user ? await getPhaseProgress(db, phase, effectiveFocusDays(phase, injury), user.id) : 0;
     const allPhases = await getPhasesForInjury(db, phase.injury_id);
     const nextPhase = allPhases.find(p => p.phase_num === phase.phase_num + 1);
     const exercises = await getExercisesForPhase(db, id);

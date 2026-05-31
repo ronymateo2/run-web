@@ -66,6 +66,7 @@ const MIGRATIONS: Array<{ id: number; sql: string }> = [
   { id: 4, sql: `ALTER TABLE phases ADD COLUMN deleted_at INTEGER` },
   { id: 5, sql: `ALTER TABLE phase_criteria ADD COLUMN deleted_at INTEGER` },
   { id: 6, sql: `ALTER TABLE exercises ADD COLUMN video_url TEXT` },
+  { id: 7, sql: `ALTER TABLE phases ADD COLUMN focus_days TEXT` },
 ];
 
 // OPFS SAHPool allows only ONE connection at a time, so we can't open the DB worker in every tab.

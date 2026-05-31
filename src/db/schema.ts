@@ -39,6 +39,7 @@ export const phases = sqliteTable("phases", {
   week_start: integer("week_start").notNull(),
   week_end: integer("week_end").notNull(),
   threshold_pct: integer("threshold_pct").notNull().default(70),
+  focus_days: text("focus_days"),
   deleted_at: integer("deleted_at"),
   synced: integer("synced").default(0),
 });

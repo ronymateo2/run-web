@@ -69,7 +69,7 @@ export function SqueezeTestScreen() {
     setSaveError(null);
     try {
       const injuries = await getActiveInjuries(db, user.id);
-      const focus = getTodayFocusInjury(injuries);
+      const focus = await getTodayFocusInjury(db, injuries);
       if (!focus) {
         setSaveError("No hay lesión activa registrada. Contacta soporte.");
         setSaving(false);

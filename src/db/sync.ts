@@ -39,10 +39,10 @@ export async function pullDelta({ force = false }: { force?: boolean } = {}): Pr
   }
   for (const row of data.phases ?? []) {
     statements.push({
-      sql: `INSERT OR REPLACE INTO phases (id, injury_id, phase_num, name, description, week_start, week_end, threshold_pct, deleted_at, synced)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      sql: `INSERT OR REPLACE INTO phases (id, injury_id, phase_num, name, description, week_start, week_end, threshold_pct, focus_days, deleted_at, synced)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       bind: [row.id, row.injury_id, row.phase_num, row.name, row.description ?? null,
-             row.week_start, row.week_end, row.threshold_pct, row.deleted_at ?? null],
+             row.week_start, row.week_end, row.threshold_pct, row.focus_days ?? null, row.deleted_at ?? null],
     });
   }
   for (const row of data.exercises ?? []) {

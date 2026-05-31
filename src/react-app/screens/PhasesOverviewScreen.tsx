@@ -4,7 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useDb } from "../hooks/useDb";
 import { Plant, Leaf, Flower, Tree } from "@phosphor-icons/react";
 import { Ico } from "../components/icons";
-import { getActiveInjuries, getPhasesForInjury, getCurrentPhase, type Injury, type Phase } from "../../db/queries/injuries";
+import { getActiveInjuries, getPhasesForInjury, getCurrentPhase, effectiveFocusDays, type Injury, type Phase } from "../../db/queries/injuries";
 import { getPhaseProgress, getSessionDates } from "../../db/queries/exercises";
 
 const PHASE_ICONS = [
@@ -43,7 +43,7 @@ export function PhasesOverviewScreen() {
           const current = await getCurrentPhase(db, inj);
           const phasesWithProgress: PhaseWithProgress[] = await Promise.all(
             phases.map(async (p) => {
-              const progressPct = await getPhaseProgress(db, p, inj.focus_days, user.id);
+              const progressPct = await getPhaseProgress(db, p, effectiveFocusDays(p, inj), user.id);
               return { ...p, progressPct };
             })
           );

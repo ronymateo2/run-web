@@ -41,7 +41,7 @@ export function HomeScreen() {
     if (!db || !user) return;
     const dateStr = localToday(user?.timezone);
     const injuries = await getActiveInjuries(db, user.id);
-    const focusInjuries = getTodayFocusInjuries(injuries, user?.timezone);
+    const focusInjuries = await getTodayFocusInjuries(db, injuries, user?.timezone);
     const focusBlocks: FocusBlock[] = await Promise.all(
       focusInjuries.map(async (injury) => {
         const phase = await getCurrentPhase(db, injury);

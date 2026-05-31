@@ -6,9 +6,20 @@ import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
 import {
-  getPhaseById, getPhasesForInjury, getCriteria, savePhase, saveCriteria, softDeleteCriteria,
+  getPhaseById, getPhasesForInjury, getInjuryById, getCriteria, savePhase, saveCriteria, softDeleteCriteria,
   type PhaseCriteria,
 } from "../../db/queries/injuries";
+
+const WEEKDAYS: { key: string; label: string }[] = [
+  { key: "mon", label: "L" }, { key: "tue", label: "M" }, { key: "wed", label: "X" },
+  { key: "thu", label: "J" }, { key: "fri", label: "V" }, { key: "sat", label: "S" },
+  { key: "sun", label: "D" },
+];
+
+function parseDays(json: string | null | undefined): string[] {
+  try { return json ? (JSON.parse(json) as string[]) : []; }
+  catch { return []; }
+}
 
 interface FormState {
   name: string;
@@ -35,6 +46,8 @@ export function PhaseEditScreen() {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [criteria, setCriteria] = useState<PhaseCriteria[]>([]);
   const [newCriteria, setNewCriteria] = useState("");
+  const [focusDays, setFocusDays] = useState<string[]>([]);
+  const [injuryFocusDays, setInjuryFocusDays] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -42,15 +55,19 @@ export function PhaseEditScreen() {
     if (!db || !id) return;
     if (isCreate) {
       const phs = await getPhasesForInjury(db, id);
+      const inj = await getInjuryById(db, id);
       setInjuryId(id);
       setPhaseId(crypto.randomUUID());
       setPhaseNum(Math.max(0, ...phs.map(p => p.phase_num)) + 1);
       setForm(EMPTY);
+      setFocusDays([]);
+      setInjuryFocusDays(parseDays(inj?.focus_days));
       setLoaded(true);
       return;
     }
     const phase = await getPhaseById(db, id);
     if (!phase) return;
+    const inj = await getInjuryById(db, phase.injury_id);
     setPhaseId(phase.id);
     setInjuryId(phase.injury_id);
     setPhaseNum(phase.phase_num);
@@ -61,6 +78,8 @@ export function PhaseEditScreen() {
       week_end: String(phase.week_end),
       threshold_pct: String(phase.threshold_pct),
     });
+    setFocusDays(parseDays(phase.focus_days));
+    setInjuryFocusDays(parseDays(inj?.focus_days));
     setCriteria(await getCriteria(db, phase.id));
     setLoaded(true);
   }, [db, id, isCreate]);
@@ -69,6 +88,10 @@ export function PhaseEditScreen() {
 
   function set<K extends keyof FormState>(key: K, value: string) {
     setForm(prev => ({ ...prev, [key]: value }));
+  }
+
+  function toggleDay(key: string) {
+    setFocusDays(prev => prev.includes(key) ? prev.filter(d => d !== key) : [...prev, key]);
   }
 
   async function handleSavePhase() {
@@ -83,6 +106,7 @@ export function PhaseEditScreen() {
       week_start: Number(form.week_start) || 0,
       week_end: Number(form.week_end) || 0,
       threshold_pct: Number(form.threshold_pct) || 70,
+      focus_days: focusDays.length ? JSON.stringify(focusDays) : null,
     });
     push();
     if (isCreate) {
@@ -160,6 +184,38 @@ export function PhaseEditScreen() {
             <span className="eyebrow">Descripción</span>
             <textarea style={{ ...inputStyle, minHeight: 72, resize: "vertical" }} value={form.description} onChange={e => set("description", e.target.value)} />
           </div>
+        </div>
+
+        {/* Días de enfoque de la fase — override; vacío = hereda de la lesión */}
+        <div className="card mt-12" style={{ padding: 18 }}>
+          <div className="eyebrow">Días de enfoque de la fase</div>
+          <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+            {WEEKDAYS.map(d => {
+              const active = focusDays.includes(d.key);
+              return (
+                <button
+                  key={d.key}
+                  onClick={() => toggleDay(d.key)}
+                  style={{
+                    width: 34, height: 34, borderRadius: 999, cursor: "pointer",
+                    fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 600,
+                    border: active ? "none" : "1px solid var(--line)",
+                    background: active ? "var(--moss)" : "transparent",
+                    color: active ? "#fff" : "var(--muted)",
+                  }}
+                >
+                  {d.label}
+                </button>
+              );
+            })}
+          </div>
+          {focusDays.length === 0 && (
+            <div className="body-sm mt-8" style={{ color: "var(--ink-3)" }}>
+              {injuryFocusDays.length
+                ? `Hereda de la lesión: ${injuryFocusDays.map(k => WEEKDAYS.find(w => w.key === k)?.label).filter(Boolean).join(" · ")}`
+                : "Hereda de la lesión (sin días definidos)."}
+            </div>
+          )}
         </div>
 
         {/* Criteria — only once the phase exists (edit mode) */}

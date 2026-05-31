@@ -51,20 +51,42 @@ export function computePhaseProgress(criteria: PhaseCriteria[]): number {
   return Math.round((criteria.filter(c => c.done).length / criteria.length) * 100);
 }
 
-export function getTodayFocusInjuries(injuries: Injury[], tz?: string | null): Injury[] {
-  const zone = tz || Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const dow = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: zone })
-    .format(new Date()).toLowerCase();
-  const focused = injuries.filter(inj => {
-    if (!inj.focus_days) return false;
-    try { return (JSON.parse(inj.focus_days) as string[]).includes(dow); }
-    catch { return false; }
-  });
-  return focused;
+// Phase frequency overrides injury frequency: a phase with its own focus_days wins;
+// otherwise fall back to the injury's. Returns the JSON array string (or null).
+export function effectiveFocusDays(
+  phase: { focus_days?: string | null } | null | undefined,
+  injury: { focus_days?: string | null } | null | undefined,
+): string | null {
+  return phase?.focus_days ?? injury?.focus_days ?? null;
 }
 
-export function getTodayFocusInjury(injuries: Injury[]): Injury | null {
-  return getTodayFocusInjuries(injuries)[0] ?? null;
+function todayDow(tz?: string | null): string {
+  const zone = tz || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: zone })
+    .format(new Date()).toLowerCase();
+}
+
+// An injury is "today's focus" when today's weekday is in its effective focus_days —
+// the current phase's own days if it has them, otherwise the injury's.
+export async function getTodayFocusInjuries(
+  db: DrizzleDb, injuries: Injury[], tz?: string | null,
+): Promise<Injury[]> {
+  const dow = todayDow(tz);
+  const out: Injury[] = [];
+  for (const inj of injuries) {
+    const phase = await getCurrentPhase(db, inj);
+    const fd = effectiveFocusDays(phase, inj);
+    if (!fd) continue;
+    try { if ((JSON.parse(fd) as string[]).includes(dow)) out.push(inj); }
+    catch { /* malformed focus_days → skip */ }
+  }
+  return out;
+}
+
+export async function getTodayFocusInjury(
+  db: DrizzleDb, injuries: Injury[], tz?: string | null,
+): Promise<Injury | null> {
+  return (await getTodayFocusInjuries(db, injuries, tz))[0] ?? null;
 }
 
 // --- Writes (mark synced=0; caller triggers push()). Server enforces ownership. ---
@@ -78,6 +100,7 @@ export interface PhaseInput {
   week_start: number;
   week_end: number;
   threshold_pct: number;
+  focus_days: string | null;
 }
 
 export async function updateInjuryEdit(
@@ -92,9 +115,9 @@ export async function updateInjuryEdit(
 
 export async function savePhase(p: PhaseInput): Promise<void> {
   await exec(
-    `INSERT OR REPLACE INTO phases (id, injury_id, phase_num, name, description, week_start, week_end, threshold_pct, deleted_at, synced)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 0)`,
-    [p.id, p.injury_id, p.phase_num, p.name, p.description, p.week_start, p.week_end, p.threshold_pct],
+    `INSERT OR REPLACE INTO phases (id, injury_id, phase_num, name, description, week_start, week_end, threshold_pct, focus_days, deleted_at, synced)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0)`,
+    [p.id, p.injury_id, p.phase_num, p.name, p.description, p.week_start, p.week_end, p.threshold_pct, p.focus_days],
   );
 }
 
