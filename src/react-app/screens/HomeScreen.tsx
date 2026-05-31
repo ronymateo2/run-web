@@ -14,7 +14,6 @@ import { getActiveInjuries, getTodayFocusInjuries, getCurrentPhase, type Injury,
 import { getExercisesForPhase, getTodayLogs, type Exercise } from "../../db/queries/exercises";
 import { getTodayCheckin, type PainCheckin } from "../../db/queries/checkins";
 import { getTodaySst, isSstPreferredToday, type SstResult } from "../../db/queries/sst";
-import { pullDelta, pushDelta } from "../../db/sync";
 
 
 interface FocusBlock {
@@ -33,11 +32,10 @@ interface HomeData {
 }
 
 export function HomeScreen() {
-  const { user, token, lastSyncAt } = useAuth();
+  const { user, lastSyncAt } = useAuth();
   const db = useDb();
   const navigate = useNavigate();
   const [data, setData] = useState<HomeData | null>(null);
-  const [syncing, setSyncing] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!db || !user) return;
@@ -72,18 +70,6 @@ export function HomeScreen() {
     });
   }, [data]);
 
-  const handleForceSync = useCallback(async () => {
-    if (!db || !token || syncing) return;
-    setSyncing(true);
-    try {
-      await pushDelta();
-      await pullDelta({ force: true });
-      await loadData();
-    } finally {
-      setSyncing(false);
-    }
-  }, [db, token, syncing, loadData]);
-
   if (!data) {
     return (
       <div className="screen">
@@ -106,20 +92,7 @@ export function HomeScreen() {
       <div className="screen-body" style={{ paddingBottom: 100 }}>
         {/* Header */}
         <div className="col gap-4" style={{ paddingTop: 12 }}>
-          <div className="row between" style={{ alignItems: "center" }}>
-            <div className="eyebrow">{localDayName(user?.timezone)}</div>
-            <button
-              onClick={handleForceSync}
-              disabled={syncing}
-              style={{
-                background: "none", border: "none", cursor: syncing ? "default" : "pointer",
-                padding: 4, opacity: syncing ? 0.4 : 0.55, display: "flex", alignItems: "center",
-              }}
-              title="Sincronizar"
-            >
-              <Ico.refresh s={16} />
-            </button>
-          </div>
+          <div className="eyebrow">{localDayName(user?.timezone)}</div>
           {isDualInjury && focus ? (
             <div className="title-lg serif">
               Hoy es día de{" "}
