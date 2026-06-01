@@ -7,6 +7,7 @@ interface MonthCalendarProps {
   phaseColors: string[];
   timezone?: string | null;
   injuryId?: string | null;
+  onDateClick?: (date: string) => void;
 }
 
 interface MonthCell {
@@ -62,6 +63,7 @@ export function MonthCalendar({
   phaseColors,
   timezone,
   injuryId,
+  onDateClick,
 }: MonthCalendarProps) {
   const [viewDate, setViewDate] = useState(new Date());
 
@@ -180,6 +182,14 @@ export function MonthCalendar({
           return (
             <div
               key={cell.date}
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                if (ph !== null && onDateClick) onDateClick(cell.date!);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && ph !== null && onDateClick) onDateClick(cell.date!);
+              }}
               style={{
                 position: "relative",
                 aspectRatio: "1",
@@ -189,6 +199,7 @@ export function MonthCalendar({
                 justifyContent: "center",
                 gap: 2,
                 borderRadius: 8,
+                cursor: ph !== null && onDateClick ? "pointer" : "default",
                 background: cell.isToday ? "var(--ink)" : "transparent",
                 border: cell.isToday ? "none" : "1px solid var(--line)",
               }}

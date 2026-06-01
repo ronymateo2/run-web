@@ -8,6 +8,7 @@ import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
 import { MonthCalendar } from "../components/MonthCalendar";
+import { DaySummarySheet } from "../components/DaySummarySheet";
 import { getCriteria, getPhasesForInjury, getInjuryById, getPhaseById, effectiveFocusDays, type Phase, type Injury, type PhaseCriteria } from "../../db/queries/injuries";
 import { getExercisesForPhase, getTodayLogs, getSessionPhasesByDate, getPhaseProgress, type Exercise, type DaySession } from "../../db/queries/exercises";
 import { exec } from "../../db/client";
@@ -30,6 +31,7 @@ export function PhaseJourneyScreen() {
   const push = useSync();
   const navigate = useNavigate();
   const [data, setData] = useState<PhaseJourneyData | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!db || !id) return;
@@ -196,6 +198,7 @@ export function PhaseJourneyScreen() {
           phaseColors={PHASE_COLORS}
           timezone={user?.timezone}
           injuryId={phase.injury_id}
+          onDateClick={(date) => setSelectedDate(date)}
         />
       </div>
 
@@ -217,6 +220,18 @@ export function PhaseJourneyScreen() {
           Ver ejercicios de hoy · {doneCnt}/{exercises.length}
         </button>,
         document.body
+      )}
+
+      {selectedDate && user?.id && db && (
+        <DaySummarySheet
+          date={selectedDate}
+          db={db}
+          userId={user.id}
+          exercises={exercises}
+          phaseColor={phaseColor}
+          phaseName={phase.name}
+          onClose={() => setSelectedDate(null)}
+        />
       )}
     </div>
   );
