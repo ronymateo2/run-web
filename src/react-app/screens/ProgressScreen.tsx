@@ -5,6 +5,7 @@ import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
 import { getRecentCheckins, type PainCheckin } from "../../db/queries/checkins";
 import { getRecentSst, type SstResult } from "../../db/queries/sst";
+import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 
 const ZONE_COLORS: Record<string, string> = {
   ingleL: "rgba(217,119,87,0.7)", ingleR: "rgba(217,119,87,0.45)",
@@ -44,21 +45,8 @@ export function ProgressScreen() {
     return () => { active = false; };
   }, [db, user, lastSyncAt]);
 
-  const W = 340, H = 140;
   const segments = data?.segments ?? [];
   const n = segments.length;
-
-  // Build SVG path for pain area chart
-  function pathForZone(zone: string): string {
-    if (!n) return "";
-    const pts = segments.map((s, i) => {
-      const x = (i / Math.max(1, n - 1)) * W;
-      const y = H - ((s.zones[zone] ?? 0) / 10) * H;
-      return [x, y] as [number, number];
-    });
-    const top = pts.map(([x, y], i) => (i === 0 ? `M${x},${y}` : `L${x},${y}`)).join(" ");
-    return `${top} L${W},${H} L0,${H} Z`;
-  }
 
   const activeZones = Object.keys(ZONE_COLORS).filter(k =>
     segments.some(s => (s.zones[k] ?? 0) > 0)
@@ -75,16 +63,36 @@ export function ProgressScreen() {
         <div className="title-lg serif mt-12">La marea del dolor.</div>
         <div className="body-sm mt-4">Últimos 30 días · por zona.</div>
 
-        {/* Pain area chart */}
-        <div className="card mt-20" style={{ padding: 18, overflow: "hidden" }}>
+        {/* Pain sparklines */}
+        <div className="card mt-20" style={{ padding: 18 }}>
           {n > 1 ? (
-            <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: "block" }}>
-              {activeZones.map(zone => (
-                <path key={zone} d={pathForZone(zone)} fill={ZONE_COLORS[zone] ?? "rgba(200,200,200,0.3)"} />
-              ))}
-            </svg>
+            <div style={{ width: "100%", height: 140 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={segments} margin={{ top: 6, right: 6, bottom: 6, left: 6 }}>
+                  {activeZones.map(zone => (
+                    <Line
+                      key={zone}
+                      type="monotone"
+                      dataKey={`zones.${zone}`}
+                      stroke={ZONE_COLORS[zone] ?? "rgba(200,200,200,0.3)"}
+                      strokeWidth={2.5}
+                      dot={false}
+                      isAnimationActive={false}
+                    />
+                  ))}
+                  <XAxis dataKey="date" hide />
+                  <YAxis domain={[0, 10]} hide />
+                  <Tooltip
+                    contentStyle={{ borderRadius: 8, border: "none", boxShadow: "0 2px 8px rgba(0,0,0,0.15)", fontSize: 12 }}
+                    labelStyle={{ color: "var(--ink-3)", fontSize: 11 }}
+                    itemStyle={{ fontSize: 12 }}
+                    formatter={(value, name) => [value as number, zoneLabel((name as string).replace("zones.", ""))]}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           ) : (
-            <div className="col" style={{ height: H, alignItems: "center", justifyContent: "center" }}>
+            <div className="col" style={{ height: 140, alignItems: "center", justifyContent: "center" }}>
               <div className="body-sm">Sin datos aún. Registra dolor cada día.</div>
             </div>
           )}
@@ -133,20 +141,22 @@ export function ProgressScreen() {
                 <span className="eyebrow">fuerza percibida · últimas {data.sst.length} mediciones</span>
               </div>
               {/* Mini sparkline */}
-              <svg width="100%" height={48} viewBox={`0 0 ${W} 48`} preserveAspectRatio="none">
-                <polyline
-                  points={[...data.sst].reverse().map((r, i) => {
-                    const x = (i / Math.max(1, data.sst.length - 1)) * W;
-                    const y = 48 - ((r.strength_score ?? 0) / 10) * 44;
-                    return `${x},${y}`;
-                  }).join(" ")}
-                  fill="none"
-                  stroke="var(--moss)"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <div style={{ width: "100%", height: 48 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={[...data.sst].reverse()} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+                    <Line
+                      type="monotone"
+                      dataKey="strength_score"
+                      stroke="var(--moss)"
+                      strokeWidth={2}
+                      dot={false}
+                      isAnimationActive={false}
+                    />
+                    <XAxis dataKey="created_at" hide />
+                    <YAxis domain={[0, 10]} hide />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
               <div className="row between mt-4">
                 <span className="body-sm">hace {data.sst.length} mediciones</span>
                 <span className="body-sm">hoy</span>
