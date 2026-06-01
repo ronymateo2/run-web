@@ -26,12 +26,10 @@ interface Props {
   done: boolean;
   setsDone?: number;
   setsTotal?: number;
-  phase?: string;
-  accent?: string;
   exerciseIds?: string[];
 }
 
-export function ExerciseRow({ id, name, sets, reps, duration_s, mins, done, setsDone = 0, setsTotal = 0, phase, accent = "var(--ink-2)", exerciseIds }: Props) {
+export function ExerciseRow({ id, name, sets, reps, duration_s, mins, done, setsDone = 0, setsTotal = 0, exerciseIds }: Props) {
   const navigate = useNavigate();
   const partial = !done && setsDone > 0 && setsDone < setsTotal;
   const remaining = setsTotal - setsDone;
@@ -68,24 +66,18 @@ export function ExerciseRow({ id, name, sets, reps, duration_s, mins, done, sets
           textDecoration: done ? "line-through" : "none",
         }}>{name}</span>
 
-        {(phase || sets || reps || duration_s || mins) && (
+        {(sets || reps || duration_s || mins) && (
           <div className="row" style={{ flexWrap: "wrap", alignItems: "center", columnGap: 8, rowGap: 4 }}>
-            {phase && (
-              <span className="chip" style={{ background: "transparent", border: "1px solid var(--line)", fontSize: 11, padding: "3px 8px" }}>
-                <span style={{ width: 6, height: 6, borderRadius: 999, background: accent, display: "inline-block" }} />
-                {phase}
-              </span>
-            )}
             {(sets || reps || duration_s) && (
               <span className="num body-sm" style={{ color: "var(--ink-3)" }}>
                 {formatSetsReps(sets, reps, duration_s)}
               </span>
             )}
             {mins && (
-              <>
+              <span className="row num body-sm" style={{ alignItems: "center", gap: 8, color: "var(--ink-3)", whiteSpace: "nowrap" }}>
                 <span style={{ width: 3, height: 3, borderRadius: 999, background: "var(--faint)" }} />
-                <span className="num body-sm" style={{ color: "var(--ink-3)" }}>≈ {mins} min</span>
-              </>
+                ≈ {mins} min
+              </span>
             )}
           </div>
         )}

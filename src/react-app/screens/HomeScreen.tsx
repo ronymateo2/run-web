@@ -174,6 +174,9 @@ export function HomeScreen() {
                 </div>
                 <div className="label num">{blockDone} / {block.exercises.length} hechos</div>
               </div>
+              {block.phase && (
+                <div className="eyebrow mt-4">{block.phase.name}</div>
+              )}
               <div className="bar mt-8" style={{ background: "rgba(31,58,46,0.08)" }}>
                 <motion.div
                   className="bar-fill"
@@ -183,7 +186,7 @@ export function HomeScreen() {
                   style={{ background: "var(--ink)" }}
                 />
               </div>
-              <ExerciseList exercises={block.exercises} setsDone={setsDone} phaseName={block.phase?.name} />
+              <ExerciseList exercises={block.exercises} setsDone={setsDone} />
             </div>
           ) : null;
         })}

@@ -514,7 +514,7 @@ export function ExerciseDetailScreen() {
       )}
 
       {/* Video sheet */}
-      {videoOpen && exercise?.video_url && (
+      {videoOpen && !!exercise?.video_url && (
         <BottomSheet variant="dark" onClose={() => setVideoOpen(false)}>
           {(close) => (
             <>
@@ -543,7 +543,7 @@ export function ExerciseDetailScreen() {
                 padding: "0 20px 20px",
                 paddingBottom: "calc(20px + env(safe-area-inset-bottom, 20px))",
               }}>
-                <VideoEmbed url={exercise.video_url} />
+                <VideoEmbed url={exercise.video_url!} />
               </div>
             </>
           )}

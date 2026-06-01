@@ -28,10 +28,9 @@ function estimateMins(sets?: number, reps?: number, duration_s?: number): number
 interface Props {
   exercises: Exercise[];
   setsDone: Map<string, number>;
-  phaseName?: string;
 }
 
-export function ExerciseList({ exercises, setsDone, phaseName }: Props) {
+export function ExerciseList({ exercises, setsDone }: Props) {
   return (
     <motion.div
       className="col gap-10 mt-16"
@@ -55,7 +54,6 @@ export function ExerciseList({ exercises, setsDone, phaseName }: Props) {
             setsDone={sd}
             setsTotal={total}
             done={sd >= total}
-            phase={phaseName}
             exerciseIds={exercises.map(ex => ex.id)}
           />
         );
