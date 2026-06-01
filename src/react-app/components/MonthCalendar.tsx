@@ -175,7 +175,7 @@ export function MonthCalendar({
         }}
       >
         {monthGrid.cells.map((cell, idx) => {
-          if (!cell.date) return <div key={idx} />;
+          if (!cell.date) return <div key={idx} style={{ aspectRatio: "1", border: "1px solid transparent" }} />;
           const ph = phaseFor(cell.date);
           const badgeColor =
             ph !== null ? phaseColors[(ph - 1) % phaseColors.length] : null;
