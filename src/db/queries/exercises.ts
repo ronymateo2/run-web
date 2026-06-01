@@ -7,7 +7,8 @@ export type ExerciseLog = typeof exerciseLogs.$inferSelect;
 export type NewExerciseLog = Omit<typeof exerciseLogs.$inferInsert, "synced" | "deleted_at">;
 
 // Authoring an exercise: editable fields plus phase_id/name/detail carried unchanged so
-// the full-row push to D1 doesn't null them. reps XOR duration_s (the other is null).
+// the full-row push to D1 doesn't null them. Reps-based exercises may also carry an
+// optional duration_s; time-only exercises have reps null.
 export type ExerciseInput = {
   id: string;
   phase_id: string;

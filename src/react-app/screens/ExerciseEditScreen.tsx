@@ -27,6 +27,7 @@ export function ExerciseEditScreen() {
   const [measure, setMeasure] = useState<Measure>("reps");
   const [sets, setSets] = useState("3");
   const [value, setValue] = useState("10");
+  const [durationOpt, setDurationOpt] = useState("");
   const [type, setType] = useState<Exercise["exercise_type"]>("mobility");
   const [videoUrl, setVideoUrl] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -42,6 +43,8 @@ export function ExerciseEditScreen() {
     setMeasure(isTime ? "time" : "reps");
     setSets(String(ex.sets ?? 3));
     setValue(String(isTime ? (ex.duration_s ?? 30) : (ex.reps ?? 10)));
+    // In reps mode, duration_s is an optional time target shown alongside reps.
+    setDurationOpt(!isTime && ex.duration_s ? String(ex.duration_s) : "");
     setType(ex.exercise_type);
     setVideoUrl(ex.video_url ?? "");
     setLoaded(true);
@@ -53,6 +56,7 @@ export function ExerciseEditScreen() {
     if (!db || !exercise) return;
     setSaving(true);
     const n = Number(value) || 0;
+    const dur = Number(durationOpt) || 0;
     await saveExercise(db, {
       id: exercise.id,
       phase_id: exercise.phase_id,
@@ -60,7 +64,7 @@ export function ExerciseEditScreen() {
       detail: exercise.detail,
       sets: Number(sets) || null,
       reps: measure === "reps" ? n : null,
-      duration_s: measure === "time" ? n : null,
+      duration_s: measure === "time" ? n : (dur || null),
       exercise_type: type,
       sort_order: exercise.sort_order ?? 0,
       video_url: videoUrl.trim() ? normalize(videoUrl.trim()) : null,
@@ -118,6 +122,12 @@ export function ExerciseEditScreen() {
               <span className="eyebrow">{measure === "time" ? "Segundos" : "Reps"}</span>
               <input style={inputStyle} type="number" inputMode="numeric" value={value} onChange={e => setValue(e.target.value)} />
             </div>
+            {measure === "reps" && (
+              <div className="col gap-4" style={{ flex: 1 }}>
+                <span className="eyebrow">Tiempo (s)</span>
+                <input style={inputStyle} type="number" inputMode="numeric" value={durationOpt} onChange={e => setDurationOpt(e.target.value)} placeholder="—" />
+              </div>
+            )}
           </div>
 
           <div className="col gap-4">

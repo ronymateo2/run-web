@@ -348,14 +348,25 @@ export function ExerciseDetailScreen() {
                 onChange={v => updateSet(i, "rpe", v)}
               />
 
-              <EditableNum
-                value={row.value}
-                min={1}
-                max={isTimeBased ? 300 : 200}
-                completed={row.completed}
-                onChange={v => updateSet(i, "value", v)}
-                suffix={isTimeBased ? "s" : "×"}
-              />
+              <div style={{ display: "flex", justifyContent: "center", alignItems: "baseline", gap: 6 }}>
+                <EditableNum
+                  value={row.value}
+                  min={1}
+                  max={isTimeBased ? 300 : 200}
+                  completed={row.completed}
+                  onChange={v => updateSet(i, "value", v)}
+                  suffix={isTimeBased ? "s" : "×"}
+                />
+                {/* Reps-based exercise with an optional time target: show it as a static label. */}
+                {!isTimeBased && !!exercise.duration_s && (
+                  <span style={{
+                    fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 400,
+                    color: "rgba(245,240,232,0.45)",
+                  }}>
+                    · {exercise.duration_s}s
+                  </span>
+                )}
+              </div>
 
               {/* Check button */}
               <div style={{ display: "flex", justifyContent: "center" }}>
