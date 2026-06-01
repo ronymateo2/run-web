@@ -154,6 +154,7 @@ export function MonthCalendar({
           <div
             key={`h-${i}`}
             style={{
+              width: "100%",
               textAlign: "center",
               fontFamily: "var(--font-mono)",
               fontSize: 10,
@@ -166,7 +167,17 @@ export function MonthCalendar({
           </div>
         ))}
         {monthGrid.cells.map((cell, idx) => {
-          if (!cell.date) return <div key={idx} style={{ aspectRatio: "1", border: "1px solid transparent" }} />;
+          if (!cell.date)
+            return (
+              <div
+                key={idx}
+                style={{
+                  aspectRatio: "1",
+                  border: "1px solid transparent",
+                  boxSizing: "border-box",
+                }}
+              />
+            );
           const ph = phaseFor(cell.date);
           const badgeColor =
             ph !== null ? phaseColors[(ph - 1) % phaseColors.length] : null;
@@ -192,11 +203,20 @@ export function MonthCalendar({
                 borderRadius: 8,
                 cursor: ph !== null && onDateClick ? "pointer" : "default",
                 background: cell.isToday ? "var(--ink)" : "transparent",
-                border: cell.isToday ? "none" : "1px solid var(--line)",
+                border: "1px solid",
+                borderColor: cell.isToday ? "transparent" : "var(--line)",
+                boxSizing: "border-box",
               }}
             >
               {/* F-badge */}
-              <div style={{ minHeight: 12 }}>
+              <div
+                style={{
+                  height: 14,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
                 {ph !== null && badgeColor && (
                   <span
                     style={{
@@ -204,8 +224,8 @@ export function MonthCalendar({
                       fontSize: 9,
                       fontWeight: 700,
                       lineHeight: 1,
-                      padding: "2px 4px",
-                      borderRadius: 4,
+                      padding: "1px 3px",
+                      borderRadius: 3,
                       color: "#fff",
                       background: cell.isToday
                         ? "rgba(255,255,255,0.25)"
