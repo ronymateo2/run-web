@@ -36,7 +36,7 @@ export function PhaseJourneyScreen() {
     const phase = await getPhaseById(db, id);
     if (!phase) return;
     const criteria = await getCriteria(db, id);
-    const injury = phase.injury_id ? await getInjuryById(db, phase.injury_id) : undefined;
+    const injury = phase.injury_id ? (await getInjuryById(db, phase.injury_id)) ?? undefined : undefined;
     const progressPct = user ? await getPhaseProgress(db, phase, effectiveFocusDays(phase, injury), user.id) : 0;
     const allPhases = await getPhasesForInjury(db, phase.injury_id);
     const nextPhase = allPhases.find(p => p.phase_num === phase.phase_num + 1);
