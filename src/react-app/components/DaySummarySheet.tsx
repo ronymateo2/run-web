@@ -343,7 +343,7 @@ export function DaySummarySheet({
                                     color: "var(--ink)",
                                   }}
                                 >
-                                  {log.reps_done} reps
+                                  {log.reps_done} {(ex.duration_s != null && ex.reps == null) ? "s" : "reps"}
                                 </span>
                               )}
                               {log.rpe != null && (
