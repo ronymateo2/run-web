@@ -9,6 +9,7 @@ import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
 import { VideoEmbed } from "../components/VideoEmbed";
+import { BottomSheet } from "../components/BottomSheet";
 import {
   getExerciseById, saveExerciseLog, softDeleteExerciseLog, getLogsForExercise,
   type Exercise, type ExerciseLog,
@@ -502,38 +503,10 @@ export function ExerciseDetailScreen() {
       )}
 
       {/* Video sheet */}
-      <AnimatePresence>
-        {videoOpen && exercise?.video_url && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              onClick={() => setVideoOpen(false)}
-              style={{
-                position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 50,
-              }}
-            />
-            <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", stiffness: 320, damping: 34 }}
-              style={{
-                position: "fixed", top: 48, bottom: 0, left: 0, right: 0, zIndex: 51,
-                background: "#1A2A20",
-                borderTopLeftRadius: 22, borderTopRightRadius: 22,
-                boxShadow: "0 -8px 40px rgba(0,0,0,0.45)",
-                display: "flex", flexDirection: "column",
-                overflow: "hidden",
-              }}
-            >
-              <div style={{
-                width: 40, height: 4, borderRadius: 999,
-                background: "rgba(245,240,232,0.25)",
-                margin: "12px auto 0", flexShrink: 0,
-              }} />
+      {videoOpen && exercise?.video_url && (
+        <BottomSheet variant="dark" onClose={() => setVideoOpen(false)}>
+          {(close) => (
+            <>
               <div style={{
                 display: "flex", justifyContent: "space-between", alignItems: "center",
                 padding: "14px 20px", flexShrink: 0,
@@ -545,7 +518,7 @@ export function ExerciseDetailScreen() {
                   VIDEO
                 </span>
                 <button
-                  onClick={() => setVideoOpen(false)}
+                  onClick={close}
                   aria-label="Cerrar"
                   style={{
                     background: "none", border: "none", cursor: "pointer", padding: 4,
@@ -555,13 +528,16 @@ export function ExerciseDetailScreen() {
                   <Ico.close s={20} c="rgba(245,240,232,0.70)" />
                 </button>
               </div>
-              <div style={{ flex: 1, minHeight: 0 }}>
-                <VideoEmbed url={exercise.video_url} fill />
+              <div style={{
+                padding: "0 20px 20px",
+                paddingBottom: "calc(20px + env(safe-area-inset-bottom, 20px))",
+              }}>
+                <VideoEmbed url={exercise.video_url} />
               </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+            </>
+          )}
+        </BottomSheet>
+      )}
     </div>
   );
 }

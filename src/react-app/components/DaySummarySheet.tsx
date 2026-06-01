@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
-import { AnimatePresence, motion } from "motion/react";
 import { Ico } from "./icons";
+import { BottomSheet } from "./BottomSheet";
 import type { DrizzleDb } from "../../db/drizzle";
 import type { Exercise, ExerciseLog } from "../../db/queries/exercises";
 import { getTodayLogs } from "../../db/queries/exercises";
@@ -45,7 +44,6 @@ export function DaySummarySheet({
   onClose,
 }: Props) {
   const [grouped, setGrouped] = useState<GroupedExercise[] | null>(null);
-  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,71 +70,12 @@ export function DaySummarySheet({
     return () => { cancelled = true; };
   }, [db, userId, date, exercises]);
 
-  const handleClose = () => setVisible(false);
-
-  return createPortal(
-    <AnimatePresence onExitComplete={onClose}>
-      {visible && (
-        <motion.div
-          key="overlay"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.25 }}
-          onClick={handleClose}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 200,
-            background: "rgba(31,58,46,0.45)",
-            backdropFilter: "blur(4px)",
-            WebkitBackdropFilter: "blur(4px)",
-            display: "flex",
-            alignItems: "flex-end",
-            justifyContent: "center",
-          }}
-        >
-          <motion.div
-            key="sheet"
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", stiffness: 320, damping: 35 }}
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "100%",
-              maxWidth: 480,
-              maxHeight: "calc(100vh - 60px)",
-              background: "var(--bg)",
-              borderRadius: "24px 24px 0 0",
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
-              boxShadow: "0 -8px 40px rgba(31,58,46,0.18)",
-            }}
-          >
-            {/* Handle */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                paddingTop: 10,
-                paddingBottom: 4,
-                flexShrink: 0,
-              }}
-            >
-              <div
-                style={{
-                  width: 36,
-                  height: 4,
-                  borderRadius: 999,
-                  background: "var(--line-2)",
-                }}
-              />
-            </div>
-
-            {/* Header */}
-            <div
+  return (
+    <BottomSheet onClose={onClose}>
+      {(close) => (
+        <>
+          {/* Header */}
+          <div
               style={{
                 padding: "10px 20px 16px",
                 flexShrink: 0,
@@ -145,7 +84,7 @@ export function DaySummarySheet({
             >
               <div className="row between" style={{ alignItems: "center" }}>
                 <button
-                  onClick={handleClose}
+                  onClick={close}
                   style={{
                     background: "transparent",
                     border: "none",
@@ -391,10 +330,8 @@ export function DaySummarySheet({
                 })
               )}
             </div>
-          </motion.div>
-        </motion.div>
+        </>
       )}
-    </AnimatePresence>,
-    document.body
+    </BottomSheet>
   );
 }

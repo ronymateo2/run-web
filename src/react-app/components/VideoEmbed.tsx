@@ -33,16 +33,13 @@ function embedUrl(url: string): string | null {
   return null;
 }
 
-export function VideoEmbed({ url: rawUrl, fill = false }: { url: string; fill?: boolean }) {
+export function VideoEmbed({ url: rawUrl }: { url: string }) {
   const url = normalize(rawUrl);
   const embed = embedUrl(url);
 
   if (embed) {
     return (
-      <div style={fill ? {
-        position: "relative", width: "100%", height: "100%",
-        overflow: "hidden", background: "rgba(0,0,0,0.30)",
-      } : {
+      <div style={{
         position: "relative", width: "100%", aspectRatio: "16 / 9",
         borderRadius: 14, overflow: "hidden", background: "rgba(0,0,0,0.30)",
         maxWidth: 480, marginLeft: "auto", marginRight: "auto",

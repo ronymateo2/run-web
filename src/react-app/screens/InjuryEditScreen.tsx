@@ -6,6 +6,7 @@ import { useSync } from "../hooks/useSync";
 import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
+import { BottomSheet } from "../components/BottomSheet";
 import {
   getInjuryById, getPhasesForInjury, updateInjuryEdit, softDeletePhase,
   type Injury, type Phase,
@@ -60,7 +61,6 @@ export function InjuryEditScreen() {
   async function confirmDeletePhase() {
     if (!db || !deleteTarget) return;
     await softDeletePhase(deleteTarget.id);
-    setDeleteTarget(null);
     push();
     await loadData();
   }
@@ -179,32 +179,28 @@ export function InjuryEditScreen() {
       </div>
 
       {deleteTarget && (
-        <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 200, display: "flex", alignItems: "flex-end" }}
-          onClick={() => setDeleteTarget(null)}
-        >
-          <div
-            style={{ background: "var(--bg)", borderRadius: "20px 20px 0 0", padding: "28px 20px 48px", width: "100%" }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="title-md serif">¿Eliminar fase?</div>
-            <div className="body-sm mt-8" style={{ color: "var(--ink-3)" }}>
-              <strong style={{ color: "var(--ink)" }}>{deleteTarget.name}</strong> y sus criterios serán eliminados. No se puede deshacer.
+        <BottomSheet onClose={() => setDeleteTarget(null)}>
+          {(close) => (
+            <div style={{ padding: "20px 20px 32px" }}>
+              <div className="title-md serif">¿Eliminar fase?</div>
+              <div className="body-sm mt-8" style={{ color: "var(--ink-3)" }}>
+                <strong style={{ color: "var(--ink)" }}>{deleteTarget.name}</strong> y sus criterios serán eliminados. No se puede deshacer.
+              </div>
+              <div className="col gap-10 mt-24">
+                <button
+                  className="btn-pill"
+                  style={{ background: "var(--clay)", color: "#fff" }}
+                  onClick={() => { confirmDeletePhase(); close(); }}
+                >
+                  Eliminar fase
+                </button>
+                <button className="btn-pill ghost" onClick={close}>
+                  Cancelar
+                </button>
+              </div>
             </div>
-            <div className="col gap-10 mt-24">
-              <button
-                className="btn-pill"
-                style={{ background: "var(--clay)", color: "#fff" }}
-                onClick={confirmDeletePhase}
-              >
-                Eliminar fase
-              </button>
-              <button className="btn-pill ghost" onClick={() => setDeleteTarget(null)}>
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
+          )}
+        </BottomSheet>
       )}
     </div>
   );
