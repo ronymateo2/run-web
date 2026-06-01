@@ -263,16 +263,6 @@ body {
   transition: background 0.2s, transform 0.15s;
 }
 
-/* Density variants */
-.aire-compacto .screen-body { padding: 0 18px; }
-.aire-compacto .title-xl { font-size: 36px; }
-.aire-compacto .title-lg { font-size: 26px; }
-.aire-compacto .title-md { font-size: 20px; }
-
-.aire-aire .screen-body { padding: 0 28px; }
-.aire-aire .title-xl { font-size: 52px; }
-.aire-aire .title-lg { font-size: 38px; }
-
 /* Navigation header — fixed on viewport */
 .screen-nav {
   position: fixed;
