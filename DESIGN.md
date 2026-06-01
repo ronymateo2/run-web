@@ -105,10 +105,6 @@ Tres familias, cada una con un rol claro.
 .screen-body   /* padding: 0 22px */
 ```
 
-Variantes de densidad disponibles (aplicar en `<body>` o wrapper):
-- `.aire-compacto` — pantallas con mucho contenido
-- `.aire-aire` — pantallas con poco contenido, más espacio
-
 ### Helpers de espaciado
 
 ```
