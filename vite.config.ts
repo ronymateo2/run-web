@@ -52,27 +52,9 @@ export default defineConfig({
 		),
 	},
 	build: {
-		rollupOptions: {
-			output: {
-				manualChunks(id) {
-					if (!id.includes("node_modules")) return;
-
-					const chunks = [
-						[/react|react-dom|react-router-dom|@react-oauth\/google/, "vendor-react"],
-						[/drizzle-orm/, "vendor-data"],
-						[/motion|@phosphor-icons/, "vendor-ui"],
-						[/react-markdown|remark-/, "vendor-markdown"],
-						[/@sqlite\.org\/sqlite-wasm|comlink/, "vendor-sqlite"],
-					] as const;
-
-					for (const [test, name] of chunks) {
-						if (test.test(id)) return name;
-					}
-
-					return "vendor";
-				},
-			},
-		},
+		// Let Rollup handle code splitting automatically. It respects import
+		// order and never splits a module into a chunk that loads before its
+		// dependencies, avoiding "React is undefined" runtime errors.
 	},
 	optimizeDeps: {
 		exclude: ["@sqlite.org/sqlite-wasm"],
