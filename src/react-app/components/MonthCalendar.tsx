@@ -141,39 +141,30 @@ export function MonthCalendar({
         </div>
       </div>
 
-      {/* Weekday header */}
+      {/* Single grid: weekdays + days aligned perfectly */}
       <div
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(7, 1fr)",
           gap: 4,
-          marginBottom: 6,
         }}
       >
+        {/* Weekday header */}
         {DAY_LABELS.map((label, i) => (
           <div
-            key={i}
+            key={`h-${i}`}
             style={{
               textAlign: "center",
               fontFamily: "var(--font-mono)",
               fontSize: 10,
               color: "var(--ink-3)",
               letterSpacing: "0.03em",
+              marginBottom: 2,
             }}
           >
             {label}
           </div>
         ))}
-      </div>
-
-      {/* Day grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(7, 1fr)",
-          gap: 4,
-        }}
-      >
         {monthGrid.cells.map((cell, idx) => {
           if (!cell.date) return <div key={idx} style={{ aspectRatio: "1", border: "1px solid transparent" }} />;
           const ph = phaseFor(cell.date);
