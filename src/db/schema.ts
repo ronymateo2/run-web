@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, primaryKey } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
@@ -103,3 +103,17 @@ export const sstResults = sqliteTable("sst_results", {
   note: text("note"),
   synced: integer("synced").default(0),
 });
+
+// Server-derived rollup: count of non-deleted sets per (exercise, day). Drives all
+// phase progress / gating / calendar reads so raw exercise_logs can be windowed
+// without losing all-time correctness. Never pushed — the server is authoritative.
+export const logDayCounts = sqliteTable(
+  "log_day_counts",
+  {
+    user_id: text("user_id").notNull(),
+    exercise_id: text("exercise_id").notNull(),
+    session_date: text("session_date").notNull(),
+    sets: integer("sets").notNull().default(0),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.user_id, t.exercise_id, t.session_date] }) }),
+);

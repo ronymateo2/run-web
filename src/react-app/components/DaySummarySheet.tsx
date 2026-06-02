@@ -2,6 +2,13 @@ import { useState, useEffect } from "react";
 import { Ico } from "./icons";
 import { BottomSheet } from "./BottomSheet";
 import { exerciseRepository, type Exercise, type ExerciseLog } from "../../data/repositories";
+import { pullHistory, WINDOW_DAYS } from "../../db/sync";
+
+// A session date older than the sync window has no raw logs locally; fetch on demand.
+function isBeforeWindow(date: string): boolean {
+  const windowStart = new Date(Date.now() - WINDOW_DAYS * 86400000).toISOString().slice(0, 10);
+  return date < windowStart;
+}
 
 interface Props {
   date: string;
@@ -44,7 +51,14 @@ export function DaySummarySheet({
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const logs = await exerciseRepository.getTodayLogs(userId, date);
+      let logs = await exerciseRepository.getTodayLogs(userId, date);
+      // Calendar dots come from the all-time rollup, but raw sets for an old day
+      // live outside the sync window — fetch them on demand before giving up.
+      if (logs.length === 0 && isBeforeWindow(date)) {
+        await pullHistory("exercise_logs", date);
+        if (cancelled) return;
+        logs = await exerciseRepository.getTodayLogs(userId, date);
+      }
       if (cancelled) return;
       const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
       const filtered = logs.filter((l) => exerciseMap.has(l.exercise_id));

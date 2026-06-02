@@ -1,5 +1,5 @@
-import { eq, and, isNull } from "drizzle-orm";
-import { exercises, exerciseLogs, phases } from "../schema";
+import { eq, and, isNull, gt, count } from "drizzle-orm";
+import { exercises, exerciseLogs, phases, logDayCounts } from "../schema";
 import type { DrizzleDb } from "../drizzle";
 
 export type Exercise = typeof exercises.$inferSelect;
@@ -63,35 +63,23 @@ export async function getPhaseExerciseProgress(
     .where(eq(exercises.phase_id, phaseId));
   if (allExercises.length === 0) return 0;
 
-  const ids = allExercises.map(e => e.id);
-  const logs = await db.select({
-    exercise_id: exerciseLogs.exercise_id,
-    session_date: exerciseLogs.session_date,
+  // Per (exercise, day) set counts come pre-aggregated from the rollup, so this
+  // reads all-time progress without scanning (possibly windowed-out) raw logs.
+  const rows = await db.select({
+    exercise_id: logDayCounts.exercise_id,
+    sets: logDayCounts.sets,
   })
-    .from(exerciseLogs)
-    .where(and(
-      eq(exerciseLogs.user_id, userId),
-      notDeleted,
-    ));
+    .from(logDayCounts)
+    .innerJoin(exercises, eq(logDayCounts.exercise_id, exercises.id))
+    .where(and(eq(logDayCounts.user_id, userId), eq(exercises.phase_id, phaseId), gt(logDayCounts.sets, 0)));
 
-  // group logs by exercise_id → session_date → count
-  const logMap = new Map<string, Map<string, number>>();
-  for (const log of logs) {
-    if (!ids.includes(log.exercise_id)) continue;
-    let byDate = logMap.get(log.exercise_id);
-    if (!byDate) { byDate = new Map(); logMap.set(log.exercise_id, byDate); }
-    byDate.set(log.session_date, (byDate.get(log.session_date) ?? 0) + 1);
+  const required = new Map(allExercises.map(e => [e.id, e.sets ?? 1]));
+  const done = new Set<string>();
+  for (const r of rows) {
+    if (r.sets >= (required.get(r.exercise_id) ?? 1)) done.add(r.exercise_id);
   }
 
-  // exercise is done if any session_date has count >= sets (null sets = 1)
-  let done = 0;
-  for (const ex of allExercises) {
-    const required = ex.sets ?? 1;
-    const byDate = logMap.get(ex.id);
-    if (byDate && [...byDate.values()].some(count => count >= required)) done++;
-  }
-
-  return Math.round((done / allExercises.length) * 100);
+  return Math.round((done.size / allExercises.length) * 100);
 }
 
 /**
@@ -122,29 +110,21 @@ export async function getPhaseProgress(
   const denom = weeks * focusDays * phaseExercises.length;
   if (denom <= 0) return 0;
 
-  const ids = new Set(phaseExercises.map(e => e.id));
   const required = new Map(phaseExercises.map(e => [e.id, e.sets ?? 1]));
 
-  const logs = await db.select({
-    exercise_id: exerciseLogs.exercise_id,
-    session_date: exerciseLogs.session_date,
+  // Each rollup row already is one (exercise, date) with its set count.
+  const rows = await db.select({
+    exercise_id: logDayCounts.exercise_id,
+    sets: logDayCounts.sets,
   })
-    .from(exerciseLogs)
-    .where(and(eq(exerciseLogs.user_id, userId), notDeleted));
-
-  // count sets done per (exercise, date)
-  const setsByKey = new Map<string, number>();
-  for (const log of logs) {
-    if (!ids.has(log.exercise_id)) continue;
-    const k = `${log.exercise_id}|${log.session_date}`;
-    setsByKey.set(k, (setsByKey.get(k) ?? 0) + 1);
-  }
+    .from(logDayCounts)
+    .innerJoin(exercises, eq(logDayCounts.exercise_id, exercises.id))
+    .where(and(eq(logDayCounts.user_id, userId), eq(exercises.phase_id, phase.id), gt(logDayCounts.sets, 0)));
 
   let done = 0;
-  for (const [k, sets] of setsByKey) {
-    const exId = k.slice(0, k.indexOf("|"));
-    const req = required.get(exId) ?? 1;
-    done += Math.min(sets / req, 1);
+  for (const r of rows) {
+    const req = required.get(r.exercise_id) ?? 1;
+    done += Math.min(r.sets / req, 1);
   }
 
   return Math.min(100, Math.round((done / denom) * 100));
@@ -152,9 +132,9 @@ export async function getPhaseProgress(
 
 export async function getSessionDates(db: DrizzleDb, userId: string): Promise<string[]> {
   const rows = await db
-    .selectDistinct({ session_date: exerciseLogs.session_date })
-    .from(exerciseLogs)
-    .where(and(eq(exerciseLogs.user_id, userId), notDeleted));
+    .selectDistinct({ session_date: logDayCounts.session_date })
+    .from(logDayCounts)
+    .where(and(eq(logDayCounts.user_id, userId), gt(logDayCounts.sets, 0)));
   return rows.map(r => r.session_date);
 }
 
@@ -164,13 +144,13 @@ export async function getSessionDatesByInjury(
 ): Promise<Map<string, Set<string>>> {
   const rows = await db
     .selectDistinct({
-      session_date: exerciseLogs.session_date,
+      session_date: logDayCounts.session_date,
       injury_id: phases.injury_id,
     })
-    .from(exerciseLogs)
-    .innerJoin(exercises, eq(exerciseLogs.exercise_id, exercises.id))
+    .from(logDayCounts)
+    .innerJoin(exercises, eq(logDayCounts.exercise_id, exercises.id))
     .innerJoin(phases, eq(exercises.phase_id, phases.id))
-    .where(and(eq(exerciseLogs.user_id, userId), notDeleted));
+    .where(and(eq(logDayCounts.user_id, userId), gt(logDayCounts.sets, 0)));
 
   const result = new Map<string, Set<string>>();
   for (const row of rows) {
@@ -191,14 +171,14 @@ export async function getSessionPhasesByDate(
 ): Promise<Map<string, DaySession[]>> {
   const rows = await db
     .selectDistinct({
-      session_date: exerciseLogs.session_date,
+      session_date: logDayCounts.session_date,
       injury_id: phases.injury_id,
       phase_num: phases.phase_num,
     })
-    .from(exerciseLogs)
-    .innerJoin(exercises, eq(exerciseLogs.exercise_id, exercises.id))
+    .from(logDayCounts)
+    .innerJoin(exercises, eq(logDayCounts.exercise_id, exercises.id))
     .innerJoin(phases, eq(exercises.phase_id, phases.id))
-    .where(and(eq(exerciseLogs.user_id, userId), notDeleted));
+    .where(and(eq(logDayCounts.user_id, userId), gt(logDayCounts.sets, 0)));
 
   const result = new Map<string, DaySession[]>();
   for (const row of rows) {
@@ -208,12 +188,43 @@ export async function getSessionPhasesByDate(
   return result;
 }
 
+// Recompute the rollup for one (exercise, day) from local raw logs and upsert it.
+// Optimistic: keeps progress/gating correct immediately; the next pull overwrites
+// this with the server's authoritative count (idempotent). Raw for the edited day
+// is always present locally (current edits are within the sync window).
+async function refreshDayCount(
+  db: DrizzleDb, userId: string, exerciseId: string, sessionDate: string
+): Promise<void> {
+  const rows = await db.select({ c: count() })
+    .from(exerciseLogs)
+    .where(and(
+      eq(exerciseLogs.user_id, userId),
+      eq(exerciseLogs.exercise_id, exerciseId),
+      eq(exerciseLogs.session_date, sessionDate),
+      notDeleted,
+    ));
+  const sets = rows[0]?.c ?? 0;
+  await db.insert(logDayCounts)
+    .values({ user_id: userId, exercise_id: exerciseId, session_date: sessionDate, sets })
+    .onConflictDoUpdate({
+      target: [logDayCounts.user_id, logDayCounts.exercise_id, logDayCounts.session_date],
+      set: { sets },
+    });
+}
+
 // Soft delete a deselected set: keep the row, set deleted_at, mark unsynced so the
 // flag propagates to D1. No-op if the row never existed (set was never saved).
 export async function softDeleteExerciseLog(db: DrizzleDb, id: string): Promise<void> {
   await db.update(exerciseLogs)
     .set({ deleted_at: Date.now(), synced: 0 })
     .where(eq(exerciseLogs.id, id));
+  const rows = await db.select({
+    user_id: exerciseLogs.user_id,
+    exercise_id: exerciseLogs.exercise_id,
+    session_date: exerciseLogs.session_date,
+  }).from(exerciseLogs).where(eq(exerciseLogs.id, id));
+  const r = rows[0];
+  if (r) await refreshDayCount(db, r.user_id, r.exercise_id, r.session_date);
 }
 
 // Upsert an exercise edit locally; synced=0 so pushDelta carries it to D1.
@@ -253,4 +264,5 @@ export async function saveExerciseLog(db: DrizzleDb, log: NewExerciseLog): Promi
         synced: 0,
       },
     });
+  await refreshDayCount(db, log.user_id, log.exercise_id, log.session_date);
 }

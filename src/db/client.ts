@@ -50,6 +50,12 @@ CREATE TABLE IF NOT EXISTS sst_results (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, injury_id TEXT NOT NULL,
   date TEXT NOT NULL, strength_score REAL, pain_score INTEGER, note TEXT, synced INTEGER DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS log_day_counts (
+  user_id TEXT NOT NULL, exercise_id TEXT NOT NULL, session_date TEXT NOT NULL,
+  sets INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, exercise_id, session_date)
+);
+CREATE INDEX IF NOT EXISTS idx_log_day_counts_user ON log_day_counts(user_id, exercise_id);
 CREATE INDEX IF NOT EXISTS idx_pain_checkins_user_date ON pain_checkins(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_exercise_logs_user_date ON exercise_logs(user_id, session_date);
 CREATE INDEX IF NOT EXISTS idx_sst_results_user_date ON sst_results(user_id, date);
@@ -67,6 +73,16 @@ const MIGRATIONS: Array<{ id: number; sql: string }> = [
   { id: 5, sql: `ALTER TABLE phase_criteria ADD COLUMN deleted_at INTEGER` },
   { id: 6, sql: `ALTER TABLE exercises ADD COLUMN video_url TEXT` },
   { id: 7, sql: `ALTER TABLE phases ADD COLUMN focus_days TEXT` },
+  // Backfill the rollup from existing raw logs (runs once). The server only ships
+  // day-groups changed since last_sync, so without this an existing install would
+  // read zero progress until a forced resync. New installs no-op (empty source).
+  {
+    id: 8,
+    sql: `INSERT OR IGNORE INTO log_day_counts (user_id, exercise_id, session_date, sets)
+          SELECT user_id, exercise_id, session_date, COUNT(*)
+          FROM exercise_logs WHERE deleted_at IS NULL
+          GROUP BY user_id, exercise_id, session_date`,
+  },
 ];
 
 // OPFS SAHPool allows only ONE connection at a time, so we can't open the DB worker in every tab.
