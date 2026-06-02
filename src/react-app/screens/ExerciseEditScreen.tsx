@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useDb } from "../hooks/useDb";
 import { useSync } from "../hooks/useSync";
 import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
-import { getExerciseById, saveExercise, type Exercise } from "../../db/queries/exercises";
+import { exerciseRepository, type Exercise } from "../../data/repositories";
 import { normalize } from "../components/VideoEmbed";
 
 type Measure = "reps" | "time";
@@ -19,7 +18,6 @@ const TYPE_OPTIONS: { value: Exercise["exercise_type"]; label: string }[] = [
 
 export function ExerciseEditScreen() {
   const { id } = useParams<{ id: string }>();
-  const db = useDb();
   const push = useSync();
   const navigate = useNavigate();
 
@@ -34,8 +32,8 @@ export function ExerciseEditScreen() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!db || !id) return;
-    const ex = await getExerciseById(db, id);
+    if (!id) return;
+    const ex = await exerciseRepository.getExerciseById(id);
     if (!ex) return;
     setExercise(ex);
     // Time-based when duration_s is set and reps isn't (matches ExerciseDetailScreen).
@@ -48,16 +46,16 @@ export function ExerciseEditScreen() {
     setType(ex.exercise_type);
     setVideoUrl(ex.video_url ?? "");
     setLoaded(true);
-  }, [db, id]);
+  }, [id]);
 
   useEffect(() => { load(); }, [load]);
 
   async function handleSave() {
-    if (!db || !exercise) return;
+    if (!exercise) return;
     setSaving(true);
     const n = Number(value) || 0;
     const dur = Number(durationOpt) || 0;
-    await saveExercise(db, {
+    await exerciseRepository.saveExercise({
       id: exercise.id,
       phase_id: exercise.phase_id,
       name: exercise.name,

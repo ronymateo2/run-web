@@ -1,17 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { useDb } from "../hooks/useDb";
 import { Ico } from "../components/icons";
 import { COMMON_TIMEZONES, detectTimezone } from "../utils/timezone";
-import { exec } from "../../db/client";
-import { pullDelta } from "../../db/sync";
-import { learnExec } from "../../db/learn-client";
-import { syncArticles } from "../../db/learn-sync";
+import { resetLocalCache } from "../../data/maintenance";
 
 export function ProfileScreen() {
   const { user, token, signOut, setTimezone } = useAuth();
-  const db = useDb();
   const navigate = useNavigate();
   const currentTz = user?.timezone || detectTimezone();
   const [selectedTz, setSelectedTz] = useState(currentTz);
@@ -37,20 +32,11 @@ export function ProfileScreen() {
   };
 
   const handleResetCache = async () => {
-    if (!db || !token || resetting) return;
+    if (!token || resetting) return;
     setResetting(true);
     setResetDone(false);
     try {
-      for (const table of ["exercises", "phases", "phase_criteria", "injuries", "exercise_logs", "pain_checkins", "sst_results"]) {
-        await exec(`DELETE FROM ${table}`);
-      }
-      await exec(`UPDATE users SET last_sync = 0`);
-      await pullDelta({ force: true });
-      // Learn DB is a separate OPFS database with its own sync — clear it too.
-      // Drop _meta so syncArticles skips its throttle and pulls fresh.
-      await learnExec(`DELETE FROM articles`);
-      await learnExec(`DELETE FROM _meta`);
-      await syncArticles();
+      await resetLocalCache();
       setResetDone(true);
     } finally {
       setResetting(false);

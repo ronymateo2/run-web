@@ -1,8 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { GoogleOAuthProvider, GoogleLogin, googleLogout, type CredentialResponse } from "@react-oauth/google";
-import { exec } from "../../db/client";
-import { getDrizzle } from "../../db/drizzle";
-import { getSessionUser } from "../../db/queries/users";
+import { userRepository } from "../../data/repositories";
 import { pullDelta, pushDelta } from "../../db/sync";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
@@ -45,19 +43,14 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const drizzleDb = await getDrizzle();
-        let row = await getSessionUser(drizzleDb);
+        let row = await userRepository.getSessionUser();
 
         if (!row) {
           const saved = localStorage.getItem(LS_KEY);
           if (saved) {
             const parsed = JSON.parse(saved) as { user: AuthUser };
-            await exec(`
-              INSERT INTO users (id, email, name, avatar_url, last_sync, created_at)
-              VALUES (?, ?, ?, ?, 0, ?)
-              ON CONFLICT(id) DO UPDATE SET name = excluded.name, avatar_url = excluded.avatar_url
-            `, [parsed.user.id, parsed.user.email, parsed.user.name, parsed.user.avatar_url ?? null, Date.now()]);
-            row = await getSessionUser(drizzleDb);
+            await userRepository.upsertUser(parsed.user);
+            row = await userRepository.getSessionUser();
           }
         }
 
@@ -104,11 +97,13 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
       const { user: apiUser } = await apiRes.json() as { user: AuthUser & { timezone?: string | null } };
 
       const timezone = apiUser.timezone ?? null;
-      await exec(`
-        INSERT INTO users (id, email, name, avatar_url, timezone, last_sync, created_at)
-        VALUES (?, ?, ?, ?, ?, 0, ?)
-        ON CONFLICT(id) DO UPDATE SET name = excluded.name, avatar_url = excluded.avatar_url, timezone = COALESCE(excluded.timezone, timezone)
-      `, [apiUser.id, apiUser.email, apiUser.name, apiUser.avatar_url ?? null, timezone, Date.now()]);
+      await userRepository.upsertUser({
+        id: apiUser.id,
+        email: apiUser.email,
+        name: apiUser.name,
+        avatar_url: apiUser.avatar_url ?? null,
+        timezone,
+      });
 
       const userWithTz: AuthUser = { ...apiUser, timezone: timezone ?? undefined };
       localStorage.setItem(LS_KEY, JSON.stringify({ user: userWithTz }));
@@ -143,14 +138,14 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
     } catch {
       // ignore network errors; clear local state regardless
     }
-    await exec(`UPDATE users SET jwt = NULL`);
+    await userRepository.clearJwt();
     localStorage.removeItem(LS_KEY);
     setUser(null);
     setToken(null);
   }, []);
 
   const setTimezone = useCallback(async (tz: string) => {
-    await exec(`UPDATE users SET timezone = ?`, [tz]);
+    await userRepository.setTimezone(tz);
     setUser(prev => prev ? { ...prev, timezone: tz } : prev);
     if (navigator.onLine && token) {
       fetch(`${API_BASE}/api/users/me`, {

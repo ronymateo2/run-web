@@ -2,13 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { localToday } from "../utils/timezone";
-import { useDb } from "../hooks/useDb";
 import { useSync } from "../hooks/useSync";
 import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
-import { getActiveInjuries, getTodayFocusInjury } from "../../db/queries/injuries";
-import { saveSstResult } from "../../db/queries/sst";
+import { injuryRepository, sstRepository } from "../../data/repositories";
 
 type Phase = "intro" | "active" | "rest" | "done";
 
@@ -18,7 +16,6 @@ const TOTAL_SETS = 5;
 
 export function SqueezeTestScreen() {
   const { user } = useAuth();
-  const db = useDb();
   const push = useSync();
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>("intro");
@@ -61,21 +58,21 @@ export function SqueezeTestScreen() {
   }, [phase, currentSet, duration]);
 
   async function handleSave() {
-    if (!db || !user) {
+    if (!user) {
       setSaveError("Sesión no disponible. Recarga la app.");
       return;
     }
     setSaving(true);
     setSaveError(null);
     try {
-      const injuries = await getActiveInjuries(db, user.id);
-      const focus = await getTodayFocusInjury(db, injuries);
+      const injuries = await injuryRepository.getActiveInjuries(user.id);
+      const focus = await injuryRepository.getTodayFocusInjury(injuries);
       if (!focus) {
         setSaveError("No hay lesión activa registrada. Contacta soporte.");
         setSaving(false);
         return;
       }
-      await saveSstResult(db, {
+      await sstRepository.saveSstResult({
         id: crypto.randomUUID(),
         user_id: user.id,
         injury_id: focus.id,

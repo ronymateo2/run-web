@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import { ExerciseRow } from "./ExerciseRow";
-import type { Exercise, ExerciseLog } from "../../db/queries/exercises";
+import type { Exercise, ExerciseLog } from "../../data/repositories";
 
 const listVariants = {
   hidden: {},

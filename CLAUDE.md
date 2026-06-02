@@ -15,8 +15,18 @@ PWA React + Vite + TypeScript. Offline-first via SQLite WASM (OPFS). Syncs with 
 - **UI strings**: Spanish neutro
 - Routes: `/today`, `/body`, `/path`, `/path/phase/:id`, `/path/progress`, `/learn`, `/today/exercise/:id`, `/today/checkin`, `/today/sst`
 - DB client: `src/db/client.ts` — exports `Database` type (our wrapper, NOT `@sqlite.org/sqlite-wasm`'s)
-- Query helpers: `src/db/queries/{injuries,exercises,checkins,sst}.ts`
 - Sync: `src/db/sync.ts` — `pullDelta` / `pushDelta`
+
+## Data boundary (Fase 1 — done)
+Screens and components NEVER touch SQLite/Drizzle directly. They go through the boundary:
+
+- **`src/data/repositories/*`** — `injuryRepository`, `exerciseRepository`, `checkinRepository`, `sstRepository`, `userRepository` (+ barrel `index.ts`). Each method resolves the Drizzle instance internally (`getDrizzle()`) and delegates to `src/db/queries/*`. Import repos + types from `../../data/repositories`.
+- **`src/data/maintenance.ts`** — `resetLocalCache()` (wipes synced tables + re-pulls; was raw `exec` in ProfileScreen).
+- **`src/react-app/features/*`** — feature hooks/view-models per flow: `useTodayData()`, `usePhaseJourney(phaseId)`. Return UI-ready data + `reload`/mutations. Screens render only.
+- **`src/db/queries/{injuries,exercises,checkins,sst,users}.ts`** — internal impl of the repos (still take `db` as first arg). Do NOT import these from the UI; import the repo instead.
+- The `useDb()` hook was removed. No screen/component/provider imports `db/client`, `db/queries`, `getDrizzle`, or `DrizzleDb`.
+- `AuthContext.tsx` session persistence (restore, upsert profile, clear jwt, set timezone) goes through `userRepository` — it no longer runs raw `exec`/SQL. It still calls `pullDelta`/`pushDelta` directly (sync API) and fetches `/api/auth/*` directly (to be unified into `apiClient` in Fase 0).
+- `useSync()` (`pushDelta`) is still imported directly by screens that mutate; feature hooks that mutate call it internally.
 
 ## Design tokens
 `src/react-app/design/tokens.css` — CSS vars: `--bg`, `--ink`, `--clay`, `--moss`, `--bone`, etc.
@@ -47,8 +57,8 @@ npm run preview    # build + preview
 ## Important notes
 - **No COOP/COEP headers needed**: SQLite runs in a Web Worker via `opfs-sahpool` VFS (uses `FileSystemSyncAccessHandle`, not SharedArrayBuffer). Google OAuth popup works freely.
 - `@sqlite.org/sqlite-wasm` excluded from `optimizeDeps` — don't add it back
-- All DB query functions are **async** — always `await` them; screens use `useEffect`/`useState` (not `useMemo`)
-- `useDb()` hook returns `Database | null` — null-check before queries
+- All repo/query functions are **async** — always `await` them; screens use `useEffect`/`useState` (not `useMemo`)
+- Repo methods take primitive args (no `db`) and never return null due to an uninitialised DB — they await `getDrizzle()` internally. Null-check on `user`, not on a db handle.
 - Injuries/phases/exercises are read-only in the client (seeded via D1 by admin)
 
 # Think Before Coding

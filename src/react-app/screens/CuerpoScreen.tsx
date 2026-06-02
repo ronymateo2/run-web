@@ -2,13 +2,13 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { localToday } from "../utils/timezone";
-import { useDb } from "../hooks/useDb";
 import { BodyFigure, type HeatMap } from "../components/BodyFigure";
 import { NudgeSST } from "../components/NudgeSST";
 import { Ico } from "../components/icons";
-import { getActiveInjuries, getCurrentPhase, type Injury, type Phase } from "../../db/queries/injuries";
-import { getRecentCheckins, type PainCheckin } from "../../db/queries/checkins";
-import { getTodaySst, isSstPreferredToday, type SstResult } from "../../db/queries/sst";
+import {
+  injuryRepository, checkinRepository, sstRepository, isSstPreferredToday,
+  type Injury, type Phase, type PainCheckin, type SstResult,
+} from "../../data/repositories";
 
 
 function avgZones(checkins: PainCheckin[]): HeatMap {
@@ -64,22 +64,21 @@ interface CuerpoData {
 
 export function CuerpoScreen() {
   const { user, lastSyncAt } = useAuth();
-  const db = useDb();
   const navigate = useNavigate();
   const [data, setData] = useState<CuerpoData | null>(null);
 
   useEffect(() => {
-    if (!db || !user) return;
+    if (!user) return;
     let active = true;
     (async () => {
       const dateStr = localToday(user?.timezone);
-      const injuries = await getActiveInjuries(db, user.id);
+      const injuries = await injuryRepository.getActiveInjuries(user.id);
       const injuriesWithPhase: InjuryWithPhase[] = await Promise.all(
-        injuries.map(async (inj) => ({ injury: inj, phase: await getCurrentPhase(db, inj) }))
+        injuries.map(async (inj) => ({ injury: inj, phase: await injuryRepository.getCurrentPhase(inj) }))
       );
-      const recentCheckins = await getRecentCheckins(db, user.id, 14);
+      const recentCheckins = await checkinRepository.getRecentCheckins(user.id, 14);
       const heatAvg = avgZones(recentCheckins);
-      const sstResult = await getTodaySst(db, user.id, dateStr);
+      const sstResult = await sstRepository.getTodaySst(user.id, dateStr);
       const sstDue = isSstPreferredToday(user?.timezone);
 
       const zoneKeys = ["ingleL", "ingleR", "caderaL", "caderaR", "pubis", "hombroI", "lumbar"] as const;
@@ -100,7 +99,7 @@ export function CuerpoScreen() {
       if (active) setData({ injuriesWithPhase, heatAvg, zoneStats, sstResult, sstDue });
     })();
     return () => { active = false; };
-  }, [db, user, lastSyncAt]);
+  }, [user, lastSyncAt]);
 
   const sstState = !data?.sstDue ? "hidden" : data?.sstResult ? "done" : "pending";
 

@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../auth/AuthContext";
-import { useDb } from "../hooks/useDb";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
-import { getRecentCheckins, type PainCheckin } from "../../db/queries/checkins";
-import { getRecentSst, type SstResult } from "../../db/queries/sst";
+import { checkinRepository, sstRepository, type PainCheckin, type SstResult } from "../../data/repositories";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 
 const ZONE_COLORS: Record<string, string> = {
@@ -30,20 +28,19 @@ interface ProgressData {
 
 export function ProgressScreen() {
   const { user, lastSyncAt } = useAuth();
-  const db = useDb();
   const [data, setData] = useState<ProgressData | null>(null);
 
   useEffect(() => {
-    if (!db || !user) return;
+    if (!user) return;
     let active = true;
     (async () => {
-      const checkins = await getRecentCheckins(db, user.id, 30);
-      const sst = await getRecentSst(db, user.id, 12);
+      const checkins = await checkinRepository.getRecentCheckins(user.id, 30);
+      const sst = await sstRepository.getRecentSst(user.id, 12);
       const segments = buildSegments(checkins);
       if (active) setData({ segments, sst });
     })();
     return () => { active = false; };
-  }, [db, user, lastSyncAt]);
+  }, [user, lastSyncAt]);
 
   const segments = data?.segments ?? [];
   const n = segments.length;

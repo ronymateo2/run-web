@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Ico } from "./icons";
-import { DaySession } from "../../db/queries/exercises";
+import type { DaySession } from "../../data/repositories";
 
 interface MonthCalendarProps {
   sessionsByDate: Map<string, DaySession[]>;

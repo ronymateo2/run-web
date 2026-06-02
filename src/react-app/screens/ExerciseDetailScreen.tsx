@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { useDb } from "../hooks/useDb";
 import { useAuth } from "../auth/AuthContext";
 import { useSync } from "../hooks/useSync";
 import { localToday } from "../utils/timezone";
@@ -10,10 +9,7 @@ import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
 import { VideoEmbed } from "../components/VideoEmbed";
 import { BottomSheet } from "../components/BottomSheet";
-import {
-  getExerciseById, saveExerciseLog, softDeleteExerciseLog, getLogsForExercise,
-  type Exercise, type ExerciseLog,
-} from "../../db/queries/exercises";
+import { exerciseRepository, type Exercise, type ExerciseLog } from "../../data/repositories";
 
 const DEFAULT_RPE = 6;
 
@@ -147,7 +143,6 @@ function EditableNum({
 // ── Main ───────────────────────────────────────────────────────────────────────
 export function ExerciseDetailScreen() {
   const { id } = useParams<{ id: string }>();
-  const db = useDb();
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -166,14 +161,14 @@ export function ExerciseDetailScreen() {
   const completedCount = sets.filter(s => s.completed).length;
 
   useEffect(() => {
-    if (!db || !id) return;
-    getExerciseById(db, id).then(e => setExercise(e));
-  }, [db, id]);
+    if (!id) return;
+    exerciseRepository.getExerciseById(id).then(e => setExercise(e));
+  }, [id]);
 
   useEffect(() => {
-    if (!db || !user || !exercise) return;
+    if (!user || !exercise) return;
     const sessionDate = localToday(user?.timezone);
-    getLogsForExercise(db, user.id, exercise.id, sessionDate).then(logs => {
+    exerciseRepository.getLogsForExercise(user.id, exercise.id, sessionDate).then(logs => {
       setHadLogs(logs.length > 0);
       setSets(
         logs.length > 0
@@ -181,7 +176,7 @@ export function ExerciseDetailScreen() {
           : initSets(totalSets, defaultValue),
       );
     });
-  }, [db, user, exercise]);
+  }, [user, exercise]);
 
   function updateSet(i: number, field: "rpe" | "value" | "painDuring", val: number) {
     setSets(prev => prev.map((s, idx) => idx === i ? { ...s, [field]: val } : s));
@@ -196,14 +191,14 @@ export function ExerciseDetailScreen() {
   }
 
   async function handleSave() {
-    if (!db || !user || !exercise || (completedCount === 0 && !hadLogs)) return;
+    if (!user || !exercise || (completedCount === 0 && !hadLogs)) return;
     setSaving(true);
     const sessionDate = localToday(user?.timezone);
     const now = Date.now();
     for (let i = 0; i < sets.length; i++) {
       const id = `${user.id}:${exercise.id}:${sessionDate}:${i}`;
       if (sets[i].completed) {
-        await saveExerciseLog(db, {
+        await exerciseRepository.saveExerciseLog({
           id,
           user_id: user.id,
           exercise_id: exercise.id,
@@ -214,7 +209,7 @@ export function ExerciseDetailScreen() {
           completed_at: now + i,
         });
       } else {
-        await softDeleteExerciseLog(db, id);
+        await exerciseRepository.softDeleteExerciseLog(id);
       }
     }
     push();

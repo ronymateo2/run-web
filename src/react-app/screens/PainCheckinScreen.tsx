@@ -2,14 +2,13 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { localToday } from "../utils/timezone";
-import { useDb } from "../hooks/useDb";
 import { useSync } from "../hooks/useSync";
 import { BodyFigure, type HeatMap } from "../components/BodyFigure";
 import { ZoneRow } from "../components/ZoneRow";
 import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
-import { saveCheckin, getTodayCheckin } from "../../db/queries/checkins";
+import { checkinRepository } from "../../data/repositories";
 
 const ZONES: { key: keyof HeatMap; label: string }[] = [
   { key: "ingleL", label: "Ingle izquierda" },
@@ -23,7 +22,6 @@ const ZONES: { key: keyof HeatMap; label: string }[] = [
 
 export function PainCheckinScreen() {
   const { user } = useAuth();
-  const db = useDb();
   const push = useSync();
   const navigate = useNavigate();
   const [zones, setZones] = useState<HeatMap>({
@@ -35,10 +33,10 @@ export function PainCheckinScreen() {
   }
 
   async function handleSave() {
-    if (!db || !user) return;
+    if (!user) return;
     const dateStr = localToday(user?.timezone);
-    const existing = await getTodayCheckin(db, user.id, dateStr);
-    await saveCheckin(db, {
+    const existing = await checkinRepository.getTodayCheckin(user.id, dateStr);
+    await checkinRepository.saveCheckin({
       id: existing?.id ?? crypto.randomUUID(),
       user_id: user.id,
       date: dateStr,

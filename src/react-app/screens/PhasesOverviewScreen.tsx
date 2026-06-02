@@ -1,11 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { useDb } from "../hooks/useDb";
 import { Plant, Leaf, Flower, Tree } from "@phosphor-icons/react";
 import { Ico } from "../components/icons";
-import { getActiveInjuries, getPhasesForInjury, getCurrentPhase, effectiveFocusDays, type Injury, type Phase } from "../../db/queries/injuries";
-import { getPhaseProgress, getSessionDates } from "../../db/queries/exercises";
+import { injuryRepository, exerciseRepository, effectiveFocusDays, type Injury, type Phase } from "../../data/repositories";
 
 const PHASE_ICONS = [
   (s?: number, c?: string) => <Plant  size={s ?? 18} weight="regular" color={c} />,
@@ -27,23 +25,22 @@ interface InjuryData {
 
 export function PhasesOverviewScreen() {
   const { user, lastSyncAt } = useAuth();
-  const db = useDb();
   const navigate = useNavigate();
   const [data, setData] = useState<InjuryData[] | null>(null);
 
   useEffect(() => {
-    if (!db || !user) return;
+    if (!user) return;
     let active = true;
     (async () => {
-      const injuries = await getActiveInjuries(db, user.id);
-      const sessionDates = await getSessionDates(db, user.id);
+      const injuries = await injuryRepository.getActiveInjuries(user.id);
+      const sessionDates = await exerciseRepository.getSessionDates(user.id);
       const result: InjuryData[] = await Promise.all(
         injuries.map(async (inj) => {
-          const phases = await getPhasesForInjury(db, inj.id);
-          const current = await getCurrentPhase(db, inj);
+          const phases = await injuryRepository.getPhasesForInjury(inj.id);
+          const current = await injuryRepository.getCurrentPhase(inj);
           const phasesWithProgress: PhaseWithProgress[] = await Promise.all(
             phases.map(async (p) => {
-              const progressPct = await getPhaseProgress(db, p, effectiveFocusDays(p, inj), user.id);
+              const progressPct = await exerciseRepository.getPhaseProgress(p, effectiveFocusDays(p, inj), user.id);
               return { ...p, progressPct };
             })
           );
@@ -58,7 +55,7 @@ export function PhasesOverviewScreen() {
       if (active) setData(result);
     })();
     return () => { active = false; };
-  }, [db, user, lastSyncAt]);
+  }, [user, lastSyncAt]);
 
   return (
     <div className="screen">

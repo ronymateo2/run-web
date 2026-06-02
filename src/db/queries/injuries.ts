@@ -142,3 +142,8 @@ export async function saveCriteria(c: { id: string; phase_id: string; descriptio
 export async function softDeleteCriteria(id: string): Promise<void> {
   await exec(`UPDATE phase_criteria SET deleted_at = ?, synced = 0 WHERE id = ?`, [Date.now(), id]);
 }
+
+// Toggle a criterion's done flag locally; synced=0 so pushDelta carries it to D1.
+export async function setCriteriaDone(id: string, done: boolean): Promise<void> {
+  await exec(`UPDATE phase_criteria SET done = ?, synced = 0 WHERE id = ?`, [done ? 1 : 0, id]);
+}

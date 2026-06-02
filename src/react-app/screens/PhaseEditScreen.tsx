@@ -1,14 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { useDb } from "../hooks/useDb";
 import { useSync } from "../hooks/useSync";
 import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
-import {
-  getPhaseById, getPhasesForInjury, getInjuryById, getCriteria, savePhase, saveCriteria, softDeleteCriteria,
-  type PhaseCriteria,
-} from "../../db/queries/injuries";
+import { injuryRepository, type PhaseCriteria } from "../../data/repositories";
 
 const WEEKDAYS: { key: string; label: string }[] = [
   { key: "mon", label: "L" }, { key: "tue", label: "M" }, { key: "wed", label: "X" },
@@ -34,7 +30,6 @@ const EMPTY: FormState = { name: "", description: "", week_start: "", week_end: 
 export function PhaseEditScreen() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
-  const db = useDb();
   const push = useSync();
   const navigate = useNavigate();
 
@@ -52,10 +47,10 @@ export function PhaseEditScreen() {
   const [saving, setSaving] = useState(false);
 
   const loadData = useCallback(async () => {
-    if (!db || !id) return;
+    if (!id) return;
     if (isCreate) {
-      const phs = await getPhasesForInjury(db, id);
-      const inj = await getInjuryById(db, id);
+      const phs = await injuryRepository.getPhasesForInjury(id);
+      const inj = await injuryRepository.getInjuryById(id);
       setInjuryId(id);
       setPhaseId(crypto.randomUUID());
       setPhaseNum(Math.max(0, ...phs.map(p => p.phase_num)) + 1);
@@ -65,9 +60,9 @@ export function PhaseEditScreen() {
       setLoaded(true);
       return;
     }
-    const phase = await getPhaseById(db, id);
+    const phase = await injuryRepository.getPhaseById(id);
     if (!phase) return;
-    const inj = await getInjuryById(db, phase.injury_id);
+    const inj = await injuryRepository.getInjuryById(phase.injury_id);
     setPhaseId(phase.id);
     setInjuryId(phase.injury_id);
     setPhaseNum(phase.phase_num);
@@ -80,9 +75,9 @@ export function PhaseEditScreen() {
     });
     setFocusDays(parseDays(phase.focus_days));
     setInjuryFocusDays(parseDays(inj?.focus_days));
-    setCriteria(await getCriteria(db, phase.id));
+    setCriteria(await injuryRepository.getCriteria(phase.id));
     setLoaded(true);
-  }, [db, id, isCreate]);
+  }, [id, isCreate]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -95,9 +90,9 @@ export function PhaseEditScreen() {
   }
 
   async function handleSavePhase() {
-    if (!db || !form.name.trim()) return;
+    if (!form.name.trim()) return;
     setSaving(true);
-    await savePhase({
+    await injuryRepository.savePhase({
       id: phaseId,
       injury_id: injuryId,
       phase_num: phaseNum,
@@ -119,21 +114,21 @@ export function PhaseEditScreen() {
 
   async function handleSaveCriteria(c: PhaseCriteria) {
     if (!c.description.trim()) return;
-    await saveCriteria({ id: c.id, phase_id: phaseId, description: c.description.trim() });
+    await injuryRepository.saveCriteria({ id: c.id, phase_id: phaseId, description: c.description.trim() });
     push();
   }
 
   async function handleAddCriteria() {
     if (!newCriteria.trim()) return;
     const c = { id: crypto.randomUUID(), phase_id: phaseId, description: newCriteria.trim(), done: false };
-    await saveCriteria({ id: c.id, phase_id: phaseId, description: c.description });
+    await injuryRepository.saveCriteria({ id: c.id, phase_id: phaseId, description: c.description });
     push();
     setCriteria(prev => [...prev, c]);
     setNewCriteria("");
   }
 
   async function handleDeleteCriteria(cid: string) {
-    await softDeleteCriteria(cid);
+    await injuryRepository.softDeleteCriteria(cid);
     push();
     setCriteria(prev => prev.filter(c => c.id !== cid));
   }

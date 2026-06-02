@@ -1,65 +1,20 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { useDb } from "../hooks/useDb";
-import { useSync } from "../hooks/useSync";
+import { usePhaseJourney } from "../features/usePhaseJourney";
 import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
 import { MonthCalendar } from "../components/MonthCalendar";
 import { DaySummarySheet } from "../components/DaySummarySheet";
-import { getCriteria, getPhasesForInjury, getInjuryById, getPhaseById, effectiveFocusDays, type Phase, type Injury, type PhaseCriteria } from "../../db/queries/injuries";
-import { getExercisesForPhase, getTodayLogs, getSessionPhasesByDate, getPhaseProgress, type Exercise, type DaySession } from "../../db/queries/exercises";
-import { exec } from "../../db/client";
-
-interface PhaseJourneyData {
-  phase: Phase;
-  criteria: PhaseCriteria[];
-  progressPct: number;
-  injury: Injury | undefined;
-  nextPhase: Phase | undefined;
-  exercises: Exercise[];
-  doneIds: Set<string>;
-  sessionsByDate: Map<string, DaySession[]>;
-}
 
 export function PhaseJourneyScreen() {
   const { id } = useParams<{ id: string }>();
-  const { user, lastSyncAt } = useAuth();
-  const db = useDb();
-  const push = useSync();
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const [data, setData] = useState<PhaseJourneyData | null>(null);
+  const { data, toggleCriteria } = usePhaseJourney(id);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-
-  const loadData = useCallback(async () => {
-    if (!db || !id) return;
-    const phase = await getPhaseById(db, id);
-    if (!phase) return;
-    const criteria = await getCriteria(db, id);
-    const injury = phase.injury_id ? (await getInjuryById(db, phase.injury_id)) ?? undefined : undefined;
-    const progressPct = user ? await getPhaseProgress(db, phase, effectiveFocusDays(phase, injury), user.id) : 0;
-    const allPhases = await getPhasesForInjury(db, phase.injury_id);
-    const nextPhase = allPhases.find(p => p.phase_num === phase.phase_num + 1);
-    const exercises = await getExercisesForPhase(db, id);
-    const today = new Date().toLocaleDateString("en-CA");
-    const logs = user ? await getTodayLogs(db, user.id, today) : [];
-    const doneIds = new Set(logs.map(l => l.exercise_id));
-    const sessionsByDate = user ? await getSessionPhasesByDate(db, user.id) : new Map<string, DaySession[]>();
-    setData({ phase, criteria, progressPct, injury, nextPhase, exercises, doneIds, sessionsByDate });
-  }, [db, id, user]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData, lastSyncAt]);
-
-  async function toggleCriteria(criteriaId: string, current: boolean) {
-    if (!db) return;
-    await exec(`UPDATE phase_criteria SET done = ?, synced = 0 WHERE id = ?`, [current ? 0 : 1, criteriaId]);
-    await loadData();
-    push();
-  }
 
   if (!data) return (
     <div className="screen">
@@ -222,10 +177,9 @@ export function PhaseJourneyScreen() {
         document.body
       )}
 
-      {selectedDate && user?.id && db && (
+      {selectedDate && user?.id && (
         <DaySummarySheet
           date={selectedDate}
-          db={db}
           userId={user.id}
           exercises={exercises}
           phaseColor={phaseColor}

@@ -2,13 +2,11 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../auth/AuthContext";
-import { useDb } from "../hooks/useDb";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
 import { ExerciseList, setsDoneMap, countDone } from "../components/ExerciseList";
 import { Ico } from "../components/icons";
-import { getPhaseById, type Phase } from "../../db/queries/injuries";
-import { getExercisesForPhase, getTodayLogs, type Exercise } from "../../db/queries/exercises";
+import { injuryRepository, exerciseRepository, type Phase, type Exercise } from "../../data/repositories";
 import { localToday } from "../utils/timezone";
 
 /** Rough minutes for one exercise — mirrors ExerciseList's estimateMins. */
@@ -27,20 +25,19 @@ interface PhaseExercisesData {
 export function PhaseExercisesScreen() {
   const { id } = useParams<{ id: string }>();
   const { user, lastSyncAt } = useAuth();
-  const db = useDb();
   const [data, setData] = useState<PhaseExercisesData | null>(null);
   const screenRef = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
 
   const loadData = useCallback(async () => {
-    if (!db || !id) return;
-    const phase = await getPhaseById(db, id);
+    if (!id) return;
+    const phase = await injuryRepository.getPhaseById(id);
     if (!phase) return;
-    const exercises = await getExercisesForPhase(db, id);
+    const exercises = await exerciseRepository.getExercisesForPhase(id);
     const today = localToday(user?.timezone);
-    const logs = user ? await getTodayLogs(db, user.id, today) : [];
+    const logs = user ? await exerciseRepository.getTodayLogs(user.id, today) : [];
     setData({ phase, exercises, setsDone: setsDoneMap(logs) });
-  }, [db, id, user]);
+  }, [id, user]);
 
   useEffect(() => {
     loadData();

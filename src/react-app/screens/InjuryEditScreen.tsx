@@ -1,16 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { useDb } from "../hooks/useDb";
 import { useSync } from "../hooks/useSync";
 import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
 import { BottomSheet } from "../components/BottomSheet";
-import {
-  getInjuryById, getPhasesForInjury, updateInjuryEdit, softDeletePhase,
-  type Injury, type Phase,
-} from "../../db/queries/injuries";
+import { injuryRepository, type Injury, type Phase } from "../../data/repositories";
 
 const WEEKDAYS: { key: string; label: string }[] = [
   { key: "mon", label: "L" }, { key: "tue", label: "M" }, { key: "wed", label: "X" },
@@ -21,7 +17,6 @@ const WEEKDAYS: { key: string; label: string }[] = [
 export function InjuryEditScreen() {
   const { id } = useParams<{ id: string }>();
   const { lastSyncAt } = useAuth();
-  const db = useDb();
   const push = useSync();
   const navigate = useNavigate();
 
@@ -33,16 +28,16 @@ export function InjuryEditScreen() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const loadData = useCallback(async () => {
-    if (!db || !id) return;
-    const inj = await getInjuryById(db, id);
+    if (!id) return;
+    const inj = await injuryRepository.getInjuryById(id);
     if (!inj) return;
-    const phs = await getPhasesForInjury(db, id);
+    const phs = await injuryRepository.getPhasesForInjury(id);
     setInjury(inj);
     setPhaseList(phs);
     setCurrentPhaseId(inj.current_phase_id ?? "");
     try { setFocusDays(inj.focus_days ? (JSON.parse(inj.focus_days) as string[]) : []); }
     catch { setFocusDays([]); }
-  }, [db, id]);
+  }, [id]);
 
   useEffect(() => { loadData(); }, [loadData, lastSyncAt]);
 
@@ -51,16 +46,16 @@ export function InjuryEditScreen() {
   }
 
   async function handleSave() {
-    if (!db || !id) return;
+    if (!id) return;
     setSaving(true);
-    await updateInjuryEdit(id, currentPhaseId || null, focusDays);
+    await injuryRepository.updateInjuryEdit(id, currentPhaseId || null, focusDays);
     push();
     navigate(-1);
   }
 
   async function confirmDeletePhase() {
-    if (!db || !deleteTarget) return;
-    await softDeletePhase(deleteTarget.id);
+    if (!deleteTarget) return;
+    await injuryRepository.softDeletePhase(deleteTarget.id);
     push();
     await loadData();
   }

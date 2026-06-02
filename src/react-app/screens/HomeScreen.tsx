@@ -1,64 +1,20 @@
-import { useState, useEffect, useCallback } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { useAuth } from "../auth/AuthContext";
-import { localToday, localDayName } from "../utils/timezone";
-import { useDb } from "../hooks/useDb";
+import { localDayName } from "../utils/timezone";
+import { useTodayData } from "../features/useTodayData";
 
-import { ExerciseList, setsDoneMap, countDone } from "../components/ExerciseList";
+import { ExerciseList, countDone } from "../components/ExerciseList";
 import { NudgeSST } from "../components/NudgeSST";
 import { BodyFigure } from "../components/BodyFigure";
 import { ZoneRow } from "../components/ZoneRow";
 import { Ico } from "../components/icons";
-import { getActiveInjuries, getTodayFocusInjuries, getCurrentPhase, type Injury, type Phase } from "../../db/queries/injuries";
-import { getExercisesForPhase, getTodayLogs, type Exercise } from "../../db/queries/exercises";
-import { getTodayCheckin, type PainCheckin } from "../../db/queries/checkins";
-import { getTodaySst, isSstPreferredToday, type SstResult } from "../../db/queries/sst";
-
-
-interface FocusBlock {
-  injury: Injury;
-  phase: Phase | null;
-  exercises: Exercise[];
-}
-
-interface HomeData {
-  injuries: Injury[];
-  focusBlocks: FocusBlock[];
-  setsDone: Map<string, number>;
-  checkin: PainCheckin | null;
-  sstResult: SstResult | null;
-  sstDue: boolean;
-}
 
 export function HomeScreen() {
-  const { user, lastSyncAt } = useAuth();
-  const db = useDb();
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const [data, setData] = useState<HomeData | null>(null);
-
-  const loadData = useCallback(async () => {
-    if (!db || !user) return;
-    const dateStr = localToday(user?.timezone);
-    const injuries = await getActiveInjuries(db, user.id);
-    const focusInjuries = await getTodayFocusInjuries(db, injuries, user?.timezone);
-    const focusBlocks: FocusBlock[] = await Promise.all(
-      focusInjuries.map(async (injury) => {
-        const phase = await getCurrentPhase(db, injury);
-        const exercises = phase ? await getExercisesForPhase(db, phase.id) : [];
-        return { injury, phase, exercises };
-      })
-    );
-    const logs = await getTodayLogs(db, user.id, dateStr);
-    const checkin = await getTodayCheckin(db, user.id, dateStr);
-    const sstResult = await getTodaySst(db, user.id, dateStr);
-    const sstDue = isSstPreferredToday(user?.timezone);
-    setData({ injuries, focusBlocks, setsDone: setsDoneMap(logs), checkin, sstResult, sstDue });
-  }, [db, user]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData, lastSyncAt]);
+  const { data } = useTodayData();
 
   useEffect(() => {
     if (!data) return;

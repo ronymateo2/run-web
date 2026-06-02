@@ -1,13 +1,10 @@
 import { useState, useEffect } from "react";
 import { Ico } from "./icons";
 import { BottomSheet } from "./BottomSheet";
-import type { DrizzleDb } from "../../db/drizzle";
-import type { Exercise, ExerciseLog } from "../../db/queries/exercises";
-import { getTodayLogs } from "../../db/queries/exercises";
+import { exerciseRepository, type Exercise, type ExerciseLog } from "../../data/repositories";
 
 interface Props {
   date: string;
-  db: DrizzleDb;
   userId: string;
   exercises: Exercise[];
   phaseColor: string;
@@ -36,7 +33,6 @@ function formatDate(dateStr: string): string {
 
 export function DaySummarySheet({
   date,
-  db,
   userId,
   exercises,
   phaseColor,
@@ -48,7 +44,7 @@ export function DaySummarySheet({
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const logs = await getTodayLogs(db, userId, date);
+      const logs = await exerciseRepository.getTodayLogs(userId, date);
       if (cancelled) return;
       const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
       const filtered = logs.filter((l) => exerciseMap.has(l.exercise_id));
@@ -68,7 +64,7 @@ export function DaySummarySheet({
     }
     load();
     return () => { cancelled = true; };
-  }, [db, userId, date, exercises]);
+  }, [userId, date, exercises]);
 
   return (
     <BottomSheet onClose={onClose}>
