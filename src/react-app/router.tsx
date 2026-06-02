@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { LoginScreen } from "./screens/LoginScreen";
 import { HomeScreen } from "./screens/HomeScreen";
@@ -11,11 +12,19 @@ import { PhaseJourneyScreen } from "./screens/PhaseJourneyScreen";
 import { PhaseExercisesScreen } from "./screens/PhaseExercisesScreen";
 import { InjuryEditScreen } from "./screens/InjuryEditScreen";
 import { PhaseEditScreen } from "./screens/PhaseEditScreen";
-import { ProgressScreen } from "./screens/ProgressScreen";
 import { LearnScreen } from "./screens/LearnScreen";
-import { LearnArticleScreen } from "./screens/LearnArticleScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
+
+// Lazy-loaded: pull in heavy deps (recharts, react-markdown) only when visited.
+const ProgressScreen = lazy(() =>
+  import("./screens/ProgressScreen").then((m) => ({ default: m.ProgressScreen })),
+);
+const LearnArticleScreen = lazy(() =>
+  import("./screens/LearnArticleScreen").then((m) => ({ default: m.LearnArticleScreen })),
+);
+
+const lazyScreen = (el: React.ReactNode) => <Suspense fallback={null}>{el}</Suspense>;
 
 export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/path" replace /> },
@@ -35,9 +44,9 @@ export const router = createBrowserRouter([
       { path: "/path/phase/:id/edit", element: <PhaseEditScreen /> },
       { path: "/path/phase/:id", element: <PhaseJourneyScreen /> },
       { path: "/path/phase/:id/exercises", element: <PhaseExercisesScreen /> },
-      { path: "/path/progress", element: <ProgressScreen /> },
+      { path: "/path/progress", element: lazyScreen(<ProgressScreen />) },
       { path: "/learn", element: <LearnScreen /> },
-      { path: "/learn/:id", element: <LearnArticleScreen /> },
+      { path: "/learn/:id", element: lazyScreen(<LearnArticleScreen />) },
       { path: "/profile", element: <ProfileScreen /> },
     ],
   },
