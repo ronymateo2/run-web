@@ -11,10 +11,9 @@ import { ScreenNav } from "../components/ScreenNav";
 import { checkinRepository } from "../../data/repositories";
 
 const ZONES: { key: keyof HeatMap; label: string }[] = [
+  { key: "cuello", label: "Cuello" },
   { key: "ingleL", label: "Ingle izquierda" },
-  { key: "ingleR", label: "Ingle derecha" },
   { key: "caderaL", label: "Cadera izquierda" },
-  { key: "caderaR", label: "Cadera derecha" },
   { key: "pubis", label: "Pubis" },
   { key: "hombroI", label: "Hombro izquierdo" },
   { key: "lumbar", label: "Lumbar" },
@@ -25,7 +24,7 @@ export function PainCheckinScreen() {
   const push = useSync();
   const navigate = useNavigate();
   const [zones, setZones] = useState<HeatMap>({
-    ingleL: 0, ingleR: 0, caderaL: 0, caderaR: 0, pubis: 0, hombroI: 0, lumbar: 0,
+    cuello: 0, ingleL: 0, caderaL: 0, pubis: 0, hombroI: 0, lumbar: 0,
   });
 
   function updateZone(key: keyof HeatMap, value: number) {

@@ -6,8 +6,8 @@ import { checkinRepository, sstRepository, type PainCheckin, type SstResult } fr
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 
 const ZONE_COLORS: Record<string, string> = {
-  ingleL: "rgba(217,119,87,0.7)", ingleR: "rgba(217,119,87,0.45)",
-  caderaL: "rgba(58,82,109,0.6)", caderaR: "rgba(58,82,109,0.35)",
+  cuello: "rgba(176,124,168,0.7)", ingleL: "rgba(217,119,87,0.7)",
+  caderaL: "rgba(58,82,109,0.6)",
   pubis: "rgba(232,184,92,0.7)", hombroI: "rgba(138,168,140,0.8)", hombroD: "rgba(138,168,140,0.8)",
 };
 
@@ -168,8 +168,8 @@ export function ProgressScreen() {
 
 function zoneLabel(key: string): string {
   const m: Record<string, string> = {
-    ingleL: "Ingle izq", ingleR: "Ingle der",
-    caderaL: "Cadera izq", caderaR: "Cadera der",
+    cuello: "Cuello", ingleL: "Ingle izq",
+    caderaL: "Cadera izq",
     pubis: "Pubis", hombroI: "Hombro izq", hombroD: "Hombro izq",
   };
   return m[key] ?? key;

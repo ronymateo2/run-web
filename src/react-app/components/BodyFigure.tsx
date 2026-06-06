@@ -1,8 +1,8 @@
 import { useId } from "react";
 
 export interface HeatMap extends Record<string, number | undefined> {
-  hombroI?: number; pubis?: number; ingleL?: number; ingleR?: number;
-  caderaL?: number; caderaR?: number; lumbar?: number;
+  cuello?: number; hombroI?: number; pubis?: number; ingleL?: number;
+  caderaL?: number; lumbar?: number;
 }
 
 interface Props {
@@ -49,13 +49,12 @@ C103.809,118.312,104.265,117.959,104.265,117.959z`;
 type ZoneDef = { id: keyof HeatMap; cx: number; cy: number; rx: number; ry: number };
 
 const ZONE_DEFS: ZoneDef[] = [
+  { id: "cuello",  cx: 103, cy: 26,  rx: 6,  ry: 5  },
   { id: "hombroI", cx: 83,  cy: 47,  rx: 15, ry: 13 },
   { id: "lumbar",  cx: 103, cy: 107, rx: 13, ry: 8  },
   { id: "caderaL", cx: 91,  cy: 112, rx: 12, ry: 11 },
-  { id: "caderaR", cx: 115, cy: 112, rx: 12, ry: 11 },
   { id: "pubis",   cx: 103, cy: 117, rx: 11, ry: 7  },
   { id: "ingleL",  cx: 91,  cy: 122, rx: 11, ry: 9  },
-  { id: "ingleR",  cx: 115, cy: 122, rx: 11, ry: 9  },
 ];
 
 function heatFill(v?: number): string {

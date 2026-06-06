@@ -169,8 +169,8 @@ export function HomeScreen() {
 
 function zoneLabel(key: string): string {
   const labels: Record<string, string> = {
-    ingleL: "Ingle izquierda", ingleR: "Ingle derecha",
-    caderaL: "Cadera izquierda", caderaR: "Cadera derecha",
+    cuello: "Cuello", ingleL: "Ingle izquierda",
+    caderaL: "Cadera izquierda",
     pubis: "Pubis", hombroI: "Hombro izquierdo", hombroD: "Hombro izquierdo", lumbar: "Lumbar",
   };
   return labels[key] ?? key;

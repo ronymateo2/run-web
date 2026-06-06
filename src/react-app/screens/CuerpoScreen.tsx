@@ -27,8 +27,8 @@ function avgZones(checkins: PainCheckin[]): HeatMap {
 
 function zoneLabel(key: string): string {
   const m: Record<string, string> = {
-    ingleL: "Ingle izquierda", ingleR: "Ingle derecha",
-    caderaL: "Cadera izquierda", caderaR: "Cadera derecha",
+    cuello: "Cuello", ingleL: "Ingle izquierda",
+    caderaL: "Cadera izquierda",
     pubis: "Pubis", hombroI: "Hombro izquierdo", hombroD: "Hombro izquierdo", lumbar: "Lumbar",
   };
   return m[key] ?? key;
@@ -81,7 +81,7 @@ export function CuerpoScreen() {
       const sstResult = await sstRepository.getTodaySst(user.id, dateStr);
       const sstDue = isSstPreferredToday(user?.timezone);
 
-      const zoneKeys = ["ingleL", "ingleR", "caderaL", "caderaR", "pubis", "hombroI", "lumbar"] as const;
+      const zoneKeys = ["cuello", "ingleL", "caderaL", "pubis", "hombroI", "lumbar"] as const;
       const activeZones = zoneKeys.filter(k => (heatAvg[k] ?? 0) > 0);
       const recentHalf = recentCheckins.slice(0, 7);
       const olderHalf = recentCheckins.slice(7, 14);

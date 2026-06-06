@@ -3,8 +3,8 @@ import { painCheckins } from "../schema";
 import type { DrizzleDb } from "../drizzle";
 
 export interface ZoneMap extends Record<string, number | undefined> {
-  ingleL?: number; ingleR?: number; caderaL?: number;
-  caderaR?: number; pubis?: number; hombroI?: number; lumbar?: number;
+  cuello?: number; ingleL?: number; caderaL?: number;
+  pubis?: number; hombroI?: number; lumbar?: number;
 }
 
 export interface PainCheckin {
