@@ -34,9 +34,20 @@ function zoneLabel(key: string): string {
   return m[key] ?? key;
 }
 
+// Zone values from checkins that actually recorded this zone (missing ≠ 0).
+function zoneValues(checkins: PainCheckin[], k: string): number[] {
+  return checkins
+    .map(c => c.zones[k])
+    .filter((v): v is number => v !== undefined);
+}
+
+function mean(vals: number[]): number {
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+}
+
 function trend(recent: number[], older: number[]): "↓" | "↑" | "→" {
-  const r = recent.reduce((a, b) => a + b, 0) / (recent.length || 1);
-  const o = older.reduce((a, b) => a + b, 0) / (older.length || 1);
+  const r = mean(recent);
+  const o = mean(older);
   if (r < o - 0.3) return "↓";
   if (r > o + 0.3) return "↑";
   return "→";
@@ -89,10 +100,10 @@ export function CuerpoScreen() {
       const zoneStats: ZoneStat[] = activeZones.map(k => ({
         key: k,
         label: zoneLabel(k),
-        current: recentHalf.length ? recentHalf.reduce((a, c) => a + (c.zones[k] ?? 0), 0) / recentHalf.length : 0,
+        current: mean(zoneValues(recentHalf, k)),
         trendArrow: trend(
-          recentHalf.map(c => c.zones[k] ?? 0),
-          olderHalf.map(c => c.zones[k] ?? 0),
+          zoneValues(recentHalf, k),
+          zoneValues(olderHalf, k),
         ),
       })).sort((a, b) => b.current - a.current);
 
