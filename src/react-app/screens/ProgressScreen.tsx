@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
-import { checkinRepository, sstRepository, promRepository, type PainCheckin, type SstResult, type PromInstrument, type PromResult } from "../../data/repositories";
+import { checkinRepository, sstRepository, promRepository, severityBand, promTrend, type PainCheckin, type SstResult, type PromInstrument, type PromResult } from "../../data/repositories";
+import { Ico } from "../components/icons";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 
 const ZONE_COLORS: Record<string, string> = {
@@ -30,6 +32,7 @@ interface ProgressData {
 
 export function ProgressScreen() {
   const { user, lastSyncAt } = useAuth();
+  const navigate = useNavigate();
   const [data, setData] = useState<ProgressData | null>(null);
 
   useEffect(() => {
@@ -166,7 +169,10 @@ export function ProgressScreen() {
           </>
         )}
 
-        {/* Outcome — validated questionnaires (PROMs) */}
+        {/* Outcome — validated questionnaires (PROMs). Tap a card for the breakdown. */}
+        {data && data.instruments.length > 0 && (
+          <div className="title-md serif mt-24">Recuperación · cuestionarios</div>
+        )}
         {data?.instruments.map((inst) => {
           const series = data.proms
             .filter((p) => p.instrument_id === inst.id)
@@ -175,45 +181,54 @@ export function ProgressScreen() {
           if (series.length === 0) return null;
           const current = series[series.length - 1].score;
           const prev = series.length >= 2 ? series[series.length - 2].score : null;
-          const delta = prev != null ? current - prev : null;
-          const improving = delta != null && (inst.better_is_higher ? delta > 0 : delta < 0);
+          const band = severityBand(inst, current);
+          const trend = promTrend(inst, current, prev);
           return (
-            <div key={inst.id}>
-              <div className="title-md serif mt-24">{inst.name}</div>
-              <div className="eyebrow mt-4">
-                {inst.better_is_higher ? "más alto = mejor" : "más bajo = mejor"} · 0–100
+            <button
+              key={inst.id}
+              onClick={() => navigate(`/path/prom/${inst.id}`)}
+              className="card mt-12"
+              style={{ padding: 18, width: "100%", textAlign: "left", border: "none", cursor: "pointer", display: "block" }}
+            >
+              <div className="row between" style={{ alignItems: "center", marginBottom: 8 }}>
+                <span className="body" style={{ fontWeight: 600 }}>{inst.name}</span>
+                <Ico.arrow s={15} c="var(--ink-3)" />
               </div>
-              <div className="card mt-12" style={{ padding: 18 }}>
-                <div className="row between" style={{ alignItems: "baseline", marginBottom: 8 }}>
+              <div className="row between" style={{ alignItems: "baseline" }}>
+                <span className="row gap-8" style={{ alignItems: "baseline" }}>
                   <span className="num serif" style={{ fontSize: 36, color: "var(--ink)", lineHeight: 1 }}>
                     {current.toFixed(0)}
                   </span>
-                  {delta != null && (
-                    <span className="num" style={{ fontSize: 15, color: improving ? "var(--moss)" : "var(--clay)" }}>
-                      {delta > 0 ? "+" : ""}{delta.toFixed(0)} vs anterior
-                    </span>
-                  )}
-                </div>
-                {series.length > 1 && (
-                  <div style={{ width: "100%", height: 64 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={series} margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
-                        <Line
-                          type="monotone"
-                          dataKey="score"
-                          stroke={inst.better_is_higher ? "var(--moss)" : "var(--clay)"}
-                          strokeWidth={2}
-                          dot={{ r: 2 }}
-                          isAnimationActive={false}
-                        />
-                        <XAxis dataKey="date" hide />
-                        <YAxis domain={[0, 100]} hide />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <span style={{
+                    padding: "3px 9px", borderRadius: 999, background: band.tone,
+                    color: "#fff", fontSize: 11, fontWeight: 700,
+                  }}>{band.label}</span>
+                </span>
+                {trend.delta != null && (
+                  <span className="num" style={{ fontSize: 14, color: trend.improving ? "var(--moss)" : "var(--clay)" }}>
+                    {trend.delta > 0 ? "+" : ""}{trend.delta.toFixed(0)}{trend.mcid ? " ·rel" : ""}
+                  </span>
                 )}
               </div>
-            </div>
+              {series.length > 1 && (
+                <div style={{ width: "100%", height: 56, marginTop: 8 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={series} margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
+                      <Line
+                        type="monotone"
+                        dataKey="score"
+                        stroke={inst.better_is_higher ? "var(--moss)" : "var(--clay)"}
+                        strokeWidth={2}
+                        dot={{ r: 2 }}
+                        isAnimationActive={false}
+                      />
+                      <XAxis dataKey="date" hide />
+                      <YAxis domain={[0, 100]} hide />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </button>
           );
         })}
       </div>

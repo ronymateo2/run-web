@@ -48,6 +48,15 @@ export async function getRecentProm(db: DrizzleDb, userId: string, limit = 30): 
     .limit(limit);
 }
 
+export async function getRecentPromByInstrument(
+  db: DrizzleDb, userId: string, instrumentId: string, limit = 12,
+): Promise<PromResult[]> {
+  return db.select().from(promResults)
+    .where(and(eq(promResults.user_id, userId), eq(promResults.instrument_id, instrumentId)))
+    .orderBy(desc(promResults.date))
+    .limit(limit);
+}
+
 export async function getLastPromDate(db: DrizzleDb, userId: string, instrumentId: string): Promise<string | null> {
   const rows = await db.select({ date: promResults.date }).from(promResults)
     .where(and(eq(promResults.user_id, userId), eq(promResults.instrument_id, instrumentId)))
@@ -91,4 +100,46 @@ export function isPromDue(lastDate: string | null, everyDays: number, tz?: strin
 export function instrumentsForInjury(insts: PromInstrument[], zone: string): PromInstrument[] {
   const z = zone.toLowerCase();
   return insts.filter((i) => i.zones.some((k) => z.includes(k) || k.includes(z)));
+}
+
+// --- Interpretation (raw score → meaning), direction-aware. ---
+
+// Minimal clinically important difference: a change ≥ this is real, not noise.
+// Generic across SPADI (~10-13) and HAGOS (~10); kept simple at 10.
+export const PROM_MCID = 10;
+
+type Directional = Pick<PromInstrument, "better_is_higher">;
+
+// 0-100 where higher = more problem, regardless of the instrument's native direction.
+export function problemPct(inst: Directional, score: number): number {
+  return inst.better_is_higher ? 100 - score : score;
+}
+
+export interface SeverityBand { label: string; tone: string; }
+export function severityBand(inst: Directional, score: number): SeverityBand {
+  const p = problemPct(inst, score);
+  if (p <= 30) return { label: "leve", tone: "var(--moss)" };
+  if (p <= 60) return { label: "moderado", tone: "var(--clay)" };
+  return { label: "marcado", tone: "var(--clay-deep)" };
+}
+
+export interface PromTrend { delta: number | null; improving: boolean | null; mcid: boolean; }
+export function promTrend(inst: Directional, current: number, prev: number | null): PromTrend {
+  if (prev == null) return { delta: null, improving: null, mcid: false };
+  const delta = Math.round((current - prev) * 10) / 10;
+  const improving = inst.better_is_higher ? delta > 0 : delta < 0;
+  return { delta, improving, mcid: Math.abs(delta) >= PROM_MCID };
+}
+
+export interface WorstItem { text: string; value: number; max: number; }
+// Top items dragging the score down (highest raw answer = most limiting), from one completion.
+export function worstItems(
+  inst: Pick<PromInstrument, "questions" | "max_per_item">,
+  answers: Record<string, number>, n = 3,
+): WorstItem[] {
+  return inst.questions
+    .map((q) => ({ text: q.text, value: answers[q.id] ?? 0, max: inst.max_per_item }))
+    .filter((it) => it.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, n);
 }

@@ -21,6 +21,9 @@ import { ProtectedRoute } from "./auth/ProtectedRoute";
 const ProgressScreen = lazy(() =>
   import("./screens/ProgressScreen").then((m) => ({ default: m.ProgressScreen })),
 );
+const PromDetailScreen = lazy(() =>
+  import("./screens/PromDetailScreen").then((m) => ({ default: m.PromDetailScreen })),
+);
 const LearnArticleScreen = lazy(() =>
   import("./screens/LearnArticleScreen").then((m) => ({ default: m.LearnArticleScreen })),
 );
@@ -47,6 +50,7 @@ export const router = createBrowserRouter([
       { path: "/path/phase/:id", element: <PhaseJourneyScreen /> },
       { path: "/path/phase/:id/exercises", element: <PhaseExercisesScreen /> },
       { path: "/path/progress", element: lazyScreen(<ProgressScreen />) },
+      { path: "/path/prom/:instrumentId", element: lazyScreen(<PromDetailScreen />) },
       { path: "/learn", element: <LearnScreen /> },
       { path: "/learn/:id", element: lazyScreen(<LearnArticleScreen />) },
       { path: "/profile", element: <ProfileScreen /> },
