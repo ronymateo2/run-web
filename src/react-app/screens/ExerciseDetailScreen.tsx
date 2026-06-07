@@ -307,6 +307,25 @@ export function ExerciseDetailScreen() {
           )}
         </div>
 
+        {/* Protocol chip: static hold target per rep (reps exercise that also has a duration).
+            Constant across sets, so it sits above the table instead of in each row. */}
+        {exercise && !isTimeBased && !!exercise.duration_s && (
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              fontFamily: "var(--font-mono)", fontSize: 12, letterSpacing: "0.04em",
+              color: "rgba(245,240,232,0.78)",
+              padding: "6px 12px",
+              borderRadius: 999,
+              background: "rgba(245,240,232,0.05)",
+              border: "1px solid rgba(245,240,232,0.10)",
+            }}>
+              <Ico.timer s={14} c="rgba(245,240,232,0.78)" />
+              Mantén <strong style={{ fontWeight: 700 }}>{exercise.duration_s}s</strong> por rep
+            </span>
+          </div>
+        )}
+
         {/* Column headers */}
         {exercise && (
           <div style={{
@@ -357,23 +376,47 @@ export function ExerciseDetailScreen() {
                 {i + 1}
               </div>
 
-              {/* Previous session (ghost, read-only; tap copies to today's row) */}
+              {/* Previous session: ghost-chip (tap copies last time's value+RPE to today). */}
               {(() => {
                 const p = prev.get(i);
+                if (!p) {
+                  return (
+                    <div style={{
+                      display: "flex", justifyContent: "center", alignItems: "center",
+                      fontFamily: "var(--font-mono)", fontSize: 13,
+                      color: "rgba(245,240,232,0.22)",
+                    }}>
+                      —
+                    </div>
+                  );
+                }
                 return (
-                  <div
-                    onClick={p ? () => { updateSet(i, "value", p.value); updateSet(i, "rpe", p.rpe); } : undefined}
-                    style={{
-                      display: "flex", justifyContent: "center", alignItems: "baseline", gap: 3,
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 13,
-                      color: "rgba(245,240,232,0.40)",
-                      cursor: p ? "pointer" : "default",
-                    }}
-                  >
-                    {p
-                      ? <>{p.value}{isTimeBased ? "s" : "×"}<span style={{ opacity: 0.7 }}>·{p.rpe}</span></>
-                      : "—"}
+                  <div style={{ display: "flex", justifyContent: "center" }}>
+                    <motion.button
+                      type="button"
+                      onClick={() => { updateSet(i, "value", p.value); updateSet(i, "rpe", p.rpe); }}
+                      whileTap={{ scale: 0.9 }}
+                      title="Copiar de la última vez"
+                      aria-label={`Última vez: ${p.value}${isTimeBased ? " segundos" : " reps"}, RPE ${p.rpe}. Copiar.`}
+                      style={{
+                        display: "inline-flex", alignItems: "baseline", gap: 4,
+                        fontFamily: "var(--font-mono)", fontSize: 13, lineHeight: 1,
+                        padding: "5px 9px",
+                        borderRadius: 999,
+                        border: "none",
+                        background: "rgba(245,240,232,0.055)",
+                        color: "rgba(245,240,232,0.62)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span style={{ fontWeight: 600 }}>
+                        {p.value}{isTimeBased ? "s" : "×"}
+                      </span>
+                      <span style={{ opacity: 0.3 }}>·</span>
+                      <span style={{ opacity: 0.5, fontSize: 11, fontWeight: 400 }}>
+                        {p.rpe}
+                      </span>
+                    </motion.button>
                   </div>
                 );
               })()}
@@ -384,25 +427,16 @@ export function ExerciseDetailScreen() {
                 onChange={v => updateSet(i, "rpe", v)}
               />
 
-              <div style={{ display: "flex", justifyContent: "center", alignItems: "baseline", gap: 6 }}>
-                <EditableNum
-                  value={row.value}
-                  min={1}
-                  max={isTimeBased ? 300 : 200}
-                  completed={row.completed}
-                  onChange={v => updateSet(i, "value", v)}
-                  suffix={isTimeBased ? "s" : "×"}
-                />
-                {/* Reps-based exercise with an optional time target: show it as a static label. */}
-                {!isTimeBased && !!exercise.duration_s && (
-                  <span style={{
-                    fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 400,
-                    color: "rgba(245,240,232,0.45)",
-                  }}>
-                    · {exercise.duration_s}s
-                  </span>
-                )}
-              </div>
+              {/* Static hold target (duration_s on a reps exercise) lives in the protocol
+                  chip above the table, not here — this column is the editable rep count only. */}
+              <EditableNum
+                value={row.value}
+                min={1}
+                max={isTimeBased ? 300 : 200}
+                completed={row.completed}
+                onChange={v => updateSet(i, "value", v)}
+                suffix={isTimeBased ? "s" : "×"}
+              />
 
               {/* Check button */}
               <div style={{ display: "flex", justifyContent: "center" }}>
