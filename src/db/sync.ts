@@ -56,6 +56,19 @@ const BUILDERS: Record<string, RowBuilder> = {
     bind: [row.id, row.user_id, row.injury_id, row.date, row.strength_score ?? null,
            row.pain_score ?? null, row.note ?? null],
   }),
+  // Global reference content (no user scope); never pushed back.
+  prom_instruments: (row) => ({
+    sql: `INSERT OR REPLACE INTO prom_instruments (id, name, zones, questions, max_per_item, invert, better_is_higher, every_days, sort_order)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    bind: [row.id, row.name, row.zones, row.questions, row.max_per_item,
+           row.invert ?? 0, row.better_is_higher ?? 0, row.every_days ?? 14, row.sort_order ?? 0],
+  }),
+  prom_results: (row) => ({
+    sql: `INSERT OR REPLACE INTO prom_results (id, user_id, injury_id, instrument_id, date, score, answers, note, synced)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+    bind: [row.id, row.user_id, row.injury_id, row.instrument_id, row.date,
+           row.score ?? null, row.answers ?? null, row.note ?? null],
+  }),
   // Server-derived rollup; never pushed back. Authoritative count overwrites any
   // optimistic local value.
   log_day_counts: (row) => ({
@@ -137,6 +150,7 @@ export async function pushDelta(): Promise<void> {
   const checkins = await queryAll<{ id: string }>(`SELECT * FROM pain_checkins WHERE synced = 0`);
   const logs = await queryAll<{ id: string }>(`SELECT * FROM exercise_logs WHERE synced = 0`);
   const sst = await queryAll<{ id: string }>(`SELECT * FROM sst_results WHERE synced = 0`);
+  const proms = await queryAll<{ id: string }>(`SELECT * FROM prom_results WHERE synced = 0`);
   const criteria = await queryAll<{ id: string; done: number }>(`SELECT id, done FROM phase_criteria WHERE synced = 0`);
   // Admin-style edits. injuries: only current_phase_id + focus_days sync (UPDATE-only server-side).
   const injuries = await queryAll<{ id: string; current_phase_id: string | null; focus_days: string | null }>(
@@ -148,7 +162,7 @@ export async function pushDelta(): Promise<void> {
   const criteriaRows = await queryAll<{ id: string; phase_id: string; description: string; deleted_at: number | null }>(
     `SELECT id, phase_id, description, deleted_at FROM phase_criteria WHERE synced = 0`);
 
-  if (checkins.length === 0 && logs.length === 0 && sst.length === 0 && criteria.length === 0 &&
+  if (checkins.length === 0 && logs.length === 0 && sst.length === 0 && proms.length === 0 && criteria.length === 0 &&
       injuries.length === 0 && phaseRows.length === 0 && exerciseRows.length === 0 && criteriaRows.length === 0) return;
 
   const res = await fetch(`${API_BASE}/api/sync/push`, {
@@ -159,6 +173,7 @@ export async function pushDelta(): Promise<void> {
       pain_checkins: checkins,
       exercise_logs: logs,
       sst_results: sst,
+      prom_results: proms,
       criteria_done: criteria.map((r) => ({ criteria_id: r.id, done: Boolean(r.done) })),
       injuries,
       phases: phaseRows,
@@ -178,6 +193,7 @@ export async function pushDelta(): Promise<void> {
     await markSynced("pain_checkins", checkins.map((r) => r.id));
     await markSynced("exercise_logs", logs.map((r) => r.id));
     await markSynced("sst_results", sst.map((r) => r.id));
+    await markSynced("prom_results", proms.map((r) => r.id));
     await markSynced("injuries", injuries.map((r) => r.id));
     await markSynced("phases", phaseRows.map((r) => r.id));
     await markSynced("exercises", exerciseRows.map((r) => r.id));

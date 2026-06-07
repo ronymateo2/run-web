@@ -10,12 +10,16 @@ import {
   exerciseRepository,
   checkinRepository,
   sstRepository,
+  promRepository,
   isSstPreferredToday,
+  isPromDue,
+  instrumentsForInjury,
   type Injury,
   type Phase,
   type Exercise,
   type PainCheckin,
   type SstResult,
+  type PromInstrument,
 } from "../../data/repositories";
 
 export interface FocusBlock {
@@ -31,6 +35,23 @@ export interface TodayData {
   checkin: PainCheckin | null;
   sstResult: SstResult | null;
   sstDue: boolean;
+  promsDue: PromInstrument[];
+}
+
+// Every instrument that applies to an active injury and whose cadence has elapsed.
+// Returns all due (deduped) so the user can pick which to answer, not just the first.
+async function findDuePromInstruments(
+  injuries: Injury[], userId: string, tz?: string | null,
+): Promise<PromInstrument[]> {
+  const instruments = await promRepository.getInstruments();
+  const due: PromInstrument[] = [];
+  for (const inst of instruments) {
+    const applies = injuries.some((inj) => instrumentsForInjury([inst], inj.zone).length > 0);
+    if (!applies) continue;
+    const last = await promRepository.getLastPromDate(userId, inst.id);
+    if (isPromDue(last, inst.every_days, tz)) due.push(inst);
+  }
+  return due;
 }
 
 export function useTodayData(): {
@@ -62,7 +83,8 @@ export function useTodayData(): {
       const checkin = await checkinRepository.getTodayCheckin(user.id, dateStr);
       const sstResult = await sstRepository.getTodaySst(user.id, dateStr);
       const sstDue = isSstPreferredToday(user.timezone);
-      setData({ injuries, focusBlocks, setsDone: setsDoneMap(logs), checkin, sstResult, sstDue });
+      const promsDue = await findDuePromInstruments(injuries, user.id, user.timezone);
+      setData({ injuries, focusBlocks, setsDone: setsDoneMap(logs), checkin, sstResult, sstDue, promsDue });
       setError(null);
     } catch (e) {
       setError(e);

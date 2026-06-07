@@ -3,4 +3,5 @@ export * from "./injuryRepository";
 export * from "./exerciseRepository";
 export * from "./checkinRepository";
 export * from "./sstRepository";
+export * from "./promRepository";
 export * from "./userRepository";

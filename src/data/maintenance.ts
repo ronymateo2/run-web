@@ -9,6 +9,7 @@ import { syncArticles } from "../db/learn-sync";
 const SYNCED_TABLES = [
   "exercises", "phases", "phase_criteria", "injuries",
   "exercise_logs", "pain_checkins", "sst_results", "log_day_counts",
+  "prom_instruments", "prom_results",
 ];
 
 export async function resetLocalCache(): Promise<void> {

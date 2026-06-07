@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
-import { checkinRepository, sstRepository, type PainCheckin, type SstResult } from "../../data/repositories";
+import { checkinRepository, sstRepository, promRepository, type PainCheckin, type SstResult, type PromInstrument, type PromResult } from "../../data/repositories";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 
 const ZONE_COLORS: Record<string, string> = {
@@ -24,6 +24,8 @@ function buildSegments(checkins: PainCheckin[]): Segment[] {
 interface ProgressData {
   segments: Segment[];
   sst: SstResult[];
+  instruments: PromInstrument[];
+  proms: PromResult[];
 }
 
 export function ProgressScreen() {
@@ -36,8 +38,10 @@ export function ProgressScreen() {
     (async () => {
       const checkins = await checkinRepository.getRecentCheckins(user.id, 30);
       const sst = await sstRepository.getRecentSst(user.id, 12);
+      const instruments = await promRepository.getInstruments();
+      const proms = await promRepository.getRecentProm(user.id, 60);
       const segments = buildSegments(checkins);
-      if (active) setData({ segments, sst });
+      if (active) setData({ segments, sst, instruments, proms });
     })();
     return () => { active = false; };
   }, [user, lastSyncAt]);
@@ -161,6 +165,57 @@ export function ProgressScreen() {
             </div>
           </>
         )}
+
+        {/* Outcome — validated questionnaires (PROMs) */}
+        {data?.instruments.map((inst) => {
+          const series = data.proms
+            .filter((p) => p.instrument_id === inst.id)
+            .map((p) => ({ date: p.date, score: p.score ?? 0 }))
+            .reverse(); // getRecentProm is date-desc → chronological for the chart
+          if (series.length === 0) return null;
+          const current = series[series.length - 1].score;
+          const prev = series.length >= 2 ? series[series.length - 2].score : null;
+          const delta = prev != null ? current - prev : null;
+          const improving = delta != null && (inst.better_is_higher ? delta > 0 : delta < 0);
+          return (
+            <div key={inst.id}>
+              <div className="title-md serif mt-24">{inst.name}</div>
+              <div className="eyebrow mt-4">
+                {inst.better_is_higher ? "más alto = mejor" : "más bajo = mejor"} · 0–100
+              </div>
+              <div className="card mt-12" style={{ padding: 18 }}>
+                <div className="row between" style={{ alignItems: "baseline", marginBottom: 8 }}>
+                  <span className="num serif" style={{ fontSize: 36, color: "var(--ink)", lineHeight: 1 }}>
+                    {current.toFixed(0)}
+                  </span>
+                  {delta != null && (
+                    <span className="num" style={{ fontSize: 15, color: improving ? "var(--moss)" : "var(--clay)" }}>
+                      {delta > 0 ? "+" : ""}{delta.toFixed(0)} vs anterior
+                    </span>
+                  )}
+                </div>
+                {series.length > 1 && (
+                  <div style={{ width: "100%", height: 64 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={series} margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
+                        <Line
+                          type="monotone"
+                          dataKey="score"
+                          stroke={inst.better_is_higher ? "var(--moss)" : "var(--clay)"}
+                          strokeWidth={2}
+                          dot={{ r: 2 }}
+                          isAnimationActive={false}
+                        />
+                        <XAxis dataKey="date" hide />
+                        <YAxis domain={[0, 100]} hide />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

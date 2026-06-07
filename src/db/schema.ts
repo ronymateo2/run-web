@@ -104,6 +104,33 @@ export const sstResults = sqliteTable("sst_results", {
   synced: integer("synced").default(0),
 });
 
+// Validated outcome questionnaires (SPADI, HAGOS). Seeded in D1, pulled as a global
+// reference table (no user scope). `questions` is a JSON [{id,text}]; the scorer reads
+// max_per_item/invert to normalise any instrument to 0-100. Read-only on the client.
+export const promInstruments = sqliteTable("prom_instruments", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  zones: text("zones").notNull(),
+  questions: text("questions").notNull(),
+  max_per_item: integer("max_per_item").notNull(),
+  invert: integer("invert").notNull().default(0),
+  better_is_higher: integer("better_is_higher").notNull().default(0),
+  every_days: integer("every_days").notNull().default(14),
+  sort_order: integer("sort_order").default(0),
+});
+
+export const promResults = sqliteTable("prom_results", {
+  id: text("id").primaryKey(),
+  user_id: text("user_id").notNull(),
+  injury_id: text("injury_id").notNull(),
+  instrument_id: text("instrument_id").notNull(),
+  date: text("date").notNull(),
+  score: real("score"),
+  answers: text("answers"),
+  note: text("note"),
+  synced: integer("synced").default(0),
+});
+
 // Server-derived rollup: count of non-deleted sets per (exercise, day). Drives all
 // phase progress / gating / calendar reads so raw exercise_logs can be windowed
 // without losing all-time correctness. Never pushed — the server is authoritative.

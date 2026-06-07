@@ -7,6 +7,7 @@ import { useTodayData } from "../features/useTodayData";
 
 import { ExerciseList, countDone } from "../components/ExerciseList";
 import { NudgeSST } from "../components/NudgeSST";
+import { NudgePROM } from "../components/NudgePROM";
 import { BodyFigure } from "../components/BodyFigure";
 import { ZoneRow } from "../components/ZoneRow";
 import { Ico } from "../components/icons";
@@ -36,7 +37,7 @@ export function HomeScreen() {
     );
   }
 
-  const { focusBlocks, setsDone, checkin, sstResult, sstDue, injuries } = data;
+  const { focusBlocks, setsDone, checkin, sstResult, sstDue, injuries, promsDue } = data;
   const focus = focusBlocks[0]?.injury ?? null;
   const isDualInjury = injuries.length >= 2;
   const isMultiFocus = focusBlocks.length >= 2;
@@ -161,6 +162,9 @@ export function HomeScreen() {
 
         {/* 5SST nudge */}
         <NudgeSST state={sstState} lastScore={sstResult?.pain_score ?? undefined} preferred={sstDue} />
+
+        {/* PROM nudge — every due questionnaire as its own row; user picks which */}
+        {promsDue.length > 0 && <NudgePROM instruments={promsDue} />}
       </div>
 
     </div>

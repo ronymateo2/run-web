@@ -55,7 +55,17 @@ CREATE TABLE IF NOT EXISTS log_day_counts (
   sets INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (user_id, exercise_id, session_date)
 );
+CREATE TABLE IF NOT EXISTS prom_instruments (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, zones TEXT NOT NULL, questions TEXT NOT NULL,
+  max_per_item INTEGER NOT NULL, invert INTEGER NOT NULL DEFAULT 0,
+  better_is_higher INTEGER NOT NULL DEFAULT 0, every_days INTEGER NOT NULL DEFAULT 14, sort_order INTEGER DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS prom_results (
+  id TEXT PRIMARY KEY, user_id TEXT NOT NULL, injury_id TEXT NOT NULL, instrument_id TEXT NOT NULL,
+  date TEXT NOT NULL, score REAL, answers TEXT, note TEXT, synced INTEGER DEFAULT 0
+);
 CREATE INDEX IF NOT EXISTS idx_log_day_counts_user ON log_day_counts(user_id, exercise_id);
+CREATE INDEX IF NOT EXISTS idx_prom_results_user_date ON prom_results(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_pain_checkins_user_date ON pain_checkins(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_exercise_logs_user_date ON exercise_logs(user_id, session_date);
 CREATE INDEX IF NOT EXISTS idx_sst_results_user_date ON sst_results(user_id, date);
