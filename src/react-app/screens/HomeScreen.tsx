@@ -120,6 +120,13 @@ export function HomeScreen() {
           )}
         </motion.div>
 
+        {/* Weekly quick tasks — surfaced above the (long) exercise list so they stay visible */}
+        {/* 5SST nudge */}
+        <NudgeSST state={sstState} lastScore={sstResult?.pain_score ?? undefined} preferred={sstDue} />
+
+        {/* PROM nudge — every due questionnaire as its own row; user picks which */}
+        {promsDue.length > 0 && <NudgePROM instruments={promsDue} />}
+
         {/* Today's exercises — one block per focus injury */}
         {focusBlocks.map((block) => {
           const blockDone = countDone(block.exercises, setsDone);
@@ -159,12 +166,6 @@ export function HomeScreen() {
               <div className="eyebrow">Mantenimiento · {inj.name}</div>
             </div>
           ))}
-
-        {/* 5SST nudge */}
-        <NudgeSST state={sstState} lastScore={sstResult?.pain_score ?? undefined} preferred={sstDue} />
-
-        {/* PROM nudge — every due questionnaire as its own row; user picks which */}
-        {promsDue.length > 0 && <NudgePROM instruments={promsDue} />}
       </div>
 
     </div>
