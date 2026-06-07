@@ -174,7 +174,7 @@ export function PhasesOverviewScreen() {
         {data && data.length > 1 && (
           <div
             className="row gap-8 mt-20"
-            style={{ overflowX: "auto", scrollbarWidth: "none", paddingBottom: 2 }}
+            style={{ flexWrap: "wrap" }}
           >
             {data.map(({ injury }) => {
               const active = injury.id === sel?.injury.id;
@@ -183,14 +183,17 @@ export function PhasesOverviewScreen() {
                   key={injury.id}
                   className="chip"
                   style={{
-                    flexShrink: 0, cursor: "pointer", whiteSpace: "nowrap",
+                    minWidth: 0, maxWidth: "100%", cursor: "pointer",
+                    fontWeight: active ? 600 : 400,
                     background: active ? "var(--clay)" : "var(--card-soft)",
                     color: active ? "#fff" : "var(--ink)",
                     border: active ? "1px solid var(--clay)" : "1px solid var(--line)",
                   }}
                   onClick={() => selectInjury(injury.id)}
                 >
-                  {injury.name}
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {injury.name}
+                  </span>
                 </button>
               );
             })}

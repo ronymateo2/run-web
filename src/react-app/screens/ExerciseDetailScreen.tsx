@@ -39,10 +39,26 @@ function initSets(count: number, defaultValue: number): SetRow[] {
 
 // Set index is the last segment of the log id (`${user}:${exercise}:${date}:${i}`),
 // so logs land on their real set row even when completion is non-contiguous.
+function parseSetIdx(log: ExerciseLog): number {
+  return Number(log.id.split(":").pop());
+}
+
+// Previous session's reps·RPE keyed by set index, for the ghost "PREVIO" column.
+function prevByIndex(logs: ExerciseLog[], defaultValue: number): Map<number, { value: number; rpe: number }> {
+  const map = new Map<number, { value: number; rpe: number }>();
+  logs.forEach(log => {
+    const idx = parseSetIdx(log);
+    if (Number.isInteger(idx) && idx >= 0) {
+      map.set(idx, { value: log.reps_done ?? defaultValue, rpe: log.rpe ?? DEFAULT_RPE });
+    }
+  });
+  return map;
+}
+
 function logsToSets(logs: ExerciseLog[], count: number, defaultValue: number): SetRow[] {
   const base = initSets(count, defaultValue);
   logs.forEach(log => {
-    const idx = Number(log.id.split(":").pop());
+    const idx = parseSetIdx(log);
     if (Number.isInteger(idx) && idx >= 0 && idx < base.length) {
       base[idx] = {
         rpe: log.rpe ?? DEFAULT_RPE,
@@ -151,6 +167,7 @@ export function ExerciseDetailScreen() {
 
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [sets, setSets] = useState<SetRow[]>([]);
+  const [prev, setPrev] = useState<Map<number, { value: number; rpe: number }>>(new Map());
   const [hadLogs, setHadLogs] = useState(false);
   const [saving, setSaving] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
@@ -175,6 +192,9 @@ export function ExerciseDetailScreen() {
           ? logsToSets(logs, totalSets, defaultValue)
           : initSets(totalSets, defaultValue),
       );
+    });
+    exerciseRepository.getLastSessionForExercise(user.id, exercise.id, sessionDate).then(last => {
+      setPrev(last ? prevByIndex(last.logs, defaultValue) : new Map());
     });
   }, [user, exercise]);
 
@@ -291,12 +311,12 @@ export function ExerciseDetailScreen() {
         {exercise && (
           <div style={{
             display: "grid",
-            gridTemplateColumns: "44px 1fr 1fr 52px 40px",
+            gridTemplateColumns: "32px 1.05fr 0.85fr 0.85fr 46px 34px",
             padding: "0 4px 10px",
             borderBottom: "1px solid rgba(245,240,232,0.10)",
             marginBottom: 0,
           }}>
-            {(["SET", "RPE", isTimeBased ? "TIEMPO" : "REPS", "", ""] as string[]).map((h, i) => (
+            {(["SET", "PREVIO", "RPE", isTimeBased ? "TIEMPO" : "REPS", "", ""] as string[]).map((h, i) => (
               <div key={i} style={{
                 fontSize: 10,
                 fontFamily: "var(--font-mono)",
@@ -317,7 +337,7 @@ export function ExerciseDetailScreen() {
             {/* Row */}
             <div style={{
               display: "grid",
-              gridTemplateColumns: "44px 1fr 1fr 52px 40px",
+              gridTemplateColumns: "32px 1.05fr 0.85fr 0.85fr 46px 34px",
               alignItems: "center",
               minHeight: 64,
               padding: "6px 4px",
@@ -336,6 +356,27 @@ export function ExerciseDetailScreen() {
               }}>
                 {i + 1}
               </div>
+
+              {/* Previous session (ghost, read-only; tap copies to today's row) */}
+              {(() => {
+                const p = prev.get(i);
+                return (
+                  <div
+                    onClick={p ? () => { updateSet(i, "value", p.value); updateSet(i, "rpe", p.rpe); } : undefined}
+                    style={{
+                      display: "flex", justifyContent: "center", alignItems: "baseline", gap: 3,
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 13,
+                      color: "rgba(245,240,232,0.40)",
+                      cursor: p ? "pointer" : "default",
+                    }}
+                  >
+                    {p
+                      ? <>{p.value}{isTimeBased ? "s" : "×"}<span style={{ opacity: 0.7 }}>·{p.rpe}</span></>
+                      : "—"}
+                  </div>
+                );
+              })()}
 
               <EditableNum
                 value={row.rpe} min={1} max={10}

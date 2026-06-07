@@ -1,4 +1,4 @@
-import { eq, and, isNull, gt, count } from "drizzle-orm";
+import { eq, and, isNull, gt, lt, desc, count } from "drizzle-orm";
 import { exercises, exerciseLogs, phases, logDayCounts } from "../schema";
 import type { DrizzleDb } from "../drizzle";
 
@@ -53,6 +53,30 @@ export async function getLogsForExercise(
       notDeleted,
     ))
     .orderBy(exerciseLogs.completed_at);
+}
+
+// Most recent session strictly before `beforeDate` for this exercise, with its raw
+// set logs (same shape/order as getLogsForExercise). Drives the "PREVIO" ghost column.
+// Note: exerciseLogs raw is windowed to 120d — a previous session older than that has no
+// local raw and yields null (acceptable for active rehab; could fall back to pullHistory).
+export async function getLastSessionForExercise(
+  db: DrizzleDb, userId: string, exerciseId: string, beforeDate: string
+): Promise<{ date: string; logs: ExerciseLog[] } | null> {
+  const base = and(
+    eq(exerciseLogs.user_id, userId),
+    eq(exerciseLogs.exercise_id, exerciseId),
+    lt(exerciseLogs.session_date, beforeDate),
+    notDeleted,
+  );
+  const latest = await db.select({ session_date: exerciseLogs.session_date })
+    .from(exerciseLogs)
+    .where(base)
+    .orderBy(desc(exerciseLogs.session_date))
+    .limit(1);
+  const date = latest[0]?.session_date;
+  if (!date) return null;
+  const logs = await getLogsForExercise(db, userId, exerciseId, date);
+  return { date, logs };
 }
 
 export async function getPhaseExerciseProgress(

@@ -21,6 +21,11 @@ export const exerciseRepository = {
   async getLogsForExercise(userId: string, exerciseId: string, date: string): Promise<ExerciseLog[]> {
     return q.getLogsForExercise(await getDrizzle(), userId, exerciseId, date);
   },
+  async getLastSessionForExercise(
+    userId: string, exerciseId: string, beforeDate: string,
+  ): Promise<{ date: string; logs: ExerciseLog[] } | null> {
+    return q.getLastSessionForExercise(await getDrizzle(), userId, exerciseId, beforeDate);
+  },
   async getPhaseExerciseProgress(phaseId: string, userId: string): Promise<number> {
     return q.getPhaseExerciseProgress(await getDrizzle(), phaseId, userId);
   },
