@@ -29,6 +29,9 @@ export default defineConfig({
 				skipWaiting: true,
 				clientsClaim: true,
 				globPatterns: ["**/*.{js,css,html,ico,png,svg,wasm}"],
+				// Layer Web Push handlers (push / notificationclick) into the generated SW
+				// without switching off generateSW — keeps all existing offline caching.
+				importScripts: ["/push-handlers.js"],
 				runtimeCaching: [
 					{
 						urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
