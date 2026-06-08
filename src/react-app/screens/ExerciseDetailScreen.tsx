@@ -600,7 +600,8 @@ export function ExerciseDetailScreen() {
               style={{
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "space-between",
+                justifyContent: "center",
+                gap: 8,
                 width: "100%",
                 padding: "12px 16px",
                 marginBottom: 12,
@@ -612,28 +613,14 @@ export function ExerciseDetailScreen() {
               }}
             >
               <span style={{
-                fontSize: 10,
-                fontFamily: "var(--font-mono)",
-                letterSpacing: "0.10em",
-                color: "rgba(245,240,232,0.55)",
+                fontSize: 13,
+                fontFamily: "var(--font-body)",
+                color: "var(--bone)",
+                fontWeight: 500,
               }}>
-                SIGUIENTE
+                {nextExercise.name}
               </span>
-              <div style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}>
-                <span style={{
-                  fontSize: 14,
-                  fontFamily: "var(--font-body)",
-                  color: "var(--bone)",
-                  fontWeight: 500,
-                }}>
-                  {nextExercise.name}
-                </span>
-                <Ico.chevR s={16} c="var(--bone)" />
-              </div>
+              <Ico.arrow s={16} c="var(--bone)" />
             </motion.button>
           )}
           <motion.button
