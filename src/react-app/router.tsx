@@ -16,6 +16,7 @@ import { PhaseEditScreen } from "./screens/PhaseEditScreen";
 import { LearnScreen } from "./screens/LearnScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
+import { RouteErrorFallback } from "./components/RouteErrorFallback";
 
 // Lazy-loaded: pull in heavy deps (recharts, react-markdown) only when visited.
 const ProgressScreen = lazy(() =>
@@ -35,6 +36,7 @@ export const router = createBrowserRouter([
   { path: "/login", element: <LoginScreen /> },
   {
     element: <ProtectedRoute />,
+    errorElement: <RouteErrorFallback />,
     children: [
       { path: "/today", element: <HomeScreen /> },
       { path: "/today/checkin", element: <PainCheckinScreen /> },
