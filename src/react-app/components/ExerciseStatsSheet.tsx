@@ -202,6 +202,7 @@ export function ExerciseStatsSheet({ exercise, onClose }: Props) {
                         />
                         <YAxis hide />
                         <Tooltip
+                          cursor={{ fill: "rgba(245,240,232,0.10)" }}
                           contentStyle={{
                             background: "#1A2A20",
                             border: "1px solid rgba(245,240,232,0.2)",
@@ -246,6 +247,7 @@ export function ExerciseStatsSheet({ exercise, onClose }: Props) {
                         />
                         <YAxis domain={[0, 10]} hide />
                         <Tooltip
+                          cursor={{ fill: "rgba(245,240,232,0.10)" }}
                           contentStyle={{
                             background: "#1A2A20",
                             border: "1px solid rgba(245,240,232,0.2)",
@@ -290,6 +292,7 @@ export function ExerciseStatsSheet({ exercise, onClose }: Props) {
                         />
                         <YAxis domain={[0, 10]} hide />
                         <Tooltip
+                          cursor={{ fill: "rgba(245,240,232,0.10)" }}
                           contentStyle={{
                             background: "#1A2A20",
                             border: "1px solid rgba(245,240,232,0.2)",
