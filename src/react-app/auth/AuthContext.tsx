@@ -96,7 +96,21 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
 
       const { user: apiUser } = await apiRes.json() as { user: AuthUser & { timezone?: string | null } };
 
-      const timezone = apiUser.timezone ?? null;
+      // First login won't have a server-side timezone; detect it and persist so
+      // push reminders fire at the user's local hour (not UTC).
+      let timezone = apiUser.timezone ?? null;
+      if (!timezone) {
+        const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (detected) {
+          timezone = detected;
+          fetch(`${API_BASE}/api/users/me`, {
+            method: "PATCH",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ timezone: detected }),
+          }).catch(() => {});
+        }
+      }
       await userRepository.upsertUser({
         id: apiUser.id,
         email: apiUser.email,
