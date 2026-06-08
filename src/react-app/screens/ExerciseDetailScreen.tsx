@@ -166,6 +166,7 @@ export function ExerciseDetailScreen() {
   const exerciseIds: string[] = location.state?.exerciseIds ?? [];
 
   const [exercise, setExercise] = useState<Exercise | null>(null);
+  const [nextExercise, setNextExercise] = useState<Exercise | null>(null);
   const [sets, setSets] = useState<SetRow[]>([]);
   const [prev, setPrev] = useState<Map<number, { value: number; rpe: number }>>(new Map());
   const [hadLogs, setHadLogs] = useState(false);
@@ -180,7 +181,14 @@ export function ExerciseDetailScreen() {
   useEffect(() => {
     if (!id) return;
     exerciseRepository.getExerciseById(id).then(e => setExercise(e));
-  }, [id]);
+    const currentIndex = exerciseIds.indexOf(id);
+    const nextId = exerciseIds[currentIndex + 1];
+    if (nextId) {
+      exerciseRepository.getExerciseById(nextId).then(e => setNextExercise(e));
+    } else {
+      setNextExercise(null);
+    }
+  }, [id, exerciseIds]);
 
   useEffect(() => {
     if (!user || !exercise) return;
@@ -566,6 +574,56 @@ export function ExerciseDetailScreen() {
           background: "linear-gradient(to top, #111E16 60%, transparent)",
           pointerEvents: "none",
         }}>
+          {nextExercise && (
+            <motion.button
+              onClick={() => {
+                const currentIndex = exerciseIds.indexOf(id!);
+                const nextId = exerciseIds[currentIndex + 1];
+                if (nextId) {
+                  navigate(`/today/exercise/${nextId}`, { state: { exerciseIds }, replace: true });
+                }
+              }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                width: "100%",
+                padding: "12px 16px",
+                marginBottom: 12,
+                background: "rgba(245,240,232,0.08)",
+                border: "1px solid rgba(245,240,232,0.12)",
+                borderRadius: 12,
+                cursor: "pointer",
+                pointerEvents: "auto",
+              }}
+            >
+              <span style={{
+                fontSize: 10,
+                fontFamily: "var(--font-mono)",
+                letterSpacing: "0.10em",
+                color: "rgba(245,240,232,0.55)",
+              }}>
+                SIGUIENTE
+              </span>
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}>
+                <span style={{
+                  fontSize: 14,
+                  fontFamily: "var(--font-body)",
+                  color: "var(--bone)",
+                  fontWeight: 500,
+                }}>
+                  {nextExercise.name}
+                </span>
+                <Ico.chevR s={16} c="var(--bone)" />
+              </div>
+            </motion.button>
+          )}
           <motion.button
             className="btn-pill"
             onClick={handleSave}
