@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
+import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { BottomSheet } from "../components/BottomSheet";
 import { Ico } from "../components/icons";
 import { exerciseRepository, type Exercise, type ExerciseLog } from "../../data/repositories";
@@ -38,9 +38,11 @@ function aggregateBySession(logs: ExerciseLog[]): SessionData[] {
 }
 
 function formatDate(dateStr: string): string {
-  const [y, m, d] = dateStr.split("-");
+  const [, m, d] = dateStr.split("-");
   return `${d}/${m}`;
 }
+
+const TICK_STYLE = { fontSize: 12, fill: "rgba(245,240,232,0.85)", fontWeight: 500 } as const;
 
 export function ExerciseStatsSheet({ exercise, onClose }: Props) {
   const { user } = useAuth();
@@ -175,27 +177,28 @@ export function ExerciseStatsSheet({ exercise, onClose }: Props) {
                 <div style={{ marginBottom: 24 }}>
                   <div style={{
                     fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.10em",
-                    color: "rgba(245,240,232,0.55)", marginBottom: 12,
+                    color: "rgba(245,240,232,0.85)", marginBottom: 12,
                   }}>
                     {valueLabel.toUpperCase()} POR SESIÓN
                   </div>
-                  <div style={{ width: "100%", height: 120 }}>
+                  <div style={{ width: "100%", height: 140 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={sessions} margin={{ top: 6, right: 6, bottom: 6, left: 6 }}>
-                        <Line
-                          type="monotone"
+                      <BarChart data={sessions} margin={{ top: 6, right: 6, bottom: 20, left: 6 }}>
+                        <Bar
                           dataKey="avgReps"
-                          stroke="#6EC96E"
-                          strokeWidth={2.5}
-                          dot={{ fill: "#6EC96E", r: 3 }}
+                          fill="#6EC96E"
+                          radius={[4, 4, 0, 0]}
+                          barSize={16}
                           isAnimationActive={false}
                         />
                         <XAxis
                           dataKey="date"
                           tickFormatter={formatDate}
-                          tick={{ fontSize: 10, fill: "rgba(245,240,232,0.45)" }}
+                          tick={TICK_STYLE}
                           axisLine={false}
                           tickLine={false}
+                          interval="preserveStartEnd"
+                          dy={8}
                         />
                         <YAxis hide />
                         <Tooltip
@@ -208,9 +211,9 @@ export function ExerciseStatsSheet({ exercise, onClose }: Props) {
                           labelStyle={{ color: "rgba(245,240,232,0.7)", fontSize: 11 }}
                           itemStyle={{ color: "var(--bone)", fontSize: 12 }}
                           formatter={(value) => [Number(value).toFixed(1), valueLabel]}
-                          labelFormatter={formatDate}
+                          labelFormatter={(label) => formatDate(String(label))}
                         />
-                      </LineChart>
+                      </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
@@ -218,27 +221,28 @@ export function ExerciseStatsSheet({ exercise, onClose }: Props) {
                 <div style={{ marginBottom: 24 }}>
                   <div style={{
                     fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.10em",
-                    color: "rgba(245,240,232,0.55)", marginBottom: 12,
+                    color: "rgba(245,240,232,0.85)", marginBottom: 12,
                   }}>
                     RPE POR SESIÓN
                   </div>
-                  <div style={{ width: "100%", height: 100 }}>
+                  <div style={{ width: "100%", height: 120 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={sessions} margin={{ top: 6, right: 6, bottom: 6, left: 6 }}>
-                        <Line
-                          type="monotone"
+                      <BarChart data={sessions} margin={{ top: 6, right: 6, bottom: 20, left: 6 }}>
+                        <Bar
                           dataKey="avgRpe"
-                          stroke="#C9C96E"
-                          strokeWidth={2}
-                          dot={{ fill: "#C9C96E", r: 2.5 }}
+                          fill="#C9C96E"
+                          radius={[4, 4, 0, 0]}
+                          barSize={16}
                           isAnimationActive={false}
                         />
                         <XAxis
                           dataKey="date"
                           tickFormatter={formatDate}
-                          tick={{ fontSize: 10, fill: "rgba(245,240,232,0.45)" }}
+                          tick={TICK_STYLE}
                           axisLine={false}
                           tickLine={false}
+                          interval="preserveStartEnd"
+                          dy={8}
                         />
                         <YAxis domain={[0, 10]} hide />
                         <Tooltip
@@ -251,9 +255,9 @@ export function ExerciseStatsSheet({ exercise, onClose }: Props) {
                           labelStyle={{ color: "rgba(245,240,232,0.7)", fontSize: 11 }}
                           itemStyle={{ color: "var(--bone)", fontSize: 12 }}
                           formatter={(value) => [Number(value).toFixed(1), "RPE"]}
-                          labelFormatter={formatDate}
+                          labelFormatter={(label) => formatDate(String(label))}
                         />
-                      </LineChart>
+                      </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
@@ -261,27 +265,28 @@ export function ExerciseStatsSheet({ exercise, onClose }: Props) {
                 <div>
                   <div style={{
                     fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.10em",
-                    color: "rgba(245,240,232,0.55)", marginBottom: 12,
+                    color: "rgba(245,240,232,0.85)", marginBottom: 12,
                   }}>
                     DOLOR POR SESIÓN
                   </div>
-                  <div style={{ width: "100%", height: 100 }}>
+                  <div style={{ width: "100%", height: 120 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={sessions} margin={{ top: 6, right: 6, bottom: 6, left: 6 }}>
-                        <Line
-                          type="monotone"
+                      <BarChart data={sessions} margin={{ top: 6, right: 6, bottom: 20, left: 6 }}>
+                        <Bar
                           dataKey="avgPain"
-                          stroke="#C96E6E"
-                          strokeWidth={2}
-                          dot={{ fill: "#C96E6E", r: 2.5 }}
+                          fill="#C96E6E"
+                          radius={[4, 4, 0, 0]}
+                          barSize={16}
                           isAnimationActive={false}
                         />
                         <XAxis
                           dataKey="date"
                           tickFormatter={formatDate}
-                          tick={{ fontSize: 10, fill: "rgba(245,240,232,0.45)" }}
+                          tick={TICK_STYLE}
                           axisLine={false}
                           tickLine={false}
+                          interval="preserveStartEnd"
+                          dy={8}
                         />
                         <YAxis domain={[0, 10]} hide />
                         <Tooltip
@@ -294,9 +299,9 @@ export function ExerciseStatsSheet({ exercise, onClose }: Props) {
                           labelStyle={{ color: "rgba(245,240,232,0.7)", fontSize: 11 }}
                           itemStyle={{ color: "var(--bone)", fontSize: 12 }}
                           formatter={(value) => [Number(value).toFixed(1), "Dolor"]}
-                          labelFormatter={formatDate}
+                          labelFormatter={(label) => formatDate(String(label))}
                         />
-                      </LineChart>
+                      </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
