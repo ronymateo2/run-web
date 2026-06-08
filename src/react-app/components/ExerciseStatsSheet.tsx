@@ -195,12 +195,17 @@ export function ExerciseStatsSheet({ exercise, onClose }: Props) {
                           dataKey="date"
                           tickFormatter={formatDate}
                           tick={TICK_STYLE}
-                          axisLine={false}
+                          axisLine={{ stroke: "rgba(245,240,232,0.15)" }}
                           tickLine={false}
                           interval="preserveStartEnd"
                           dy={8}
                         />
-                        <YAxis hide />
+                        <YAxis
+                          tick={{ fontSize: 10, fill: "rgba(245,240,232,0.5)" }}
+                          axisLine={{ stroke: "rgba(245,240,232,0.15)" }}
+                          tickLine={false}
+                          width={32}
+                        />
                         <Tooltip
                           cursor={{ fill: "rgba(245,240,232,0.10)" }}
                           contentStyle={{
@@ -240,12 +245,18 @@ export function ExerciseStatsSheet({ exercise, onClose }: Props) {
                           dataKey="date"
                           tickFormatter={formatDate}
                           tick={TICK_STYLE}
-                          axisLine={false}
+                          axisLine={{ stroke: "rgba(245,240,232,0.15)" }}
                           tickLine={false}
                           interval="preserveStartEnd"
                           dy={8}
                         />
-                        <YAxis domain={[0, 10]} hide />
+                        <YAxis
+                          domain={[0, 10]}
+                          tick={{ fontSize: 10, fill: "rgba(245,240,232,0.5)" }}
+                          axisLine={{ stroke: "rgba(245,240,232,0.15)" }}
+                          tickLine={false}
+                          width={32}
+                        />
                         <Tooltip
                           cursor={{ fill: "rgba(245,240,232,0.10)" }}
                           contentStyle={{
@@ -285,12 +296,18 @@ export function ExerciseStatsSheet({ exercise, onClose }: Props) {
                           dataKey="date"
                           tickFormatter={formatDate}
                           tick={TICK_STYLE}
-                          axisLine={false}
+                          axisLine={{ stroke: "rgba(245,240,232,0.15)" }}
                           tickLine={false}
                           interval="preserveStartEnd"
                           dy={8}
                         />
-                        <YAxis domain={[0, 10]} hide />
+                        <YAxis
+                          domain={[0, 10]}
+                          tick={{ fontSize: 10, fill: "rgba(245,240,232,0.5)" }}
+                          axisLine={{ stroke: "rgba(245,240,232,0.15)" }}
+                          tickLine={false}
+                          width={32}
+                        />
                         <Tooltip
                           cursor={{ fill: "rgba(245,240,232,0.10)" }}
                           contentStyle={{
