@@ -291,7 +291,7 @@ export function ExerciseDetailScreen() {
         </button>
       </ScreenNav>
       <div className="screen-body" style={{
-        paddingBottom: 120,
+        paddingBottom: "calc(160px + env(safe-area-inset-bottom, 0px))",
         display: "flex", flexDirection: "column", flex: 1,
       }}>
 
@@ -582,7 +582,7 @@ export function ExerciseDetailScreen() {
       {exercise && (
         <div style={{
           position: "fixed", bottom: 0, left: 0, right: 0,
-          padding: "20px 24px 40px",
+          padding: "20px 24px calc(20px + env(safe-area-inset-bottom, 0px))",
           background: "linear-gradient(to top, #111E16 60%, transparent)",
           pointerEvents: "none",
         }}>
