@@ -9,6 +9,7 @@ import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
 import { VideoEmbed } from "../components/VideoEmbed";
 import { BottomSheet } from "../components/BottomSheet";
+import { ExerciseStatsSheet } from "../components/ExerciseStatsSheet";
 import { exerciseRepository, type Exercise, type ExerciseLog } from "../../data/repositories";
 
 const DEFAULT_RPE = 6;
@@ -172,6 +173,7 @@ export function ExerciseDetailScreen() {
   const [hadLogs, setHadLogs] = useState(false);
   const [saving, setSaving] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
 
   const totalSets = exercise?.sets ?? 3;
   const isTimeBased = !!exercise?.duration_s && !exercise?.reps;
@@ -267,6 +269,16 @@ export function ExerciseDetailScreen() {
     <div className="screen screen-dark" style={{ position: "relative" }}>
       <ScreenNav back={<BackButton fallbackPath="/today" color="var(--bone)" />}>
         <div style={{ flex: 1 }} />
+        <button
+          onClick={() => setStatsOpen(true)}
+          style={{
+            background: "none", border: "none", cursor: "pointer", padding: 6,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+          aria-label="Ver estadísticas"
+        >
+          <Ico.chart s={20} c="var(--bone)" />
+        </button>
         <button
           onClick={() => navigate(`/today/exercise/${id}/edit`)}
           style={{
@@ -676,6 +688,14 @@ export function ExerciseDetailScreen() {
             </>
           )}
         </BottomSheet>
+      )}
+
+      {/* Stats sheet */}
+      {statsOpen && exercise && (
+        <ExerciseStatsSheet
+          exercise={exercise}
+          onClose={() => setStatsOpen(false)}
+        />
       )}
     </div>
   );

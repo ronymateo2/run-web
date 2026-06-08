@@ -55,6 +55,18 @@ export async function getLogsForExercise(
     .orderBy(exerciseLogs.completed_at);
 }
 
+export async function getAllLogsForExercise(
+  db: DrizzleDb, userId: string, exerciseId: string
+): Promise<ExerciseLog[]> {
+  return db.select().from(exerciseLogs)
+    .where(and(
+      eq(exerciseLogs.user_id, userId),
+      eq(exerciseLogs.exercise_id, exerciseId),
+      notDeleted,
+    ))
+    .orderBy(exerciseLogs.session_date, exerciseLogs.completed_at);
+}
+
 // Most recent session strictly before `beforeDate` for this exercise, with its raw
 // set logs (same shape/order as getLogsForExercise). Drives the "PREVIO" ghost column.
 // Note: exerciseLogs raw is windowed to 120d — a previous session older than that has no
