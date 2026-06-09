@@ -15,6 +15,7 @@ export function ProfileScreen() {
   const [saved, setSaved] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetDone, setResetDone] = useState(false);
+  const [resetError, setResetError] = useState(false);
 
   // Reminders (Web Push)
   const pushOk = pushSupported();
@@ -71,9 +72,14 @@ export function ProfileScreen() {
     if (!token || resetting) return;
     setResetting(true);
     setResetDone(false);
+    setResetError(false);
     try {
       await resetLocalCache();
       setResetDone(true);
+    } catch {
+      // resetLocalCache pushes pending changes before wiping; offline/expired
+      // session aborts there with local data intact.
+      setResetError(true);
     } finally {
       setResetting(false);
     }
@@ -275,6 +281,11 @@ export function ProfileScreen() {
               <div className="row gap-6" style={{ padding: "0 14px 12px", color: "var(--moss)" }}>
                 <Ico.check s={14} c="var(--moss)" />
                 <span className="body-sm" style={{ color: "var(--moss)" }}>Caché actualizado desde el servidor</span>
+              </div>
+            )}
+            {resetError && (
+              <div className="body-sm" style={{ padding: "0 14px 12px", color: "var(--clay)", lineHeight: 1.5 }}>
+                No se pudo sincronizar. Revisa tu conexión e intenta de nuevo.
               </div>
             )}
           </div>

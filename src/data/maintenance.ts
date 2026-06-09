@@ -2,7 +2,7 @@
 // Clears the synced tables, resets the pull checkpoint, then re-pulls everything
 // from the server. Also wipes and re-pulls the separate Learn OPFS database.
 import { exec } from "../db/client";
-import { pullDelta } from "./sync";
+import { pullDelta, pushDelta } from "./sync";
 import { learnExec } from "../db/learn-client";
 import { syncArticles } from "../db/learn-sync";
 
@@ -13,6 +13,10 @@ const SYNCED_TABLES = [
 ];
 
 export async function resetLocalCache(): Promise<void> {
+  // Drain the outbox BEFORE wiping: pending mutations must reach the server so the
+  // force pull brings them back. If this throws (offline/401) the reset aborts here
+  // and local data stays intact.
+  await pushDelta();
   for (const table of SYNCED_TABLES) {
     await exec(`DELETE FROM ${table}`);
   }
