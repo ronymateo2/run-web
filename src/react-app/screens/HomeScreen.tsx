@@ -22,9 +22,20 @@ export function HomeScreen() {
     const lastId = sessionStorage.getItem("lastExerciseId");
     if (!lastId) return;
     sessionStorage.removeItem("lastExerciseId");
-    requestAnimationFrame(() => {
-      document.querySelector(`[data-exercise-id="${lastId}"]`)?.scrollIntoView({ block: "center", behavior: "instant" });
-    });
+    // Wait for the route pop transition to settle, then scroll once. A single rAF
+    // fires before layout is final and lands at the top. Polls until the row exists
+    // and the transition window has passed.
+    const start = performance.now();
+    const tick = () => {
+      const el = document.querySelector(`[data-exercise-id="${lastId}"]`);
+      const settled = performance.now() - start > 480;
+      if (el && settled) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+      if (performance.now() - start < 1500) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
   }, [data]);
 
   if (!data) {
