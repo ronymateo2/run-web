@@ -23,10 +23,11 @@ export function ProfileScreen() {
   const [remHour, setRemHour] = useState(8);
   const [remBusy, setRemBusy] = useState(false);
   const [remDenied, setRemDenied] = useState(false);
+  const [remLoaded, setRemLoaded] = useState(false);
 
   useEffect(() => {
     if (!pushOk || !token) return;
-    getReminderPrefs().then((p) => { setRemOn(p.enabled); setRemHour(p.hour); });
+    getReminderPrefs().then((p) => { setRemOn(p.enabled); setRemHour(p.hour); setRemLoaded(true); });
     if (typeof Notification !== "undefined" && Notification.permission === "denied") setRemDenied(true);
   }, [pushOk, token]);
 
@@ -202,22 +203,30 @@ export function ProfileScreen() {
                     Notificación en tus días de enfoque.
                   </span>
                 </div>
-                <button
-                  onClick={handleToggleReminders}
-                  disabled={remBusy}
-                  aria-pressed={remOn}
-                  style={{
-                    width: 52, height: 30, flexShrink: 0, borderRadius: 999, border: "none",
-                    background: remOn ? "var(--moss)" : "var(--line-2)",
-                    position: "relative", cursor: remBusy ? "default" : "pointer",
-                    opacity: remBusy ? 0.6 : 1, transition: "background 0.2s",
-                  }}
-                >
-                  <span style={{
-                    position: "absolute", top: 3, left: remOn ? 25 : 3, width: 24, height: 24,
-                    borderRadius: 999, background: "#fff", transition: "left 0.2s",
+                {remLoaded ? (
+                  <button
+                    onClick={handleToggleReminders}
+                    disabled={remBusy}
+                    aria-pressed={remOn}
+                    style={{
+                      width: 52, height: 30, flexShrink: 0, borderRadius: 999, border: "none",
+                      background: remOn ? "var(--moss)" : "var(--line-2)",
+                      position: "relative", cursor: remBusy ? "default" : "pointer",
+                      opacity: remBusy ? 0.6 : 1, transition: "background 0.2s",
+                    }}
+                  >
+                    <span style={{
+                      position: "absolute", top: 3, left: remOn ? 25 : 3, width: 24, height: 24,
+                      borderRadius: 999, background: "#fff", transition: "left 0.2s",
+                    }} />
+                  </button>
+                ) : (
+                  // Placeholder until prefs load — avoids the OFF→ON flip when the API returns.
+                  <div style={{
+                    width: 52, height: 30, flexShrink: 0, borderRadius: 999,
+                    background: "var(--line-2)", opacity: 0.4,
                   }} />
-                </button>
+                )}
               </div>
 
               {remOn && (
