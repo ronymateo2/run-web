@@ -15,7 +15,8 @@ PWA React + Vite + TypeScript. Offline-first via SQLite WASM (OPFS). Syncs with 
 - **UI strings**: Spanish neutro
 - Routes: `/today`, `/body`, `/path`, `/path/phase/:id`, `/path/progress`, `/learn`, `/today/exercise/:id`, `/today/checkin`, `/today/sst`
 - DB client: `src/db/client.ts` — exports `Database` type (our wrapper, NOT `@sqlite.org/sqlite-wasm`'s)
-- Sync: `src/db/sync.ts` — `pullDelta` / `pushDelta`
+- Sync service: `src/data/sync/index.ts` — `pullDelta` / `pushDelta` / `syncNow` / `enqueueMutation` / `pullHistory`
+- API client: `src/api/client.ts` — `api.get/post/patch`, always `credentials: "include"`, throws normalized `ApiError`. All fetches to run-api go through it.
 
 ## Data boundary (Fase 1 — done)
 Screens and components NEVER touch SQLite/Drizzle directly. They go through the boundary:
@@ -25,8 +26,18 @@ Screens and components NEVER touch SQLite/Drizzle directly. They go through the 
 - **`src/react-app/features/*`** — feature hooks/view-models per flow: `useTodayData()`, `usePhaseJourney(phaseId)`. Return UI-ready data + `reload`/mutations. Screens render only.
 - **`src/db/queries/{injuries,exercises,checkins,sst,users}.ts`** — internal impl of the repos (still take `db` as first arg). Do NOT import these from the UI; import the repo instead.
 - The `useDb()` hook was removed. No screen/component/provider imports `db/client`, `db/queries`, `getDrizzle`, or `DrizzleDb`.
-- `AuthContext.tsx` session persistence (restore, upsert profile, clear jwt, set timezone) goes through `userRepository` — it no longer runs raw `exec`/SQL. It still calls `pullDelta`/`pushDelta` directly (sync API) and fetches `/api/auth/*` directly (to be unified into `apiClient` in Fase 0).
+- `AuthContext.tsx` session persistence (restore, upsert profile, clear jwt, set timezone) goes through `userRepository` — it no longer runs raw `exec`/SQL. All its API calls go through `src/api/client.ts`; on session restore it calls `syncNow()` (push pending, then pull).
 - `useSync()` (`pushDelta`) is still imported directly by screens that mutate; feature hooks that mutate call it internally.
+
+## Sync (Fase 0 + Fase 2 — done, ALL entities on the outbox)
+- Pull checkpoint: `metadata.last_pull_at` (primary), `users.last_sync` kept mirrored as legacy fallback — do NOT delete it.
+- **Outbox (`sync_queue`)**: EVERY push goes through the queue; the legacy `synced=0` scan is gone. Entities (→ push body key): `checkin`→pain_checkins, `exercise_log`→exercise_logs, `sst`→sst_results, `prom`→prom_results, `injury`→injuries, `phase`→phases, `exercise`→exercises, `phase_criterion`→phase_criteria, `criteria_done`→criteria_done. Map = `BODY_KEY` in `src/data/sync/index.ts`.
+- **Write pattern**: repo does the local write with `synced=1`, then `enqueueRowSnapshot(entity, table, id)` (re-reads the row → full-row payload; server zod strips columns it doesn't accept) or `enqueueMutation` for non-row payloads (`criteria_done` = `{criteria_id, done:boolean}`). Coalesced per (entity, entity_id): latest payload wins. `softDeletePhase` returns affected criteria ids so the repo enqueues the cascade.
+- **GUARD queue-XOR-synced**: no write may set `synced=0`; the queue is the only push path. `synced` survives only as a column the pull marks 1 (vestigial).
+- **GUARD single-flight push**: `pushDelta` runs under Web Lock `rurana.sync.push` with `ifAvailable` — concurrent tabs skip instead of double-draining. Drain loops 500-row batches (`drainAll`) ordered by `created_at, rowid` (parents before children). Failed drains record `attempts`/`last_error` on the queue rows and retry next push; unknown entities stay queued (never dropped).
+- API contract unchanged: same `POST /api/sync/push` body shape as the legacy push.
+- Backfill migrations: id 9 (checkins), id 10 (all other tables) move stranded `synced=0` rows into the queue. phase_criteria backfills BOTH channels (row + done).
+- `resetLocalCache` wipes synced tables + `metadata.last_pull_at` but NEVER `sync_queue` (pending mutations carry their own payloads).
 
 ## Design tokens
 `src/react-app/design/tokens.css` — CSS vars: `--bg`, `--ink`, `--clay`, `--moss`, `--bone`, etc.

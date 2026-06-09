@@ -1,10 +1,10 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { GoogleOAuthProvider, GoogleLogin, googleLogout, type CredentialResponse } from "@react-oauth/google";
 import { userRepository } from "../../data/repositories";
-import { pullDelta, pushDelta } from "../../db/sync";
+import { pullDelta, syncNow } from "../../data/sync";
+import { api } from "../../api/client";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 const LS_KEY = "rurana_session";
 
 export interface AuthUser {
@@ -68,10 +68,10 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
           setToken(row.id); // presence marker only; not a credential
           setLoading(false);
           if (navigator.onLine) {
-            pullDelta()
+            // Push pending local mutations first, then pull the merged state.
+            syncNow()
               .then(() => setLastSyncAt(Date.now()))
               .catch(() => {});
-            pushDelta().catch(() => {});
           }
           return;
         }
@@ -86,15 +86,15 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
     if (!idToken) return;
     setSigningIn(true);
     try {
-      const apiRes = await fetch(`${API_BASE}/api/auth/google`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id_token: idToken }),
-      });
-      if (!apiRes.ok) { console.error("Auth failed"); return; }
-
-      const { user: apiUser } = await apiRes.json() as { user: AuthUser & { timezone?: string | null } };
+      let apiUser: AuthUser & { timezone?: string | null };
+      try {
+        ({ user: apiUser } = await api.post<{ user: AuthUser & { timezone?: string | null } }>(
+          "/api/auth/google", { id_token: idToken },
+        ));
+      } catch (error) {
+        console.error("Auth failed", error);
+        return;
+      }
 
       // First login won't have a server-side timezone; detect it and persist so
       // push reminders fire at the user's local hour (not UTC).
@@ -103,12 +103,7 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
         const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
         if (detected) {
           timezone = detected;
-          fetch(`${API_BASE}/api/users/me`, {
-            method: "PATCH",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ timezone: detected }),
-          }).catch(() => {});
+          api.patch("/api/users/me", { timezone: detected }).catch(() => {});
         }
       }
       await userRepository.upsertUser({
@@ -148,7 +143,7 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
     googleLogout();
     // Clear the httpOnly cookie server-side, then drop local state.
     try {
-      await fetch(`${API_BASE}/api/auth/logout`, { method: "POST", credentials: "include" });
+      await api.post("/api/auth/logout");
     } catch {
       // ignore network errors; clear local state regardless
     }
@@ -162,12 +157,7 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
     await userRepository.setTimezone(tz);
     setUser(prev => prev ? { ...prev, timezone: tz } : prev);
     if (navigator.onLine && token) {
-      fetch(`${API_BASE}/api/users/me`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ timezone: tz }),
-      }).catch(() => {});
+      api.patch("/api/users/me", { timezone: tz }).catch(() => {});
     }
   }, [token]);
 

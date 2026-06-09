@@ -2,7 +2,7 @@
 // Clears the synced tables, resets the pull checkpoint, then re-pulls everything
 // from the server. Also wipes and re-pulls the separate Learn OPFS database.
 import { exec } from "../db/client";
-import { pullDelta } from "../db/sync";
+import { pullDelta } from "./sync";
 import { learnExec } from "../db/learn-client";
 import { syncArticles } from "../db/learn-sync";
 
@@ -17,6 +17,9 @@ export async function resetLocalCache(): Promise<void> {
     await exec(`DELETE FROM ${table}`);
   }
   await exec(`UPDATE users SET last_sync = 0`);
+  await exec(`DELETE FROM metadata WHERE key = 'last_pull_at'`);
+  // sync_queue is NOT wiped: pending mutations carry their own payloads and must
+  // survive a cache reset (they re-push after the force pull).
   await pullDelta({ force: true });
   // Learn DB is a separate OPFS database with its own sync — clear it too.
   // Drop _meta so syncArticles skips its throttle and pulls fresh.

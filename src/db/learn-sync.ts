@@ -1,6 +1,6 @@
 import { learnExecBatch, learnQueryOne } from "./learn-client";
+import { api } from "../api/client";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 const SYNC_INTERVAL_MS = 12 * 60 * 60 * 1000;
 
 export interface Article {
@@ -23,12 +23,7 @@ export async function syncArticles(): Promise<void> {
     if ((count?.n ?? 0) > 0) return;
   }
 
-  const res = await fetch(`${API_BASE}/api/learn`, {
-    credentials: "include",
-  });
-  if (!res.ok) throw new Error(`learn sync failed: ${res.status}`);
-
-  const { articles } = await res.json() as { articles: Article[] };
+  const { articles } = await api.get<{ articles: Article[] }>("/api/learn");
 
   const statements: Array<{ sql: string; bind: unknown[] }> = articles.map((a) => ({
     sql: `INSERT INTO articles (id, title, subtitle, content, notion_url, tags, published_at, sort_order)

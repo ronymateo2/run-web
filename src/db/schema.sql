@@ -1,4 +1,6 @@
--- Rurana local SQLite (OPFS) schema
+-- Rurana local SQLite (OPFS) schema — REFERENCE ONLY.
+-- The runtime source of truth is SCHEMA_SQL + MIGRATIONS in src/db/client.ts;
+-- this file mirrors the effective schema (base + migrations folded in).
 
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
@@ -7,13 +9,13 @@ CREATE TABLE IF NOT EXISTS users (
   avatar_url TEXT,
   jwt TEXT,
   timezone TEXT,
-  last_sync INTEGER DEFAULT 0,
+  last_sync INTEGER DEFAULT 0, -- legacy pull checkpoint; metadata.last_pull_at is primary
   created_at INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS user_auth_providers (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id),
+  user_id TEXT NOT NULL,
   provider TEXT NOT NULL,
   provider_sub TEXT NOT NULL,
   UNIQUE(provider, provider_sub)
@@ -40,6 +42,8 @@ CREATE TABLE IF NOT EXISTS phases (
   week_start INTEGER NOT NULL,
   week_end INTEGER NOT NULL,
   threshold_pct INTEGER NOT NULL DEFAULT 70,
+  focus_days TEXT,
+  deleted_at INTEGER,
   synced INTEGER DEFAULT 0
 );
 
@@ -47,7 +51,9 @@ CREATE TABLE IF NOT EXISTS phase_criteria (
   id TEXT PRIMARY KEY,
   phase_id TEXT NOT NULL,
   description TEXT NOT NULL,
-  done INTEGER NOT NULL DEFAULT 0
+  done INTEGER NOT NULL DEFAULT 0,
+  deleted_at INTEGER,
+  synced INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS exercises (
@@ -60,6 +66,7 @@ CREATE TABLE IF NOT EXISTS exercises (
   duration_s INTEGER,
   exercise_type TEXT NOT NULL,
   sort_order INTEGER DEFAULT 0,
+  video_url TEXT,
   synced INTEGER DEFAULT 0
 );
 
@@ -70,7 +77,7 @@ CREATE TABLE IF NOT EXISTS pain_checkins (
   date TEXT NOT NULL,
   zones TEXT NOT NULL,
   created_at INTEGER,
-  synced INTEGER DEFAULT 0
+  synced INTEGER DEFAULT 0 -- pushed via sync_queue (outbox), not this flag
 );
 
 CREATE TABLE IF NOT EXISTS exercise_logs (
@@ -83,6 +90,7 @@ CREATE TABLE IF NOT EXISTS exercise_logs (
   rpe INTEGER,
   note TEXT,
   completed_at INTEGER,
+  deleted_at INTEGER,
   synced INTEGER DEFAULT 0
 );
 
@@ -97,6 +105,62 @@ CREATE TABLE IF NOT EXISTS sst_results (
   synced INTEGER DEFAULT 0
 );
 
+-- Server-derived rollup of non-deleted sets per (exercise, day); never pushed.
+CREATE TABLE IF NOT EXISTS log_day_counts (
+  user_id TEXT NOT NULL,
+  exercise_id TEXT NOT NULL,
+  session_date TEXT NOT NULL,
+  sets INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, exercise_id, session_date)
+);
+
+CREATE TABLE IF NOT EXISTS prom_instruments (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  zones TEXT NOT NULL,
+  questions TEXT NOT NULL,
+  max_per_item INTEGER NOT NULL,
+  invert INTEGER NOT NULL DEFAULT 0,
+  better_is_higher INTEGER NOT NULL DEFAULT 0,
+  every_days INTEGER NOT NULL DEFAULT 14,
+  sort_order INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS prom_results (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  injury_id TEXT NOT NULL,
+  instrument_id TEXT NOT NULL,
+  date TEXT NOT NULL,
+  score REAL,
+  answers TEXT,
+  note TEXT,
+  synced INTEGER DEFAULT 0
+);
+
+-- Key/value app state (e.g. last_pull_at pull checkpoint).
+CREATE TABLE IF NOT EXISTS metadata (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+-- Outbox for entities migrated off the legacy synced=0 push path.
+CREATE TABLE IF NOT EXISTS sync_queue (
+  id TEXT PRIMARY KEY,
+  entity TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  operation TEXT NOT NULL, -- upsert | update | delete
+  payload_json TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  attempts INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_sync_queue_entity ON sync_queue(entity, entity_id);
+CREATE INDEX IF NOT EXISTS idx_log_day_counts_user ON log_day_counts(user_id, exercise_id);
+CREATE INDEX IF NOT EXISTS idx_prom_results_user_date ON prom_results(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_pain_checkins_user_date ON pain_checkins(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_exercise_logs_user_date ON exercise_logs(user_id, session_date);
 CREATE INDEX IF NOT EXISTS idx_sst_results_user_date ON sst_results(user_id, date);

@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useAuth } from "../auth/AuthContext";
-import { pushDelta } from "../../db/sync";
+import { pushDelta } from "../../data/sync";
 
 export function useSync() {
   const { token } = useAuth();

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Ico } from "./icons";
 import { BottomSheet } from "./BottomSheet";
 import { exerciseRepository, type Exercise, type ExerciseLog } from "../../data/repositories";
-import { pullHistory, WINDOW_DAYS } from "../../db/sync";
+import { pullHistory, WINDOW_DAYS } from "../../data/sync";
 
 // A session date older than the sync window has no raw logs locally; fetch on demand.
 function isBeforeWindow(date: string): boolean {

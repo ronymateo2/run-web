@@ -21,7 +21,7 @@ export async function getTodaySst(db: DrizzleDb, userId: string, date: string): 
 
 export async function saveSstResult(db: DrizzleDb, result: NewSstResult): Promise<void> {
   await db.insert(sstResults)
-    .values({ ...result, synced: 0 })
+    .values({ ...result, synced: 1 })
     .onConflictDoUpdate({
       target: sstResults.id,
       set: {

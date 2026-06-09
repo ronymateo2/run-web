@@ -64,6 +64,16 @@ CREATE TABLE IF NOT EXISTS prom_results (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, injury_id TEXT NOT NULL, instrument_id TEXT NOT NULL,
   date TEXT NOT NULL, score REAL, answers TEXT, note TEXT, synced INTEGER DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS metadata (
+  key TEXT PRIMARY KEY, value TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sync_queue (
+  id TEXT PRIMARY KEY, entity TEXT NOT NULL, entity_id TEXT NOT NULL,
+  operation TEXT NOT NULL, payload_json TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sync_queue_entity ON sync_queue(entity, entity_id);
 CREATE INDEX IF NOT EXISTS idx_log_day_counts_user ON log_day_counts(user_id, exercise_id);
 CREATE INDEX IF NOT EXISTS idx_prom_results_user_date ON prom_results(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_pain_checkins_user_date ON pain_checkins(user_id, date);
@@ -92,6 +102,89 @@ const MIGRATIONS: Array<{ id: number; sql: string }> = [
           SELECT user_id, exercise_id, session_date, COUNT(*)
           FROM exercise_logs WHERE deleted_at IS NULL
           GROUP BY user_id, exercise_id, session_date`,
+  },
+  // pain_checkins moved from the legacy synced=0 push path to sync_queue. Move any
+  // still-unsynced rows into the queue and mark them synced=1, otherwise they'd be
+  // stranded forever (the legacy push no longer scans this table).
+  {
+    id: 9,
+    sql: `INSERT INTO sync_queue (id, entity, entity_id, operation, payload_json, status, attempts, created_at, updated_at)
+          SELECT lower(hex(randomblob(16))), 'checkin', id, 'upsert',
+                 json_object('id', id, 'user_id', user_id, 'injury_id', injury_id,
+                             'date', date, 'zones', zones, 'created_at', created_at),
+                 'pending', 0, strftime('%s','now')*1000, strftime('%s','now')*1000
+          FROM pain_checkins WHERE synced = 0;
+          UPDATE pain_checkins SET synced = 1 WHERE synced = 0;`,
+  },
+  // Remaining entities moved to sync_queue (same rationale as id 9): backfill every
+  // still-unsynced row into the queue, then retire the synced=0 flag for pushes.
+  // phase_criteria rides BOTH channels (row content + criteria_done) because a
+  // synced=0 row could mean either kind of pending change — exactly what the old
+  // legacy push sent. `done` must serialize as JSON boolean (server zod requires it).
+  {
+    id: 10,
+    sql: `
+INSERT INTO sync_queue (id, entity, entity_id, operation, payload_json, status, attempts, created_at, updated_at)
+SELECT lower(hex(randomblob(16))), 'exercise_log', id, 'upsert',
+       json_object('id', id, 'user_id', user_id, 'exercise_id', exercise_id, 'session_date', session_date,
+                   'reps_done', reps_done, 'pain_during', pain_during, 'rpe', rpe, 'note', note,
+                   'completed_at', completed_at, 'deleted_at', deleted_at),
+       'pending', 0, strftime('%s','now')*1000, strftime('%s','now')*1000
+FROM exercise_logs WHERE synced = 0;
+UPDATE exercise_logs SET synced = 1 WHERE synced = 0;
+
+INSERT INTO sync_queue (id, entity, entity_id, operation, payload_json, status, attempts, created_at, updated_at)
+SELECT lower(hex(randomblob(16))), 'sst', id, 'upsert',
+       json_object('id', id, 'user_id', user_id, 'injury_id', injury_id, 'date', date,
+                   'strength_score', strength_score, 'pain_score', pain_score, 'note', note),
+       'pending', 0, strftime('%s','now')*1000, strftime('%s','now')*1000
+FROM sst_results WHERE synced = 0;
+UPDATE sst_results SET synced = 1 WHERE synced = 0;
+
+INSERT INTO sync_queue (id, entity, entity_id, operation, payload_json, status, attempts, created_at, updated_at)
+SELECT lower(hex(randomblob(16))), 'prom', id, 'upsert',
+       json_object('id', id, 'user_id', user_id, 'injury_id', injury_id, 'instrument_id', instrument_id,
+                   'date', date, 'score', score, 'answers', answers, 'note', note),
+       'pending', 0, strftime('%s','now')*1000, strftime('%s','now')*1000
+FROM prom_results WHERE synced = 0;
+UPDATE prom_results SET synced = 1 WHERE synced = 0;
+
+INSERT INTO sync_queue (id, entity, entity_id, operation, payload_json, status, attempts, created_at, updated_at)
+SELECT lower(hex(randomblob(16))), 'injury', id, 'upsert',
+       json_object('id', id, 'current_phase_id', current_phase_id, 'focus_days', focus_days),
+       'pending', 0, strftime('%s','now')*1000, strftime('%s','now')*1000
+FROM injuries WHERE synced = 0;
+UPDATE injuries SET synced = 1 WHERE synced = 0;
+
+INSERT INTO sync_queue (id, entity, entity_id, operation, payload_json, status, attempts, created_at, updated_at)
+SELECT lower(hex(randomblob(16))), 'phase', id, 'upsert',
+       json_object('id', id, 'injury_id', injury_id, 'phase_num', phase_num, 'name', name,
+                   'description', description, 'week_start', week_start, 'week_end', week_end,
+                   'threshold_pct', threshold_pct, 'focus_days', focus_days, 'deleted_at', deleted_at),
+       'pending', 0, strftime('%s','now')*1000, strftime('%s','now')*1000
+FROM phases WHERE synced = 0;
+UPDATE phases SET synced = 1 WHERE synced = 0;
+
+INSERT INTO sync_queue (id, entity, entity_id, operation, payload_json, status, attempts, created_at, updated_at)
+SELECT lower(hex(randomblob(16))), 'exercise', id, 'upsert',
+       json_object('id', id, 'phase_id', phase_id, 'name', name, 'detail', detail, 'sets', sets,
+                   'reps', reps, 'duration_s', duration_s, 'exercise_type', exercise_type,
+                   'sort_order', sort_order, 'video_url', video_url),
+       'pending', 0, strftime('%s','now')*1000, strftime('%s','now')*1000
+FROM exercises WHERE synced = 0;
+UPDATE exercises SET synced = 1 WHERE synced = 0;
+
+INSERT INTO sync_queue (id, entity, entity_id, operation, payload_json, status, attempts, created_at, updated_at)
+SELECT lower(hex(randomblob(16))), 'phase_criterion', id, 'upsert',
+       json_object('id', id, 'phase_id', phase_id, 'description', description, 'deleted_at', deleted_at),
+       'pending', 0, strftime('%s','now')*1000, strftime('%s','now')*1000
+FROM phase_criteria WHERE synced = 0;
+INSERT INTO sync_queue (id, entity, entity_id, operation, payload_json, status, attempts, created_at, updated_at)
+SELECT lower(hex(randomblob(16))), 'criteria_done', id, 'upsert',
+       json_object('criteria_id', id, 'done', json(CASE WHEN done THEN 'true' ELSE 'false' END)),
+       'pending', 0, strftime('%s','now')*1000, strftime('%s','now')*1000
+FROM phase_criteria WHERE synced = 0;
+UPDATE phase_criteria SET synced = 1 WHERE synced = 0;`,
   },
 ];
 

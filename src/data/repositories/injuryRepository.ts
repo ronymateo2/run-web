@@ -2,6 +2,7 @@
 // it resolves the Drizzle instance internally so the UI never touches useDb/SQL.
 import { getDrizzle } from "../../db/drizzle";
 import * as q from "../../db/queries/injuries";
+import { enqueueMutation, enqueueRowSnapshot } from "../sync";
 
 export type Injury = q.Injury;
 export type Phase = q.Phase;
@@ -38,23 +39,39 @@ export const injuryRepository = {
     return q.getTodayFocusInjury(await getDrizzle(), injuries, tz);
   },
 
-  // --- Writes (mark synced=0; caller triggers push()). ---
+  // --- Writes (outbox pattern: local write + sync_queue entry; caller triggers push()). ---
   async updateInjuryEdit(injuryId: string, currentPhaseId: string | null, focusDays: string[]): Promise<void> {
-    return q.updateInjuryEdit(injuryId, currentPhaseId, focusDays);
+    await q.updateInjuryEdit(injuryId, currentPhaseId, focusDays);
+    // Server only accepts current_phase_id + focus_days (zod strips the rest of the row).
+    await enqueueRowSnapshot("injury", "injuries", injuryId);
   },
   async savePhase(p: PhaseInput): Promise<void> {
-    return q.savePhase(p);
+    await q.savePhase(p);
+    await enqueueRowSnapshot("phase", "phases", p.id);
   },
   async softDeletePhase(phaseId: string): Promise<void> {
-    return q.softDeletePhase(phaseId);
+    // Cascade: the phase and every criterion under it get deleted_at; sync all of them.
+    const criteriaIds = await q.softDeletePhase(phaseId);
+    await enqueueRowSnapshot("phase", "phases", phaseId);
+    for (const id of criteriaIds) await enqueueRowSnapshot("phase_criterion", "phase_criteria", id);
   },
   async saveCriteria(c: { id: string; phase_id: string; description: string }): Promise<void> {
-    return q.saveCriteria(c);
+    await q.saveCriteria(c);
+    await enqueueRowSnapshot("phase_criterion", "phase_criteria", c.id);
   },
   async softDeleteCriteria(id: string): Promise<void> {
-    return q.softDeleteCriteria(id);
+    await q.softDeleteCriteria(id);
+    await enqueueRowSnapshot("phase_criterion", "phase_criteria", id);
   },
   async setCriteriaDone(id: string, done: boolean): Promise<void> {
-    return q.setCriteriaDone(id, done);
+    await q.setCriteriaDone(id, done);
+    // Separate channel from the criterion row: done is per-user state
+    // (user_criteria_done server-side), not plan content.
+    await enqueueMutation({
+      entity: "criteria_done",
+      entityId: id,
+      operation: "upsert",
+      payload: { criteria_id: id, done },
+    });
   },
 };

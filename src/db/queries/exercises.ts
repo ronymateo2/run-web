@@ -248,11 +248,11 @@ async function refreshDayCount(
     });
 }
 
-// Soft delete a deselected set: keep the row, set deleted_at, mark unsynced so the
-// flag propagates to D1. No-op if the row never existed (set was never saved).
+// Soft delete a deselected set: keep the row, set deleted_at; the repo enqueues the
+// row so the flag propagates to D1. No-op if the row never existed (set was never saved).
 export async function softDeleteExerciseLog(db: DrizzleDb, id: string): Promise<void> {
   await db.update(exerciseLogs)
-    .set({ deleted_at: Date.now(), synced: 0 })
+    .set({ deleted_at: Date.now(), synced: 1 })
     .where(eq(exerciseLogs.id, id));
   const rows = await db.select({
     user_id: exerciseLogs.user_id,
@@ -263,10 +263,10 @@ export async function softDeleteExerciseLog(db: DrizzleDb, id: string): Promise<
   if (r) await refreshDayCount(db, r.user_id, r.exercise_id, r.session_date);
 }
 
-// Upsert an exercise edit locally; synced=0 so pushDelta carries it to D1.
+// Upsert an exercise edit locally; the repo enqueues it for push (queue-XOR-synced).
 export async function saveExercise(db: DrizzleDb, ex: ExerciseInput): Promise<void> {
   await db.insert(exercises)
-    .values({ ...ex, synced: 0 })
+    .values({ ...ex, synced: 1 })
     .onConflictDoUpdate({
       target: exercises.id,
       set: {
@@ -279,7 +279,7 @@ export async function saveExercise(db: DrizzleDb, ex: ExerciseInput): Promise<vo
         exercise_type: ex.exercise_type,
         sort_order: ex.sort_order,
         video_url: ex.video_url,
-        synced: 0,
+        synced: 1,
       },
     });
 }
@@ -287,7 +287,7 @@ export async function saveExercise(db: DrizzleDb, ex: ExerciseInput): Promise<vo
 export async function saveExerciseLog(db: DrizzleDb, log: NewExerciseLog): Promise<void> {
   // deleted_at: null on insert/update reactivates a previously soft-deleted set.
   await db.insert(exerciseLogs)
-    .values({ ...log, deleted_at: null, synced: 0 })
+    .values({ ...log, deleted_at: null, synced: 1 })
     .onConflictDoUpdate({
       target: exerciseLogs.id,
       set: {
@@ -297,7 +297,7 @@ export async function saveExerciseLog(db: DrizzleDb, log: NewExerciseLog): Promi
         note: log.note,
         completed_at: log.completed_at,
         deleted_at: null,
-        synced: 0,
+        synced: 1,
       },
     });
   await refreshDayCount(db, log.user_id, log.exercise_id, log.session_date);

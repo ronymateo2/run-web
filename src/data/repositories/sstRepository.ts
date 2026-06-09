@@ -1,6 +1,7 @@
 // 5SST data boundary. Resolves Drizzle internally; UI never touches useDb/SQL.
 import { getDrizzle } from "../../db/drizzle";
 import * as q from "../../db/queries/sst";
+import { enqueueRowSnapshot } from "../sync";
 
 export type SstResult = q.SstResult;
 export type NewSstResult = q.NewSstResult;
@@ -16,8 +17,9 @@ export const sstRepository = {
     return q.getTodaySst(await getDrizzle(), userId, date);
   },
 
-  // --- Write (mark synced=0; caller triggers push()). ---
+  // --- Write (outbox pattern: local write + sync_queue snapshot; caller triggers push()). ---
   async saveSstResult(result: NewSstResult): Promise<void> {
-    return q.saveSstResult(await getDrizzle(), result);
+    await q.saveSstResult(await getDrizzle(), result);
+    await enqueueRowSnapshot("sst", "sst_results", result.id);
   },
 };

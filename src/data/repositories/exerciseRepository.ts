@@ -1,6 +1,7 @@
 // Exercise/log data boundary. Resolves Drizzle internally; UI never touches useDb/SQL.
 import { getDrizzle } from "../../db/drizzle";
 import * as q from "../../db/queries/exercises";
+import { enqueueRowSnapshot } from "../sync";
 
 export type Exercise = q.Exercise;
 export type ExerciseLog = q.ExerciseLog;
@@ -49,14 +50,17 @@ export const exerciseRepository = {
     return q.getSessionPhasesByDate(await getDrizzle(), userId);
   },
 
-  // --- Writes (mark synced=0; caller triggers push()). ---
+  // --- Writes (outbox pattern: local write + sync_queue snapshot; caller triggers push()). ---
   async softDeleteExerciseLog(id: string): Promise<void> {
-    return q.softDeleteExerciseLog(await getDrizzle(), id);
+    await q.softDeleteExerciseLog(await getDrizzle(), id);
+    await enqueueRowSnapshot("exercise_log", "exercise_logs", id); // no-op if row never existed
   },
   async saveExercise(ex: ExerciseInput): Promise<void> {
-    return q.saveExercise(await getDrizzle(), ex);
+    await q.saveExercise(await getDrizzle(), ex);
+    await enqueueRowSnapshot("exercise", "exercises", ex.id);
   },
   async saveExerciseLog(log: NewExerciseLog): Promise<void> {
-    return q.saveExerciseLog(await getDrizzle(), log);
+    await q.saveExerciseLog(await getDrizzle(), log);
+    await enqueueRowSnapshot("exercise_log", "exercise_logs", log.id);
   },
 };

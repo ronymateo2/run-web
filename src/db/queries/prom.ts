@@ -67,10 +67,10 @@ export async function getLastPromDate(db: DrizzleDb, userId: string, instrumentI
 
 export async function savePromResult(db: DrizzleDb, result: NewPromResult): Promise<void> {
   await db.insert(promResults)
-    .values({ ...result, synced: 0 })
+    .values({ ...result, synced: 1 })
     .onConflictDoUpdate({
       target: promResults.id,
-      set: { score: result.score, answers: result.answers, note: result.note, synced: 0 },
+      set: { score: result.score, answers: result.answers, note: result.note, synced: 1 },
     });
 }
 

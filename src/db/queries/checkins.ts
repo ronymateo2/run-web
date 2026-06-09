@@ -41,6 +41,8 @@ export async function getRecentCheckins(db: DrizzleDb, userId: string, limit = 3
   return rows.map(parseCheckin);
 }
 
+// synced=1 on write: checkins ship via sync_queue (the repo enqueues), never via
+// the legacy synced=0 scan — guard queue-XOR-synced.
 export async function saveCheckin(db: DrizzleDb, checkin: Omit<PainCheckin, "zones"> & { zones: ZoneMap }): Promise<void> {
   await db.insert(painCheckins)
     .values({
@@ -50,10 +52,10 @@ export async function saveCheckin(db: DrizzleDb, checkin: Omit<PainCheckin, "zon
       date: checkin.date,
       zones: JSON.stringify(checkin.zones),
       created_at: checkin.created_at,
-      synced: 0,
+      synced: 1,
     })
     .onConflictDoUpdate({
       target: painCheckins.id,
-      set: { zones: JSON.stringify(checkin.zones), synced: 0 },
+      set: { zones: JSON.stringify(checkin.zones), synced: 1 },
     });
 }

@@ -1,6 +1,7 @@
 // PROMs data boundary. Resolves Drizzle internally; UI never touches useDb/SQL.
 import { getDrizzle } from "../../db/drizzle";
 import * as q from "../../db/queries/prom";
+import { enqueueRowSnapshot } from "../sync";
 
 export type PromInstrument = q.PromInstrument;
 export type PromQuestion = q.PromQuestion;
@@ -32,8 +33,9 @@ export const promRepository = {
     return q.getLastPromDate(await getDrizzle(), userId, instrumentId);
   },
 
-  // --- Write (mark synced=0; caller triggers push()). ---
+  // --- Write (outbox pattern: local write + sync_queue snapshot; caller triggers push()). ---
   async savePromResult(result: NewPromResult): Promise<void> {
-    return q.savePromResult(await getDrizzle(), result);
+    await q.savePromResult(await getDrizzle(), result);
+    await enqueueRowSnapshot("prom", "prom_results", result.id);
   },
 };
