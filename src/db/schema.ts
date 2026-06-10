@@ -75,6 +75,7 @@ export const painCheckins = sqliteTable("pain_checkins", {
   date: text("date").notNull(),
   zones: text("zones").notNull(),
   created_at: integer("created_at"),
+  deleted_at: integer("deleted_at"),
   synced: integer("synced").default(0),
 });
 
@@ -101,6 +102,7 @@ export const sstResults = sqliteTable("sst_results", {
   strength_score: real("strength_score"),
   pain_score: integer("pain_score"),
   note: text("note"),
+  deleted_at: integer("deleted_at"),
   synced: integer("synced").default(0),
 });
 
@@ -128,6 +130,7 @@ export const promResults = sqliteTable("prom_results", {
   score: real("score"),
   answers: text("answers"),
   note: text("note"),
+  deleted_at: integer("deleted_at"),
   synced: integer("synced").default(0),
 });
 

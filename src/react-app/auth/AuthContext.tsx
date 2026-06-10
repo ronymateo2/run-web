@@ -81,6 +81,31 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
     })();
   }, []);
 
+  // Auto-sync: reconnect and tab-refocus both push pending mutations and pull the
+  // latest state, so offline work ships as soon as it can instead of waiting for
+  // the next app open. Debounced — visibility flaps must not hammer the API.
+  useEffect(() => {
+    if (!user) return;
+    let last = 0;
+    const kick = () => {
+      if (!navigator.onLine) return;
+      if (Date.now() - last < 30_000) return;
+      last = Date.now();
+      syncNow()
+        .then(() => setLastSyncAt(Date.now()))
+        .catch(() => {});
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") kick();
+    };
+    window.addEventListener("online", kick);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("online", kick);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [user]);
+
   const handleGoogleSuccess = useCallback(async (credentialResponse: CredentialResponse) => {
     const idToken = credentialResponse.credential;
     if (!idToken) return;

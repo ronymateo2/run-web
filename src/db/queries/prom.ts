@@ -1,6 +1,7 @@
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, isNull } from "drizzle-orm";
 import { promInstruments, promResults } from "../schema";
 import type { DrizzleDb } from "../drizzle";
+import type { SqlStatement } from "../client";
 
 export interface PromQuestion { id: string; text: string; }
 
@@ -43,7 +44,7 @@ export async function getInstruments(db: DrizzleDb): Promise<PromInstrument[]> {
 
 export async function getRecentProm(db: DrizzleDb, userId: string, limit = 30): Promise<PromResult[]> {
   return db.select().from(promResults)
-    .where(eq(promResults.user_id, userId))
+    .where(and(eq(promResults.user_id, userId), isNull(promResults.deleted_at)))
     .orderBy(desc(promResults.date))
     .limit(limit);
 }
@@ -52,26 +53,28 @@ export async function getRecentPromByInstrument(
   db: DrizzleDb, userId: string, instrumentId: string, limit = 12,
 ): Promise<PromResult[]> {
   return db.select().from(promResults)
-    .where(and(eq(promResults.user_id, userId), eq(promResults.instrument_id, instrumentId)))
+    .where(and(eq(promResults.user_id, userId), eq(promResults.instrument_id, instrumentId), isNull(promResults.deleted_at)))
     .orderBy(desc(promResults.date))
     .limit(limit);
 }
 
 export async function getLastPromDate(db: DrizzleDb, userId: string, instrumentId: string): Promise<string | null> {
   const rows = await db.select({ date: promResults.date }).from(promResults)
-    .where(and(eq(promResults.user_id, userId), eq(promResults.instrument_id, instrumentId)))
+    .where(and(eq(promResults.user_id, userId), eq(promResults.instrument_id, instrumentId), isNull(promResults.deleted_at)))
     .orderBy(desc(promResults.date))
     .limit(1);
   return rows[0]?.date ?? null;
 }
 
-export async function savePromResult(db: DrizzleDb, result: NewPromResult): Promise<void> {
-  await db.insert(promResults)
-    .values({ ...result, synced: 1 })
-    .onConflictDoUpdate({
-      target: promResults.id,
-      set: { score: result.score, answers: result.answers, note: result.note, synced: 1 },
-    });
+// Statements so the repo can commit the write and its queue entry in ONE execBatch.
+export function savePromResultStatements(result: NewPromResult): SqlStatement[] {
+  return [{
+    sql: `INSERT INTO prom_results (id, user_id, injury_id, instrument_id, date, score, answers, note, deleted_at, synced)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 1)
+          ON CONFLICT(id) DO UPDATE SET score = excluded.score, answers = excluded.answers, note = excluded.note, deleted_at = NULL, synced = 1`,
+    bind: [result.id, result.user_id, result.injury_id, result.instrument_id, result.date,
+           result.score ?? null, result.answers ?? null, result.note ?? null],
+  }];
 }
 
 // --- Pure helpers (no I/O), re-exported by the repository. ---

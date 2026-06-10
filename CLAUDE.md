@@ -29,15 +29,21 @@ Screens and components NEVER touch SQLite/Drizzle directly. They go through the 
 - `AuthContext.tsx` session persistence (restore, upsert profile, clear jwt, set timezone) goes through `userRepository` — it no longer runs raw `exec`/SQL. All its API calls go through `src/api/client.ts`; on session restore it calls `syncNow()` (push pending, then pull).
 - `useSync()` (`pushDelta`) is still imported directly by screens that mutate; feature hooks that mutate call it internally.
 
-## Sync (Fase 0 + Fase 2 — done, ALL entities on the outbox)
-- Pull checkpoint: `metadata.last_pull_at` (primary), `users.last_sync` kept mirrored as legacy fallback — do NOT delete it.
+## Sync (Fase 0 + Fase 2 + hardening — done, ALL entities on the outbox)
+- Pull checkpoint: `metadata.last_pull_at` (primary), `users.last_sync` kept mirrored as legacy fallback — do NOT delete it. The pull re-reads a 60s overlap behind the checkpoint (`PULL_OVERLAP_MS`) so a push committing concurrently with a pull can never be skipped forever (idempotent upserts make the overlap free).
 - **Outbox (`sync_queue`)**: EVERY push goes through the queue; the legacy `synced=0` scan is gone. Entities (→ push body key): `checkin`→pain_checkins, `exercise_log`→exercise_logs, `sst`→sst_results, `prom`→prom_results, `injury`→injuries, `phase`→phases, `exercise`→exercises, `phase_criterion`→phase_criteria, `criteria_done`→criteria_done. Map = `BODY_KEY` in `src/data/sync/index.ts`.
-- **Write pattern**: repo does the local write with `synced=1`, then `enqueueRowSnapshot(entity, table, id)` (re-reads the row → full-row payload; server zod strips columns it doesn't accept) or `enqueueMutation` for non-row payloads (`criteria_done` = `{criteria_id, done:boolean}`). Coalesced per (entity, entity_id): latest payload wins. `softDeletePhase` returns affected criteria ids so the repo enqueues the cascade.
+- **Write pattern (ATOMIC)**: queries/* export statement builders (`saveCheckinStatements`, `savePhaseStatements`, …); the repo runs `execBatch([...writeStatements, ...buildQueueStatements({entity, entityId, operation, payload})])` so the local write and its queue entry commit in ONE transaction — a crash can't strand an unsynced write. Payloads are built from args (or `readRowSnapshot(table, id)` for soft deletes, read BEFORE the batch). `buildQueueStatements` stamps `client_updated_at` (server LWW). Coalesced per (entity, entity_id): latest payload wins.
+- **Per-row push results**: `POST /api/sync/push` answers `results: {table: ["applied"|"stale"|"rejected"|"invalid", …]}` aligned with the submitted arrays. Client policy in `pushOnce`: applied/stale → delete queue row; invalid → dead-letter immediately (`status='failed'`); rejected (missing parent) → retry, dead-letter after `MAX_ATTEMPTS=5`. Network errors NEVER dead-letter (offline is normal). Missing `results` (old server) → legacy delete-all.
+- **Dead-letter UI**: ProfileScreen shows pending/failed counts (`getSyncQueueStatus`) with Reintentar (`retryFailedMutations` re-arms) / Descartar (`discardFailedMutations`).
+- **Queue-aware pull**: `applyPage` skips rows whose (entity, id) has a PENDING queue entry — a local edit is never clobbered by the server echo before it ships. Failed entries do NOT block the pull.
+- **Purge**: after a full pull, raw rows older than `WINDOW_DAYS` are deleted locally (rollup keeps progress; `pullHistory` re-fetches old days on demand). Rows referenced by the queue are never purged.
+- **Tombstones**: pain_checkins/sst_results/prom_results now carry `deleted_at` (local migration id 11 + D1 0014); reads filter `deleted_at IS NULL`; pull/push propagate it.
 - **GUARD queue-XOR-synced**: no write may set `synced=0`; the queue is the only push path. `synced` survives only as a column the pull marks 1 (vestigial).
-- **GUARD single-flight push**: `pushDelta` runs under Web Lock `rurana.sync.push` with `ifAvailable` — concurrent tabs skip instead of double-draining. Drain loops 500-row batches (`drainAll`) ordered by `created_at, rowid` (parents before children). Failed drains record `attempts`/`last_error` on the queue rows and retry next push; unknown entities stay queued (never dropped).
-- API contract unchanged: same `POST /api/sync/push` body shape as the legacy push.
+- **GUARD single-flight push**: `pushDelta` runs under Web Lock `rurana.sync.push` with `ifAvailable` — concurrent tabs skip instead of double-draining. Drain loops 500-row batches (`drainAll`) ordered by `created_at, rowid` (parents before children), `status='pending'` only; unknown entities stay queued (never dropped).
+- **Auto-sync**: AuthContext listens to `online` + `visibilitychange` → debounced (30s) `syncNow()`.
+- **Degraded storage**: worker exposes `isPersistent()`; `StorageWarning` banner (App.tsx) warns when SQLite fell back to `:memory:` (OPFS unavailable).
 - Backfill migrations: id 9 (checkins), id 10 (all other tables) move stranded `synced=0` rows into the queue. phase_criteria backfills BOTH channels (row + done).
-- `resetLocalCache` wipes synced tables + `metadata.last_pull_at` but NEVER `sync_queue` (pending mutations carry their own payloads).
+- `resetLocalCache` wipes synced tables + `metadata.last_pull_at` but NEVER `sync_queue` (pending mutations carry their own payloads; it pushes the queue first).
 
 ## Design tokens
 `src/react-app/design/tokens.css` — CSS vars: `--bg`, `--ink`, `--clay`, `--moss`, `--bone`, etc.

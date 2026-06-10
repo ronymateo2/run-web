@@ -4,6 +4,10 @@ import { useAuth } from "../auth/AuthContext";
 import { Ico } from "../components/icons";
 import { COMMON_TIMEZONES, detectTimezone } from "../utils/timezone";
 import { resetLocalCache } from "../../data/maintenance";
+import {
+  getSyncQueueStatus, retryFailedMutations, discardFailedMutations, pushDelta,
+  type SyncQueueStatus,
+} from "../../data/sync";
 import { pushSupported, enableReminders, disableReminders, setReminderHour, getReminderPrefs } from "../../push";
 
 export function ProfileScreen() {
@@ -66,6 +70,40 @@ export function ProfileScreen() {
       setSaved(true);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Outbox health: pending = waiting for the next push; failed = dead-lettered
+  // (invalid or repeatedly rejected) and needs the user to retry or discard.
+  const [queueStatus, setQueueStatus] = useState<SyncQueueStatus | null>(null);
+  const [queueBusy, setQueueBusy] = useState(false);
+
+  const refreshQueueStatus = () => {
+    getSyncQueueStatus().then(setQueueStatus).catch(() => {});
+  };
+  useEffect(refreshQueueStatus, []);
+
+  const handleRetryFailed = async () => {
+    if (queueBusy) return;
+    setQueueBusy(true);
+    try {
+      await retryFailedMutations();
+      await pushDelta().catch(() => {});
+      refreshQueueStatus();
+    } finally {
+      setQueueBusy(false);
+    }
+  };
+
+  const handleDiscardFailed = async () => {
+    if (queueBusy) return;
+    if (!window.confirm("¿Descartar los cambios que no se pudieron sincronizar? Se perderán.")) return;
+    setQueueBusy(true);
+    try {
+      await discardFailedMutations();
+      refreshQueueStatus();
+    } finally {
+      setQueueBusy(false);
     }
   };
 
@@ -252,6 +290,51 @@ export function ProfileScreen() {
                 <div className="body-sm" style={{ marginTop: 10, color: "var(--clay)", lineHeight: 1.5 }}>
                   Permiso de notificaciones bloqueado. Actívalo en los ajustes del navegador.
                 </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Sync status: only visible when something is pending or dead-lettered */}
+        {queueStatus && (queueStatus.pending > 0 || queueStatus.failed > 0) && (
+          <div style={{ marginTop: 28 }}>
+            <div className="row gap-6" style={{ marginBottom: 10, alignItems: "center" }}>
+              <span className="eyebrow">Sincronización</span>
+            </div>
+            <div className="card" style={{ padding: "14px 16px" }}>
+              {queueStatus.pending > 0 && (
+                <div className="body-sm" style={{ lineHeight: 1.5 }}>
+                  {queueStatus.pending} {queueStatus.pending === 1 ? "cambio pendiente" : "cambios pendientes"} de sincronizar.
+                </div>
+              )}
+              {queueStatus.failed > 0 && (
+                <>
+                  <div className="body-sm" style={{ color: "var(--clay)", lineHeight: 1.5, marginTop: queueStatus.pending > 0 ? 8 : 0 }}>
+                    {queueStatus.failed} {queueStatus.failed === 1 ? "cambio no se pudo" : "cambios no se pudieron"} sincronizar.
+                  </div>
+                  <div className="row gap-8" style={{ marginTop: 12 }}>
+                    <button
+                      className="btn-pill"
+                      style={{ height: 40, fontSize: 13, flex: 1 }}
+                      onClick={handleRetryFailed}
+                      disabled={queueBusy}
+                    >
+                      {queueBusy ? "Reintentando…" : "Reintentar"}
+                    </button>
+                    <button
+                      style={{
+                        height: 40, fontSize: 13, flex: 1, background: "none",
+                        border: "1.5px solid var(--line-2)", borderRadius: 999,
+                        color: "var(--clay)", fontFamily: "var(--font-sans)",
+                        fontWeight: 600, cursor: "pointer",
+                      }}
+                      onClick={handleDiscardFailed}
+                      disabled={queueBusy}
+                    >
+                      Descartar
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           </div>

@@ -7,6 +7,7 @@ interface DbWorkerApi {
   execBatch(statements: Array<{ sql: string; bind?: BindingSpec }>): Promise<void>;
   query(sql: string, bind?: BindingSpec): Promise<SqlValue[][]>;
   queryObjects(sql: string, bind?: BindingSpec): Promise<Record<string, SqlValue>[]>;
+  isPersistent(): Promise<boolean>;
   close(): Promise<void>;
 }
 
@@ -39,7 +40,7 @@ CREATE TABLE IF NOT EXISTS exercises (
 );
 CREATE TABLE IF NOT EXISTS pain_checkins (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, injury_id TEXT, date TEXT NOT NULL,
-  zones TEXT NOT NULL, created_at INTEGER, synced INTEGER DEFAULT 0
+  zones TEXT NOT NULL, created_at INTEGER, deleted_at INTEGER, synced INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS exercise_logs (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, exercise_id TEXT NOT NULL,
@@ -48,7 +49,8 @@ CREATE TABLE IF NOT EXISTS exercise_logs (
 );
 CREATE TABLE IF NOT EXISTS sst_results (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, injury_id TEXT NOT NULL,
-  date TEXT NOT NULL, strength_score REAL, pain_score INTEGER, note TEXT, synced INTEGER DEFAULT 0
+  date TEXT NOT NULL, strength_score REAL, pain_score INTEGER, note TEXT,
+  deleted_at INTEGER, synced INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS log_day_counts (
   user_id TEXT NOT NULL, exercise_id TEXT NOT NULL, session_date TEXT NOT NULL,
@@ -62,7 +64,7 @@ CREATE TABLE IF NOT EXISTS prom_instruments (
 );
 CREATE TABLE IF NOT EXISTS prom_results (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, injury_id TEXT NOT NULL, instrument_id TEXT NOT NULL,
-  date TEXT NOT NULL, score REAL, answers TEXT, note TEXT, synced INTEGER DEFAULT 0
+  date TEXT NOT NULL, score REAL, answers TEXT, note TEXT, deleted_at INTEGER, synced INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS metadata (
   key TEXT PRIMARY KEY, value TEXT NOT NULL
@@ -186,6 +188,16 @@ SELECT lower(hex(randomblob(16))), 'criteria_done', id, 'upsert',
 FROM phase_criteria WHERE synced = 0;
 UPDATE phase_criteria SET synced = 1 WHERE synced = 0;`,
   },
+  // Tombstones for the three tables that had no delete propagation: a server-side
+  // delete (deleted_at) now reaches clients via the pull instead of living forever.
+  // On fresh installs SCHEMA_SQL already has the columns; the duplicate-column
+  // catch below makes this a no-op there.
+  {
+    id: 11,
+    sql: `ALTER TABLE pain_checkins ADD COLUMN deleted_at INTEGER;
+ALTER TABLE sst_results ADD COLUMN deleted_at INTEGER;
+ALTER TABLE prom_results ADD COLUMN deleted_at INTEGER;`,
+  },
 ];
 
 // OPFS SAHPool allows only ONE connection at a time, so we can't open the DB worker in every tab.
@@ -196,7 +208,7 @@ UPDATE phase_criteria SET synced = 1 WHERE synced = 0;`,
 const DB_LOCK_NAME = "rurana.sqlite.opfs";
 const RPC_CHANNEL = "rurana.sqlite.rpc";
 
-type RpcMethod = "exec" | "execBatch" | "query" | "queryObjects";
+type RpcMethod = "exec" | "execBatch" | "query" | "queryObjects" | "isPersistent";
 type RpcRequest = { kind: "req"; id: string; method: RpcMethod; args: unknown[] };
 type RpcResponse = { kind: "res"; id: string; ok: boolean; result?: unknown; error?: string };
 type RpcReady = { kind: "ready" };
@@ -396,9 +408,12 @@ function rpcCall(method: RpcMethod, args: unknown[]): Promise<unknown> {
     const req: RpcRequest = { kind: "req", id, method, args };
     pendingRpc.set(id, { resolve, reject, req });
     channel?.postMessage(req);
+    // A large pull page can take a while to apply on the leader; give batches
+    // more headroom than point queries before declaring the leader dead.
+    const timeoutMs = method === "execBatch" ? 60000 : 15000;
     setTimeout(() => {
       if (pendingRpc.delete(id)) reject(new Error(`DB RPC timeout: ${method}`));
-    }, 15000);
+    }, timeoutMs);
   });
 }
 
@@ -437,6 +452,10 @@ if (typeof window !== "undefined") {
   }
 }
 
+// A parametrized statement, as accepted by execBatch. Write paths build arrays of
+// these so a local write and its sync_queue entry commit in one transaction.
+export type SqlStatement = { sql: string; bind?: unknown[] };
+
 export async function exec(sql: string, bind?: unknown[]): Promise<void> {
   await dispatch("exec", [sql, bind as BindingSpec | undefined]);
 }
@@ -460,6 +479,12 @@ export async function queryAllArray(sql: string, bind?: unknown[]): Promise<unkn
 export async function queryOne<T>(sql: string, bind?: unknown[]): Promise<T | null> {
   const rows = await queryAll<T>(sql, bind);
   return rows[0] ?? null;
+}
+
+// false when the worker fell back to in-memory SQLite (OPFS unavailable): nothing
+// written this session survives a reload. The UI shows a degraded-storage warning.
+export async function isStoragePersistent(): Promise<boolean> {
+  return dispatch("isPersistent", []) as Promise<boolean>;
 }
 
 // DevTools console access. On in dev; in prod set localStorage.__db_debug="1" then reload.

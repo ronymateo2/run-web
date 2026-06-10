@@ -8,6 +8,9 @@ import sqlite3InitModule, {
 
 let db: Database | null = null;
 let poolUtil: SAHPoolUtil | null = null;
+// false when OPFS was unavailable and we fell back to :memory: — everything written
+// in that mode dies with the tab. The UI surfaces a degraded-storage warning.
+let persistent = true;
 
 type SAHPoolOptions = Parameters<
   Awaited<ReturnType<typeof sqlite3InitModule>>["installOpfsSAHPoolVfs"]
@@ -42,6 +45,7 @@ const ready = initModule({ print: () => {}, printErr: console.error }).then(
         throw error;
       }
       console.warn("[worker] OPFS unavailable — using in-memory SQLite");
+      persistent = false;
       db = new sqlite3.oo1.DB(":memory:");
     }
     db.exec(INIT_PRAGMAS);
@@ -86,6 +90,11 @@ const api = {
       db.exec("ROLLBACK");
       throw error;
     }
+  },
+
+  async isPersistent(): Promise<boolean> {
+    await ready.catch(() => {});
+    return persistent;
   },
 
   async close(): Promise<void> {

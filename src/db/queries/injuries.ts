@@ -1,7 +1,7 @@
 import { eq, asc, and, isNull } from "drizzle-orm";
 import { injuries, phases, phaseCriteria } from "../schema";
 import type { DrizzleDb } from "../drizzle";
-import { exec, execBatch, queryAll } from "../client";
+import type { SqlStatement } from "../client";
 
 export type Injury = typeof injuries.$inferSelect;
 export type Phase = typeof phases.$inferSelect;
@@ -104,50 +104,49 @@ export interface PhaseInput {
   focus_days: string | null;
 }
 
-export async function updateInjuryEdit(
-  injuryId: string, currentPhaseId: string | null, focusDays: string[],
-): Promise<void> {
-  const focus = focusDays.length ? JSON.stringify(focusDays) : null;
-  await exec(
-    `UPDATE injuries SET current_phase_id = ?, focus_days = ?, synced = 1 WHERE id = ?`,
-    [currentPhaseId, focus, injuryId],
-  );
+// Write paths return statements so the repo can commit the local write and its
+// sync_queue entry in ONE execBatch (atomic — a crash can't strand an unsynced write).
+
+export function updateInjuryEditStatements(
+  injuryId: string, currentPhaseId: string | null, focusDays: string | null,
+): SqlStatement[] {
+  return [{
+    sql: `UPDATE injuries SET current_phase_id = ?, focus_days = ?, synced = 1 WHERE id = ?`,
+    bind: [currentPhaseId, focusDays, injuryId],
+  }];
 }
 
-export async function savePhase(p: PhaseInput): Promise<void> {
-  await exec(
-    `INSERT OR REPLACE INTO phases (id, injury_id, phase_num, name, description, week_start, week_end, threshold_pct, focus_days, deleted_at, synced)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 1)`,
-    [p.id, p.injury_id, p.phase_num, p.name, p.description, p.week_start, p.week_end, p.threshold_pct, p.focus_days],
-  );
+export function savePhaseStatements(p: PhaseInput): SqlStatement[] {
+  return [{
+    sql: `INSERT OR REPLACE INTO phases (id, injury_id, phase_num, name, description, week_start, week_end, threshold_pct, focus_days, deleted_at, synced)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 1)`,
+    bind: [p.id, p.injury_id, p.phase_num, p.name, p.description, p.week_start, p.week_end, p.threshold_pct, p.focus_days],
+  }];
 }
 
-// Returns the affected criteria ids so the repo can enqueue each for sync.
-export async function softDeletePhase(phaseId: string): Promise<string[]> {
-  const now = Date.now();
-  const criteria = await queryAll<{ id: string }>(`SELECT id FROM phase_criteria WHERE phase_id = ?`, [phaseId]);
-  // Cascade: hide the phase and its criteria together.
-  await execBatch([
-    { sql: `UPDATE phases SET deleted_at = ?, synced = 1 WHERE id = ?`, bind: [now, phaseId] },
-    { sql: `UPDATE phase_criteria SET deleted_at = ?, synced = 1 WHERE phase_id = ?`, bind: [now, phaseId] },
-  ]);
-  return criteria.map((r) => r.id);
+// Cascade: hide the phase and its criteria together. The repo reads the affected
+// criteria BEFORE running this so it can enqueue each one's snapshot in the same batch.
+export function softDeletePhaseStatements(phaseId: string, deletedAt: number): SqlStatement[] {
+  return [
+    { sql: `UPDATE phases SET deleted_at = ?, synced = 1 WHERE id = ?`, bind: [deletedAt, phaseId] },
+    { sql: `UPDATE phase_criteria SET deleted_at = ?, synced = 1 WHERE phase_id = ?`, bind: [deletedAt, phaseId] },
+  ];
 }
 
-export async function saveCriteria(c: { id: string; phase_id: string; description: string }): Promise<void> {
-  // Preserve existing `done` on edit; default 0 on create. Never written by the sync channel.
-  await exec(
-    `INSERT OR REPLACE INTO phase_criteria (id, phase_id, description, done, deleted_at, synced)
-     VALUES (?, ?, ?, COALESCE((SELECT done FROM phase_criteria WHERE id = ?), 0), NULL, 1)`,
-    [c.id, c.phase_id, c.description, c.id],
-  );
+// Preserve existing `done` on edit; default 0 on create. Never written by the sync channel.
+export function saveCriteriaStatements(c: { id: string; phase_id: string; description: string }): SqlStatement[] {
+  return [{
+    sql: `INSERT OR REPLACE INTO phase_criteria (id, phase_id, description, done, deleted_at, synced)
+          VALUES (?, ?, ?, COALESCE((SELECT done FROM phase_criteria WHERE id = ?), 0), NULL, 1)`,
+    bind: [c.id, c.phase_id, c.description, c.id],
+  }];
 }
 
-export async function softDeleteCriteria(id: string): Promise<void> {
-  await exec(`UPDATE phase_criteria SET deleted_at = ?, synced = 1 WHERE id = ?`, [Date.now(), id]);
+export function softDeleteCriteriaStatements(id: string, deletedAt: number): SqlStatement[] {
+  return [{ sql: `UPDATE phase_criteria SET deleted_at = ?, synced = 1 WHERE id = ?`, bind: [deletedAt, id] }];
 }
 
 // Toggle a criterion's done flag locally; the repo enqueues a criteria_done mutation.
-export async function setCriteriaDone(id: string, done: boolean): Promise<void> {
-  await exec(`UPDATE phase_criteria SET done = ?, synced = 1 WHERE id = ?`, [done ? 1 : 0, id]);
+export function setCriteriaDoneStatements(id: string, done: boolean): SqlStatement[] {
+  return [{ sql: `UPDATE phase_criteria SET done = ?, synced = 1 WHERE id = ?`, bind: [done ? 1 : 0, id] }];
 }

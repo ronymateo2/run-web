@@ -1,7 +1,8 @@
 // Exercise/log data boundary. Resolves Drizzle internally; UI never touches useDb/SQL.
 import { getDrizzle } from "../../db/drizzle";
+import { execBatch } from "../../db/client";
 import * as q from "../../db/queries/exercises";
-import { enqueueRowSnapshot } from "../sync";
+import { buildQueueStatements, readRowSnapshot } from "../sync";
 
 export type Exercise = q.Exercise;
 export type ExerciseLog = q.ExerciseLog;
@@ -50,17 +51,38 @@ export const exerciseRepository = {
     return q.getSessionPhasesByDate(await getDrizzle(), userId);
   },
 
-  // --- Writes (outbox pattern: local write + sync_queue snapshot; caller triggers push()). ---
+  // --- Writes (outbox pattern). Local write + sync_queue entry commit in ONE
+  // execBatch (atomic); caller triggers push(). ---
   async softDeleteExerciseLog(id: string): Promise<void> {
-    await q.softDeleteExerciseLog(await getDrizzle(), id);
-    await enqueueRowSnapshot("exercise_log", "exercise_logs", id); // no-op if row never existed
+    const row = await readRowSnapshot("exercise_logs", id);
+    if (!row) return; // soft-deleting a never-saved set is a no-op
+    const now = Date.now();
+    await execBatch([
+      ...q.softDeleteExerciseLogStatements(id, now, row as { user_id: string; exercise_id: string; session_date: string }),
+      ...buildQueueStatements({
+        entity: "exercise_log", entityId: id, operation: "upsert",
+        payload: { ...row, deleted_at: now },
+      }),
+    ]);
   },
   async saveExercise(ex: ExerciseInput): Promise<void> {
-    await q.saveExercise(await getDrizzle(), ex);
-    await enqueueRowSnapshot("exercise", "exercises", ex.id);
+    await execBatch([
+      ...q.saveExerciseStatements(ex),
+      ...buildQueueStatements({ entity: "exercise", entityId: ex.id, operation: "upsert", payload: { ...ex } }),
+    ]);
   },
   async saveExerciseLog(log: NewExerciseLog): Promise<void> {
-    await q.saveExerciseLog(await getDrizzle(), log);
-    await enqueueRowSnapshot("exercise_log", "exercise_logs", log.id);
+    await execBatch([
+      ...q.saveExerciseLogStatements(log),
+      ...buildQueueStatements({
+        entity: "exercise_log", entityId: log.id, operation: "upsert",
+        payload: {
+          id: log.id, user_id: log.user_id, exercise_id: log.exercise_id,
+          session_date: log.session_date, reps_done: log.reps_done ?? null,
+          pain_during: log.pain_during ?? null, rpe: log.rpe ?? null,
+          note: log.note ?? null, completed_at: log.completed_at ?? null, deleted_at: null,
+        },
+      }),
+    ]);
   },
 };

@@ -3,6 +3,7 @@ import { RouterProvider } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
 import { router } from "./router";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { StorageWarning } from "./components/StorageWarning";
 import "./design/tokens.css";
 
 export default function App() {
@@ -10,6 +11,7 @@ export default function App() {
     <ErrorBoundary>
       <MotionConfig reducedMotion="user">
         <AuthProvider>
+          <StorageWarning />
           <RouterProvider router={router} />
         </AuthProvider>
       </MotionConfig>

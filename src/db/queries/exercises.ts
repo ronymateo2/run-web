@@ -1,6 +1,7 @@
-import { eq, and, isNull, gt, lt, desc, count } from "drizzle-orm";
+import { eq, and, isNull, gt, lt, desc } from "drizzle-orm";
 import { exercises, exerciseLogs, phases, logDayCounts } from "../schema";
 import type { DrizzleDb } from "../drizzle";
+import type { SqlStatement } from "../client";
 
 export type Exercise = typeof exercises.$inferSelect;
 export type ExerciseLog = typeof exerciseLogs.$inferSelect;
@@ -228,77 +229,60 @@ export async function getSessionPhasesByDate(
 // Optimistic: keeps progress/gating correct immediately; the next pull overwrites
 // this with the server's authoritative count (idempotent). Raw for the edited day
 // is always present locally (current edits are within the sync window).
-async function refreshDayCount(
-  db: DrizzleDb, userId: string, exerciseId: string, sessionDate: string
-): Promise<void> {
-  const rows = await db.select({ c: count() })
-    .from(exerciseLogs)
-    .where(and(
-      eq(exerciseLogs.user_id, userId),
-      eq(exerciseLogs.exercise_id, exerciseId),
-      eq(exerciseLogs.session_date, sessionDate),
-      notDeleted,
-    ));
-  const sets = rows[0]?.c ?? 0;
-  await db.insert(logDayCounts)
-    .values({ user_id: userId, exercise_id: exerciseId, session_date: sessionDate, sets })
-    .onConflictDoUpdate({
-      target: [logDayCounts.user_id, logDayCounts.exercise_id, logDayCounts.session_date],
-      set: { sets },
-    });
+// Single statement (subquery recount) so it can ride the same execBatch as the
+// log write it reacts to — sequential statements in one transaction.
+export function refreshDayCountStatement(
+  userId: string, exerciseId: string, sessionDate: string,
+): SqlStatement {
+  return {
+    sql: `INSERT INTO log_day_counts (user_id, exercise_id, session_date, sets)
+          VALUES (?, ?, ?,
+            (SELECT COUNT(*) FROM exercise_logs
+             WHERE user_id = ? AND exercise_id = ? AND session_date = ? AND deleted_at IS NULL))
+          ON CONFLICT(user_id, exercise_id, session_date) DO UPDATE SET sets = excluded.sets`,
+    bind: [userId, exerciseId, sessionDate, userId, exerciseId, sessionDate],
+  };
 }
 
 // Soft delete a deselected set: keep the row, set deleted_at; the repo enqueues the
-// row so the flag propagates to D1. No-op if the row never existed (set was never saved).
-export async function softDeleteExerciseLog(db: DrizzleDb, id: string): Promise<void> {
-  await db.update(exerciseLogs)
-    .set({ deleted_at: Date.now(), synced: 1 })
-    .where(eq(exerciseLogs.id, id));
-  const rows = await db.select({
-    user_id: exerciseLogs.user_id,
-    exercise_id: exerciseLogs.exercise_id,
-    session_date: exerciseLogs.session_date,
-  }).from(exerciseLogs).where(eq(exerciseLogs.id, id));
-  const r = rows[0];
-  if (r) await refreshDayCount(db, r.user_id, r.exercise_id, r.session_date);
+// snapshot. Statements so write + day-count refresh + queue entry commit atomically.
+export function softDeleteExerciseLogStatements(
+  id: string, deletedAt: number,
+  row: { user_id: string; exercise_id: string; session_date: string },
+): SqlStatement[] {
+  return [
+    { sql: `UPDATE exercise_logs SET deleted_at = ?, synced = 1 WHERE id = ?`, bind: [deletedAt, id] },
+    refreshDayCountStatement(row.user_id, row.exercise_id, row.session_date),
+  ];
 }
 
 // Upsert an exercise edit locally; the repo enqueues it for push (queue-XOR-synced).
-export async function saveExercise(db: DrizzleDb, ex: ExerciseInput): Promise<void> {
-  await db.insert(exercises)
-    .values({ ...ex, synced: 1 })
-    .onConflictDoUpdate({
-      target: exercises.id,
-      set: {
-        phase_id: ex.phase_id,
-        name: ex.name,
-        detail: ex.detail,
-        sets: ex.sets,
-        reps: ex.reps,
-        duration_s: ex.duration_s,
-        exercise_type: ex.exercise_type,
-        sort_order: ex.sort_order,
-        video_url: ex.video_url,
-        synced: 1,
-      },
-    });
+export function saveExerciseStatements(ex: ExerciseInput): SqlStatement[] {
+  return [{
+    sql: `INSERT INTO exercises (id, phase_id, name, detail, sets, reps, duration_s, exercise_type, sort_order, video_url, synced)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+          ON CONFLICT(id) DO UPDATE SET
+            phase_id = excluded.phase_id, name = excluded.name, detail = excluded.detail,
+            sets = excluded.sets, reps = excluded.reps, duration_s = excluded.duration_s,
+            exercise_type = excluded.exercise_type, sort_order = excluded.sort_order,
+            video_url = excluded.video_url, synced = 1`,
+    bind: [ex.id, ex.phase_id, ex.name, ex.detail, ex.sets, ex.reps, ex.duration_s,
+           ex.exercise_type, ex.sort_order, ex.video_url],
+  }];
 }
 
-export async function saveExerciseLog(db: DrizzleDb, log: NewExerciseLog): Promise<void> {
-  // deleted_at: null on insert/update reactivates a previously soft-deleted set.
-  await db.insert(exerciseLogs)
-    .values({ ...log, deleted_at: null, synced: 1 })
-    .onConflictDoUpdate({
-      target: exerciseLogs.id,
-      set: {
-        reps_done: log.reps_done,
-        pain_during: log.pain_during,
-        rpe: log.rpe,
-        note: log.note,
-        completed_at: log.completed_at,
-        deleted_at: null,
-        synced: 1,
-      },
-    });
-  await refreshDayCount(db, log.user_id, log.exercise_id, log.session_date);
+// deleted_at: NULL on insert/update reactivates a previously soft-deleted set.
+export function saveExerciseLogStatements(log: NewExerciseLog): SqlStatement[] {
+  return [
+    {
+      sql: `INSERT INTO exercise_logs (id, user_id, exercise_id, session_date, reps_done, pain_during, rpe, note, completed_at, deleted_at, synced)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 1)
+            ON CONFLICT(id) DO UPDATE SET
+              reps_done = excluded.reps_done, pain_during = excluded.pain_during, rpe = excluded.rpe,
+              note = excluded.note, completed_at = excluded.completed_at, deleted_at = NULL, synced = 1`,
+      bind: [log.id, log.user_id, log.exercise_id, log.session_date, log.reps_done ?? null,
+             log.pain_during ?? null, log.rpe ?? null, log.note ?? null, log.completed_at ?? null],
+    },
+    refreshDayCountStatement(log.user_id, log.exercise_id, log.session_date),
+  ];
 }

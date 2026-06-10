@@ -1,12 +1,19 @@
 // Sync service: local SQLite (OPFS) ⇄ run-api (D1). Offline-first.
 //
 // Pull: paginated cursor delta + recent window (raw rows) + all-time rollup.
-// Push: outbox pattern — every local mutation lands in sync_queue (write repos
-// enqueue in the same operation as the local write) and pushDelta drains it.
+//   The checkpoint re-pulls a small overlap window (idempotent upserts) so a push
+//   that committed just after a pull's serverTime can never be skipped forever.
+//   Rows with a pending outbox entry are NOT overwritten by the pull (local edit wins
+//   until it ships). After a full drain, raw rows older than the window are purged.
+// Push: outbox pattern — every local mutation lands in sync_queue atomically with the
+// local write (repos run both in ONE execBatch) and pushDelta drains it.
 //   GUARD queue-XOR-synced: tables never use the legacy synced=0 scan; the queue
 //   is the only push path (local writes set synced=1).
 //   GUARD single-flight: the drain runs under a Web Lock, so two tabs can never
 //   ship the same queue rows twice.
+//   The server answers per row: applied/stale → queue row deleted; invalid → dead-letter
+//   immediately; rejected (e.g. missing parent) → retry, dead-letter after MAX_ATTEMPTS.
+//   Dead-lettered rows (status='failed') keep their payload and surface in Perfil.
 
 import { queryAll, queryOne, exec, execBatch } from "../../db/client";
 import { api } from "../../api/client";
@@ -18,6 +25,11 @@ export const WINDOW_DAYS = 120;
 
 const PUSH_LOCK = "rurana.sync.push";
 const QUEUE_BATCH = 500; // mirrors the server's MAX_ROWS headroom per entity
+const MAX_ATTEMPTS = 5; // rejected rows retry this many times, then dead-letter
+// Re-pull this much behind the checkpoint: covers a push whose D1 commit landed
+// after a concurrent pull's serverTime (clock-vs-commit race). Re-pulled rows are
+// idempotent upserts, so the overlap costs almost nothing.
+const PULL_OVERLAP_MS = 60_000;
 
 // ---------------------------------------------------------------------------
 // metadata helpers (Fase 0): pull checkpoint lives in `metadata.last_pull_at`,
@@ -65,30 +77,75 @@ export interface QueuedMutation {
   payload: Record<string, unknown>;
 }
 
-// Write repos of migrated tables call this in the same operation as the local
-// write. Coalesced per entity row: the latest payload supersedes any pending one
-// (full-row upserts make the last write sufficient).
-export async function enqueueMutation(m: QueuedMutation): Promise<void> {
+export interface SqlStatement {
+  sql: string;
+  bind: unknown[];
+}
+
+// Statements that enqueue a mutation. Repos append these to their local-write
+// statements and run everything in ONE execBatch — a crash can never commit the
+// write without its queue entry. Coalesced per entity row: the latest payload
+// supersedes any pending one (full-row upserts make the last write sufficient).
+// client_updated_at (LWW timestamp for the server) is stamped here.
+export function buildQueueStatements(m: QueuedMutation): SqlStatement[] {
   const now = Date.now();
-  await execBatch([
+  const payload = { ...m.payload, client_updated_at: now };
+  return [
     { sql: `DELETE FROM sync_queue WHERE entity = ? AND entity_id = ?`, bind: [m.entity, m.entityId] },
     {
       sql: `INSERT INTO sync_queue (id, entity, entity_id, operation, payload_json, status, attempts, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, 'pending', 0, ?, ?)`,
-      bind: [crypto.randomUUID(), m.entity, m.entityId, m.operation, JSON.stringify(m.payload), now, now],
+      bind: [crypto.randomUUID(), m.entity, m.entityId, m.operation, JSON.stringify(payload), now, now],
     },
-  ]);
+  ];
 }
 
-// Enqueue the row's CURRENT state as the payload (full-row upsert). Reading after
-// the local write guarantees payload === what the user sees; the server's zod
-// schema strips any column it doesn't accept (synced, user_id, done, …).
-// No-op when the row doesn't exist (e.g. soft-deleting a never-saved set).
-export async function enqueueRowSnapshot(entity: SyncEntity, table: string, id: string): Promise<void> {
+// Standalone enqueue for mutations whose local write happened elsewhere. Prefer
+// buildQueueStatements inside the repo's own execBatch (atomic with the write).
+export async function enqueueMutation(m: QueuedMutation): Promise<void> {
+  await execBatch(buildQueueStatements(m));
+}
+
+// Read a row's current state as a push payload (full-row upsert; the server's zod
+// schema strips any column it doesn't accept — synced, user_id, done, …).
+// Returns null when the row doesn't exist (e.g. soft-deleting a never-saved set).
+export async function readRowSnapshot(table: string, id: string): Promise<Record<string, unknown> | null> {
   const row = await queryOne<Record<string, unknown>>(`SELECT * FROM ${table} WHERE id = ?`, [id]);
-  if (!row) return;
+  if (!row) return null;
   delete row.synced;
-  await enqueueMutation({ entity, entityId: id, operation: "upsert", payload: row });
+  return row;
+}
+
+// ---------------------------------------------------------------------------
+// Outbox status (Perfil UI)
+// ---------------------------------------------------------------------------
+
+export interface SyncQueueStatus {
+  pending: number;
+  failed: number;
+  lastError: string | null;
+}
+
+export async function getSyncQueueStatus(): Promise<SyncQueueStatus> {
+  const row = await queryOne<{ pending: number; failed: number }>(
+    `SELECT SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending,
+            SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed
+     FROM sync_queue`,
+  );
+  const err = await queryOne<{ last_error: string }>(
+    `SELECT last_error FROM sync_queue WHERE last_error IS NOT NULL ORDER BY updated_at DESC LIMIT 1`,
+  );
+  return { pending: row?.pending ?? 0, failed: row?.failed ?? 0, lastError: err?.last_error ?? null };
+}
+
+// Re-arm dead-lettered mutations (status='failed') for the next push.
+export async function retryFailedMutations(): Promise<void> {
+  await exec(`UPDATE sync_queue SET status = 'pending', attempts = 0, updated_at = ? WHERE status = 'failed'`, [Date.now()]);
+}
+
+// Drop dead-lettered mutations for good (the server keeps its version).
+export async function discardFailedMutations(): Promise<void> {
+  await exec(`DELETE FROM sync_queue WHERE status = 'failed'`);
 }
 
 // ---------------------------------------------------------------------------
@@ -97,7 +154,7 @@ export async function enqueueRowSnapshot(entity: SyncEntity, table: string, id: 
 
 // One statement builder per table the pull can return. Reused across pages: a
 // paginated page carries just one table, the first page also the reference tables.
-type RowBuilder = (row: Record<string, unknown>) => { sql: string; bind: unknown[] };
+type RowBuilder = (row: Record<string, unknown>) => SqlStatement;
 
 const BUILDERS: Record<string, RowBuilder> = {
   injuries: (row) => ({
@@ -125,9 +182,9 @@ const BUILDERS: Record<string, RowBuilder> = {
     bind: [row.id, row.phase_id, row.description, row.done ?? 0, row.deleted_at ?? null],
   }),
   pain_checkins: (row) => ({
-    sql: `INSERT OR REPLACE INTO pain_checkins (id, user_id, injury_id, date, zones, created_at, synced)
-          VALUES (?, ?, ?, ?, ?, ?, 1)`,
-    bind: [row.id, row.user_id, row.injury_id ?? null, row.date, row.zones, row.created_at],
+    sql: `INSERT OR REPLACE INTO pain_checkins (id, user_id, injury_id, date, zones, created_at, deleted_at, synced)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+    bind: [row.id, row.user_id, row.injury_id ?? null, row.date, row.zones, row.created_at, row.deleted_at ?? null],
   }),
   exercise_logs: (row) => ({
     sql: `INSERT OR REPLACE INTO exercise_logs (id, user_id, exercise_id, session_date, reps_done, pain_during, rpe, note, completed_at, deleted_at, synced)
@@ -136,10 +193,10 @@ const BUILDERS: Record<string, RowBuilder> = {
            row.pain_during ?? null, row.rpe ?? null, row.note ?? null, row.completed_at ?? null, row.deleted_at ?? null],
   }),
   sst_results: (row) => ({
-    sql: `INSERT OR REPLACE INTO sst_results (id, user_id, injury_id, date, strength_score, pain_score, note, synced)
-          VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+    sql: `INSERT OR REPLACE INTO sst_results (id, user_id, injury_id, date, strength_score, pain_score, note, deleted_at, synced)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
     bind: [row.id, row.user_id, row.injury_id, row.date, row.strength_score ?? null,
-           row.pain_score ?? null, row.note ?? null],
+           row.pain_score ?? null, row.note ?? null, row.deleted_at ?? null],
   }),
   // Global reference content (no user scope); never pushed back.
   prom_instruments: (row) => ({
@@ -149,10 +206,10 @@ const BUILDERS: Record<string, RowBuilder> = {
            row.invert ?? 0, row.better_is_higher ?? 0, row.every_days ?? 14, row.sort_order ?? 0],
   }),
   prom_results: (row) => ({
-    sql: `INSERT OR REPLACE INTO prom_results (id, user_id, injury_id, instrument_id, date, score, answers, note, synced)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+    sql: `INSERT OR REPLACE INTO prom_results (id, user_id, injury_id, instrument_id, date, score, answers, note, deleted_at, synced)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
     bind: [row.id, row.user_id, row.injury_id, row.instrument_id, row.date,
-           row.score ?? null, row.answers ?? null, row.note ?? null],
+           row.score ?? null, row.answers ?? null, row.note ?? null, row.deleted_at ?? null],
   }),
   // Server-derived rollup; never pushed back. Authoritative count overwrites any
   // optimistic local value.
@@ -164,13 +221,53 @@ const BUILDERS: Record<string, RowBuilder> = {
   }),
 };
 
-function applyPage(data: Record<string, unknown>): Array<{ sql: string; bind: unknown[] }> {
-  const statements: Array<{ sql: string; bind: unknown[] }> = [];
+// Pulled table → outbox entities that edit it. A row with a PENDING queue entry is
+// skipped by the pull: the local (newer) edit must not be clobbered by the server
+// echo; it wins until it ships. Failed (dead-lettered) entries do NOT block the
+// pull — the server is authoritative for them until the user retries.
+const QUEUE_ENTITIES_BY_TABLE: Partial<Record<string, SyncEntity[]>> = {
+  injuries: ["injury"],
+  phases: ["phase"],
+  exercises: ["exercise"],
+  phase_criteria: ["phase_criterion", "criteria_done"],
+  pain_checkins: ["checkin"],
+  exercise_logs: ["exercise_log"],
+  sst_results: ["sst"],
+  prom_results: ["prom"],
+};
+
+async function getPendingSkipSet(): Promise<Set<string>> {
+  const rows = await queryAll<{ entity: string; entity_id: string }>(
+    `SELECT entity, entity_id FROM sync_queue WHERE status = 'pending'`,
+  );
+  return new Set(rows.map((r) => `${r.entity}:${r.entity_id}`));
+}
+
+function applyPage(data: Record<string, unknown>, skip: Set<string>): SqlStatement[] {
+  const statements: SqlStatement[] = [];
   for (const [table, build] of Object.entries(BUILDERS)) {
     const rows = data[table];
-    if (Array.isArray(rows)) for (const row of rows) statements.push(build(row as Record<string, unknown>));
+    if (!Array.isArray(rows)) continue;
+    const entities = QUEUE_ENTITIES_BY_TABLE[table];
+    for (const row of rows) {
+      const r = row as Record<string, unknown>;
+      if (entities && skip.size > 0 && entities.some((e) => skip.has(`${e}:${String(r.id)}`))) continue;
+      statements.push(build(r));
+    }
   }
   return statements;
+}
+
+// Raw rows older than the window are purged after a full pull: the rollup keeps
+// progress/gating correct and pullHistory re-fetches any old day on demand.
+// Rows still referenced by the outbox are never purged.
+async function purgeOutsideWindow(): Promise<void> {
+  const cutoff = new Date(Date.now() - WINDOW_DAYS * 86400000).toISOString().slice(0, 10);
+  await execBatch([
+    { sql: `DELETE FROM exercise_logs WHERE session_date < ? AND id NOT IN (SELECT entity_id FROM sync_queue WHERE entity = 'exercise_log')`, bind: [cutoff] },
+    { sql: `DELETE FROM pain_checkins WHERE date < ? AND id NOT IN (SELECT entity_id FROM sync_queue WHERE entity = 'checkin')`, bind: [cutoff] },
+    { sql: `DELETE FROM sst_results WHERE date < ? AND id NOT IN (SELECT entity_id FROM sync_queue WHERE entity = 'sst')`, bind: [cutoff] },
+  ]);
 }
 
 export async function pullDelta({ force = false }: { force?: boolean } = {}): Promise<void> {
@@ -178,7 +275,9 @@ export async function pullDelta({ force = false }: { force?: boolean } = {}): Pr
   // updated_at > since (also ms). metadata first, legacy users.last_sync fallback.
   const metaSince = await getMeta("last_pull_at");
   const legacy = await queryOne<{ last_sync: number }>(`SELECT last_sync FROM users LIMIT 1`);
-  const since = force ? 0 : metaSince != null ? Number(metaSince) : (legacy?.last_sync ?? 0);
+  const base = force ? 0 : metaSince != null ? Number(metaSince) : (legacy?.last_sync ?? 0);
+  // Overlap window: see PULL_OVERLAP_MS. Upserts make the re-pull idempotent.
+  const since = base > 0 ? Math.max(0, base - PULL_OVERLAP_MS) : 0;
 
   // Loop the cursor until the server drains every stream. Bound per page server-side
   // so a deep history can't blow up one response. The checkpoint is advanced only after
@@ -195,7 +294,10 @@ export async function pullDelta({ force = false }: { force?: boolean } = {}): Pr
     );
     serverTime ??= data.serverTime;
 
-    const statements = applyPage(data);
+    // Re-read per page: a mutation enqueued while this pull was in flight must also
+    // be protected from the overwrite.
+    const skip = await getPendingSkipSet();
+    const statements = applyPage(data, skip);
     if (statements.length > 0) await execBatch(statements);
 
     cursor = data.nextCursor ?? null;
@@ -205,6 +307,7 @@ export async function pullDelta({ force = false }: { force?: boolean } = {}): Pr
     await setMeta("last_pull_at", String(serverTime));
     // Legacy checkpoint kept mirrored (rollback safety); not deleted on purpose.
     await exec(`UPDATE users SET last_sync = ?`, [serverTime]);
+    await purgeOutsideWindow();
     // Checkpoint so the watermark reaches the main .db file; the leader worker flushes OPFS on close.
     await exec(`PRAGMA wal_checkpoint(PASSIVE)`);
   }
@@ -224,13 +327,24 @@ export async function pullHistory(
   } catch {
     return; // offline/401 → the caller simply renders without the old rows
   }
-  const statements = applyPage(data); // only data[table] is present
+  const skip = await getPendingSkipSet();
+  const statements = applyPage(data, skip); // only data[table] is present
   if (statements.length > 0) await execBatch(statements);
 }
 
 // ---------------------------------------------------------------------------
 // Push
 // ---------------------------------------------------------------------------
+
+// Per-row outcome from POST /sync/push (see the server for exact semantics).
+type RowStatus = "applied" | "stale" | "rejected" | "invalid";
+interface PushResponse {
+  serverTime: number;
+  synced: number;
+  // Keyed by body table, aligned with the submitted array order. Absent on an
+  // old server → legacy behavior (treat everything as applied).
+  results?: Record<string, RowStatus[]>;
+}
 
 export async function pushDelta(): Promise<void> {
   // GUARD single-flight drain: only one tab may push at a time — concurrent drains
@@ -246,6 +360,8 @@ export async function pushDelta(): Promise<void> {
 }
 
 // Keep pushing batches until the queue is drained (deep backlogs span requests).
+// Rejected rows stay pending with attempts+1, so a batch full of them loops at
+// most MAX_ATTEMPTS times before everything dead-letters.
 async function drainAll(): Promise<void> {
   while (await pushOnce()) { /* next batch */ }
 }
@@ -255,38 +371,63 @@ async function pushOnce(): Promise<boolean> {
   // Drain in creation order so parents ship with (or before) their children:
   // a phase enqueued before its exercises/criteria lands in the same body, and the
   // server applies tables in dependency order (phases → exercises → criteria → done).
-  const queued = await queryAll<{ id: string; entity: string; payload_json: string }>(
-    `SELECT id, entity, payload_json FROM sync_queue ORDER BY created_at, rowid LIMIT ${QUEUE_BATCH}`,
+  const queued = await queryAll<{ id: string; entity: string; payload_json: string; attempts: number }>(
+    `SELECT id, entity, payload_json, attempts FROM sync_queue WHERE status = 'pending' ORDER BY created_at, rowid LIMIT ${QUEUE_BATCH}`,
   );
   if (queued.length === 0) return false;
 
   const body: Record<string, unknown[]> = {};
-  const shipped: string[] = [];
+  const shipped: Array<{ qid: string; key: string; idx: number; attempts: number }> = [];
   for (const r of queued) {
     const key = BODY_KEY[r.entity as SyncEntity];
     if (!key) continue; // unknown entity (version skew): leave it queued, never drop data
-    (body[key] ??= []).push(JSON.parse(r.payload_json));
-    shipped.push(r.id);
+    const idx = (body[key] ??= []).push(JSON.parse(r.payload_json)) - 1;
+    shipped.push({ qid: r.id, key, idx, attempts: r.attempts });
   }
   if (shipped.length === 0) return false;
 
+  let response: PushResponse;
   try {
-    await api.post("/api/sync/push", body);
+    response = await api.post<PushResponse>("/api/sync/push", body);
   } catch (error) {
-    // Record the failure on the drained rows (visibility + debugging); they stay
-    // pending and retry on the next push.
+    // Network/server failure: record it on the drained rows (visibility + debugging);
+    // they stay pending and retry on the next push. Never dead-letter here — offline
+    // is a normal state, not a poison row.
     const placeholders = shipped.map(() => "?").join(",");
     await exec(
       `UPDATE sync_queue SET attempts = attempts + 1, last_error = ?, updated_at = ? WHERE id IN (${placeholders})`,
-      [error instanceof Error ? error.message : String(error), Date.now(), ...shipped],
+      [error instanceof Error ? error.message : String(error), Date.now(), ...shipped.map((s) => s.qid)],
     ).catch(() => {});
     throw error;
   }
 
-  // Success. Delete exactly the queue rows we pushed (by queue id): a mutation
-  // enqueued *during* the request has a different id and survives for the next push.
-  const placeholders = shipped.map(() => "?").join(",");
-  await exec(`DELETE FROM sync_queue WHERE id IN (${placeholders})`, shipped);
+  // Resolve every shipped row by its per-row status. Deleting/updating by queue id:
+  // a mutation enqueued *during* the request has a different id and survives.
+  const now = Date.now();
+  const statements: SqlStatement[] = [];
+  for (const s of shipped) {
+    const status: RowStatus = response.results?.[s.key]?.[s.idx] ?? "applied";
+    if (status === "applied" || status === "stale") {
+      // applied: landed. stale: the server has a newer edit (LWW) — drop ours,
+      // the next pull reconciles local state.
+      statements.push({ sql: `DELETE FROM sync_queue WHERE id = ?`, bind: [s.qid] });
+    } else if (status === "invalid") {
+      // Schema-invalid payload can never succeed → dead-letter immediately.
+      statements.push({
+        sql: `UPDATE sync_queue SET status = 'failed', attempts = attempts + 1, last_error = 'invalid', updated_at = ? WHERE id = ?`,
+        bind: [now, s.qid],
+      });
+    } else {
+      // rejected: usually a parent missing server-side. Retry (it may land in a
+      // later batch), dead-letter after MAX_ATTEMPTS so it can't poison the queue.
+      const failed = s.attempts + 1 >= MAX_ATTEMPTS;
+      statements.push({
+        sql: `UPDATE sync_queue SET status = ?, attempts = attempts + 1, last_error = 'rejected', updated_at = ? WHERE id = ?`,
+        bind: [failed ? "failed" : "pending", now, s.qid],
+      });
+    }
+  }
+  await execBatch(statements);
   return queued.length === QUEUE_BATCH;
 }
 

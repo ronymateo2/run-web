@@ -1,7 +1,8 @@
 // PROMs data boundary. Resolves Drizzle internally; UI never touches useDb/SQL.
 import { getDrizzle } from "../../db/drizzle";
+import { execBatch } from "../../db/client";
 import * as q from "../../db/queries/prom";
-import { enqueueRowSnapshot } from "../sync";
+import { buildQueueStatements } from "../sync";
 
 export type PromInstrument = q.PromInstrument;
 export type PromQuestion = q.PromQuestion;
@@ -33,9 +34,19 @@ export const promRepository = {
     return q.getLastPromDate(await getDrizzle(), userId, instrumentId);
   },
 
-  // --- Write (outbox pattern: local write + sync_queue snapshot; caller triggers push()). ---
+  // --- Write (outbox pattern). Local write + sync_queue entry commit in ONE
+  // execBatch (atomic); caller triggers push(). ---
   async savePromResult(result: NewPromResult): Promise<void> {
-    await q.savePromResult(await getDrizzle(), result);
-    await enqueueRowSnapshot("prom", "prom_results", result.id);
+    await execBatch([
+      ...q.savePromResultStatements(result),
+      ...buildQueueStatements({
+        entity: "prom", entityId: result.id, operation: "upsert",
+        payload: {
+          id: result.id, user_id: result.user_id, injury_id: result.injury_id,
+          instrument_id: result.instrument_id, date: result.date,
+          score: result.score ?? null, answers: result.answers ?? null, note: result.note ?? null,
+        },
+      }),
+    ]);
   },
 };
