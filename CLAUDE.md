@@ -14,7 +14,7 @@ PWA React + Vite + TypeScript. Offline-first via SQLite WASM (OPFS). Syncs with 
 - **Code**: English (vars, functions, routes, DB columns)
 - **UI strings**: Spanish neutro
 - Routes: `/today`, `/body`, `/path`, `/path/phase/:id`, `/path/progress`, `/learn`, `/today/exercise/:id`, `/today/checkin`, `/today/sst`
-- DB client: `src/db/client.ts` — exports `Database` type (our wrapper, NOT `@sqlite.org/sqlite-wasm`'s)
+- DB client: `src/db/client.ts` (main DB: schema + migrations + `exec/execBatch/queryAll/queryOne/isStoragePersistent`) and `src/db/learn-client.ts` (Learn cache: `learn*` exports). Both are thin configs over **`src/db/sqlite-client-core.ts`** (`createSqliteClient`: leader election via Web Locks + cross-tab RPC via BroadcastChannel) and **`src/db/sqlite-worker-core.ts`** (`createSqliteWorkerApi`: SAHPool capture with in-worker retry, `:memory:` fallback + `isPersistent`). Fix leader-election bugs in the cores, NOT in the per-DB files. Main pool name must stay at the library default (named pools use a different OPFS directory — renaming orphans user data); Learn uses pool `"learn"`.
 - Sync service: `src/data/sync/index.ts` — `pullDelta` / `pushDelta` / `syncNow` / `enqueueMutation` / `pullHistory`
 - API client: `src/api/client.ts` — `api.get/post/patch`, always `credentials: "include"`, throws normalized `ApiError`. All fetches to run-api go through it.
 

@@ -115,7 +115,7 @@ const MIGRATIONS: Array<{ id: number; sql: string }> = [
   // still-unsynced row into the queue, then retire the synced=0 flag for pushes.
   // phase_criteria rides BOTH channels (row content + criteria_done) because a
   // synced=0 row could mean either kind of pending change — exactly what the old
-  // legacy push sent. \`done\` must serialize as JSON boolean (server zod requires it).
+  // legacy push sent. `done` must serialize as JSON boolean (server zod requires it).
   {
     id: 10,
     sql: `
