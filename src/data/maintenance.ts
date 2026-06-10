@@ -1,7 +1,7 @@
 // Local-cache maintenance, kept in the data layer so screens never run raw SQL.
 // Clears the synced tables, resets the pull checkpoint, then re-pulls everything
 // from the server. Also wipes and re-pulls the separate Learn OPFS database.
-import { exec } from "../db/client";
+import { exec, queryOne } from "../db/client";
 import { pullDelta, pushDelta } from "./sync";
 import { learnExec } from "../db/learn-client";
 import { syncArticles } from "../db/learn-sync";
@@ -17,6 +17,17 @@ export async function resetLocalCache(): Promise<void> {
   // force pull brings them back. If this throws (offline/401) the reset aborts here
   // and local data stays intact.
   await pushDelta();
+  // pushDelta can finish leaving rows pending (rejected rows mid-retry, unknown
+  // entities). The pull SKIPS pending rows, so wiping now would leave them invisible
+  // until they eventually ship — abort instead; the user retries once the queue is
+  // clean. Dead-lettered rows (status='failed') don't block: the pull restores the
+  // server version and their payloads stay queued for Reintentar/Descartar.
+  const pending = await queryOne<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM sync_queue WHERE status = 'pending'`,
+  );
+  if ((pending?.n ?? 0) > 0) {
+    throw new Error("sync_queue not drained: pending mutations would be lost from view");
+  }
   for (const table of SYNCED_TABLES) {
     await exec(`DELETE FROM ${table}`);
   }

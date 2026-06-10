@@ -117,10 +117,12 @@ export function ProfileScreen() {
       setResetDone(true);
     } catch {
       // resetLocalCache pushes pending changes before wiping; offline/expired
-      // session aborts there with local data intact.
+      // session — or a queue that couldn't fully drain — aborts there with
+      // local data intact.
       setResetError(true);
     } finally {
       setResetting(false);
+      refreshQueueStatus();
     }
   };
 
