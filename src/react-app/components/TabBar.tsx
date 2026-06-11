@@ -6,11 +6,11 @@ import { Barbell, Person, Footprints, BookOpen, UserCircle } from "@phosphor-ico
 type Tab = "today" | "body" | "path" | "learn" | "profile";
 
 const TABS: { id: Tab; label: string; path: string; icon: (active: boolean) => React.ReactElement }[] = [
-  { id: "path", label: "Sendero", path: "/path", icon: (a) => <Footprints size={22} weight={a ? "fill" : "regular"} color={a ? "var(--ink)" : "var(--muted)"} /> },
-  { id: "body", label: "Cuerpo", path: "/body", icon: (a) => <Person size={22} weight={a ? "fill" : "regular"} color={a ? "var(--ink)" : "var(--muted)"} /> },
-  { id: "today", label: "Hoy", path: "/today", icon: (a) => <Barbell size={22} weight={a ? "fill" : "regular"} color={a ? "var(--ink)" : "var(--muted)"} /> },
-  { id: "learn", label: "Aprende", path: "/learn", icon: (a) => <BookOpen size={22} weight={a ? "fill" : "regular"} color={a ? "var(--ink)" : "var(--muted)"} /> },
-  { id: "profile", label: "Perfil", path: "/profile", icon: (a) => <UserCircle size={22} weight={a ? "fill" : "regular"} color={a ? "var(--ink)" : "var(--muted)"} /> },
+  { id: "path", label: "Sendero", path: "/path", icon: (a) => <Footprints size={a ? 26 : 22} weight={a ? "fill" : "regular"} color={a ? "var(--ink)" : "var(--muted)"} /> },
+  { id: "body", label: "Cuerpo", path: "/body", icon: (a) => <Person size={a ? 26 : 22} weight={a ? "fill" : "regular"} color={a ? "var(--ink)" : "var(--muted)"} /> },
+  { id: "today", label: "Hoy", path: "/today", icon: (a) => <Barbell size={a ? 26 : 22} weight={a ? "fill" : "regular"} color={a ? "var(--ink)" : "var(--muted)"} /> },
+  { id: "learn", label: "Aprende", path: "/learn", icon: (a) => <BookOpen size={a ? 26 : 22} weight={a ? "fill" : "regular"} color={a ? "var(--ink)" : "var(--muted)"} /> },
+  { id: "profile", label: "Perfil", path: "/profile", icon: (a) => <UserCircle size={a ? 26 : 22} weight={a ? "fill" : "regular"} color={a ? "var(--ink)" : "var(--muted)"} /> },
 ];
 
 export function TabBar() {
@@ -37,7 +37,7 @@ export function TabBar() {
     if (!activeId || !scope.current) return;
     animate(
       scope.current,
-      { scale: [1, 1.07, 1] },
+      { scale: [1, 1.05, 1] },
       { duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }
     );
   }, [activeId, animate, scope]);

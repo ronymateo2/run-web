@@ -178,7 +178,6 @@ body {
   border-radius: 26px;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  align-items: center;
   padding: 0 8px;
   z-index: 100;
   isolation: isolate;
@@ -246,6 +245,8 @@ body {
   flex-direction: column;
   gap: 3px;
   align-items: center;
+  justify-content: center;
+  height: 100%;
   font-size: 10px;
   color: var(--muted);
   letter-spacing: 0.04em;
@@ -269,8 +270,8 @@ body {
 }
 
 .tab .tab-ico {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
