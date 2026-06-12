@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
-import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
+import { motion } from "motion/react";
 import { BottomSheet } from "../components/BottomSheet";
 import { Ico } from "../components/icons";
 import { exerciseRepository, type Exercise, type ExerciseLog } from "../../data/repositories";
 import { useAuth } from "../auth/AuthContext";
+
+const SHOWN_SESSIONS = 8;
 
 interface Props {
   exercise: Exercise;
@@ -42,7 +44,80 @@ function formatDate(dateStr: string): string {
   return `${d}/${m}`;
 }
 
-const TICK_STYLE = { fontSize: 12, fill: "rgba(245,240,232,0.85)", fontWeight: 500 } as const;
+const SECTION_LABEL: React.CSSProperties = {
+  fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.12em",
+  color: "rgba(245,240,232,0.60)",
+};
+
+/** Brand-toned bar chart: value on top of each bar, date underneath, no axes. */
+function MiniBars({
+  data, color, max, fmt, height = 96,
+}: {
+  data: { date: string; value: number }[];
+  color: string;
+  max?: number;
+  fmt?: (v: number) => string;
+  height?: number;
+}) {
+  const m = Math.max(max ?? Math.max(...data.map(d => d.value)), 1);
+  const f = fmt ?? ((v: number) => String(Math.round(v)));
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
+      {data.map((d, i) => {
+        const barH = Math.max(4, Math.round((d.value / m) * height));
+        return (
+          <div key={d.date} style={{
+            flex: 1, minWidth: 0,
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
+          }}>
+            <span style={{
+              fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600,
+              color: "rgba(245,240,232,0.85)",
+            }}>
+              {f(d.value)}
+            </span>
+            <motion.div
+              initial={{ height: 0 }}
+              animate={{ height: barH }}
+              transition={{ type: "spring", stiffness: 200, damping: 26, delay: i * 0.04 }}
+              style={{
+                width: "100%", maxWidth: 26,
+                borderRadius: "6px 6px 3px 3px",
+                background: color,
+              }}
+            />
+            <span style={{
+              fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.02em",
+              color: "rgba(245,240,232,0.45)", whiteSpace: "nowrap",
+            }}>
+              {formatDate(d.date)}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function StatCard({ label, value, unit }: { label: string; value: string; unit?: string }) {
+  return (
+    <div style={{
+      background: "rgba(245,240,232,0.05)",
+      border: "1px solid rgba(245,240,232,0.08)",
+      borderRadius: "var(--r-sm)",
+      padding: "12px 14px",
+    }}>
+      <div style={{ ...SECTION_LABEL, marginBottom: 6 }}>{label}</div>
+      <div style={{
+        fontSize: 28, fontFamily: "var(--font-serif)", color: "var(--bone)",
+        lineHeight: 1, display: "flex", alignItems: "baseline", gap: 2,
+      }}>
+        {value}
+        {unit && <span style={{ fontSize: 14, color: "rgba(245,240,232,0.55)" }}>{unit}</span>}
+      </div>
+    </div>
+  );
+}
 
 export function ExerciseStatsSheet({ exercise, onClose }: Props) {
   const { user } = useAuth();
@@ -51,6 +126,7 @@ export function ExerciseStatsSheet({ exercise, onClose }: Props) {
 
   const isTimeBased = !!exercise.duration_s && !exercise.reps;
   const valueLabel = isTimeBased ? "segundos" : "reps";
+  const unit = isTimeBased ? "s" : "×";
 
   useEffect(() => {
     if (!user) return;
@@ -68,6 +144,10 @@ export function ExerciseStatsSheet({ exercise, onClose }: Props) {
   const avgRpe = sessions.length > 0
     ? sessions.reduce((sum, s) => sum + s.avgRpe, 0) / sessions.length
     : 0;
+
+  const shown = sessions.slice(-SHOWN_SESSIONS);
+  const truncated = sessions.length > SHOWN_SESSIONS;
+  const noPain = shown.every(s => s.avgPain === 0);
 
   return (
     <BottomSheet variant="dark" onClose={onClose}>
@@ -101,8 +181,8 @@ export function ExerciseStatsSheet({ exercise, onClose }: Props) {
             overflowY: "auto",
           }}>
             <div style={{
-              fontSize: 20, fontFamily: "var(--font-serif)", color: "var(--bone)",
-              marginBottom: 20,
+              fontSize: 24, fontFamily: "var(--font-serif)", color: "var(--bone)",
+              lineHeight: 1.1, marginBottom: 18,
             }}>
               {exercise.name}
             </div>
@@ -116,223 +196,104 @@ export function ExerciseStatsSheet({ exercise, onClose }: Props) {
               </div>
             ) : sessions.length < 2 ? (
               <div style={{
-                height: 200, display: "flex", alignItems: "center", justifyContent: "center",
-                color: "rgba(245,240,232,0.5)", textAlign: "center",
+                height: 180,
+                display: "flex", flexDirection: "column", gap: 8,
+                alignItems: "center", justifyContent: "center", textAlign: "center",
+                borderRadius: "var(--r-md)",
+                border: "1px dashed rgba(245,240,232,0.18)",
               }}>
-                Necesitas al menos 2 sesiones para ver tendencias
+                <span style={{ fontFamily: "var(--font-serif)", fontSize: 19, color: "var(--bone)" }}>
+                  Aún no hay tendencias
+                </span>
+                <span style={{ fontSize: 13, color: "rgba(245,240,232,0.55)", maxWidth: 260 }}>
+                  Registra al menos 2 sesiones para ver tu progreso aquí.
+                </span>
               </div>
             ) : (
               <>
                 <div style={{
                   display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
-                  gap: 12, marginBottom: 24,
+                  gap: 10, marginBottom: 26,
                 }}>
-                  <div style={{
-                    background: "rgba(245,240,232,0.05)", borderRadius: 12, padding: 14,
-                  }}>
-                    <div style={{
-                      fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.10em",
-                      color: "rgba(245,240,232,0.55)", marginBottom: 6,
-                    }}>
-                      SESIONES
-                    </div>
-                    <div style={{
-                      fontSize: 28, fontFamily: "var(--font-serif)", color: "var(--bone)",
-                    }}>
-                      {totalSessions}
-                    </div>
-                  </div>
-                  <div style={{
-                    background: "rgba(245,240,232,0.05)", borderRadius: 12, padding: 14,
-                  }}>
-                    <div style={{
-                      fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.10em",
-                      color: "rgba(245,240,232,0.55)", marginBottom: 6,
-                    }}>
-                      MEJOR
-                    </div>
-                    <div style={{
-                      fontSize: 28, fontFamily: "var(--font-serif)", color: "var(--bone)",
-                    }}>
-                      {bestReps.toFixed(0)}
-                    </div>
-                  </div>
-                  <div style={{
-                    background: "rgba(245,240,232,0.05)", borderRadius: 12, padding: 14,
-                  }}>
-                    <div style={{
-                      fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.10em",
-                      color: "rgba(245,240,232,0.55)", marginBottom: 6,
-                    }}>
-                      PROMEDIO
-                    </div>
-                    <div style={{
-                      fontSize: 28, fontFamily: "var(--font-serif)", color: "var(--bone)",
-                    }}>
-                      {avgReps.toFixed(0)}
-                    </div>
-                  </div>
+                  <StatCard label="SESIONES" value={String(totalSessions)} />
+                  <StatCard label="MEJOR" value={bestReps.toFixed(0)} unit={unit} />
+                  <StatCard label="PROMEDIO" value={avgReps.toFixed(0)} unit={unit} />
                 </div>
 
-                <div style={{ marginBottom: 24 }}>
+                <div style={{ marginBottom: 28 }}>
                   <div style={{
-                    fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.10em",
-                    color: "rgba(245,240,232,0.85)", marginBottom: 12,
+                    display: "flex", justifyContent: "space-between", alignItems: "baseline",
+                    marginBottom: 14,
                   }}>
-                    {valueLabel.toUpperCase()} POR SESIÓN
+                    <span style={SECTION_LABEL}>{valueLabel.toUpperCase()} POR SESIÓN</span>
+                    {truncated && (
+                      <span style={{ ...SECTION_LABEL, fontSize: 9, color: "rgba(245,240,232,0.40)" }}>
+                        ÚLTIMAS {SHOWN_SESSIONS}
+                      </span>
+                    )}
                   </div>
-                  <div style={{ width: "100%", height: 140 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={sessions} margin={{ top: 6, right: 6, bottom: 20, left: 6 }}>
-                        <Bar
-                          dataKey="avgReps"
-                          fill="#6EC96E"
-                          radius={[4, 4, 0, 0]}
-                          barSize={16}
-                          isAnimationActive={false}
-                        />
-                        <XAxis
-                          dataKey="date"
-                          tickFormatter={formatDate}
-                          tick={TICK_STYLE}
-                          axisLine={{ stroke: "rgba(245,240,232,0.15)" }}
-                          tickLine={false}
-                          interval="preserveStartEnd"
-                          dy={8}
-                        />
-                        <YAxis
-                          tick={{ fontSize: 10, fill: "rgba(245,240,232,0.5)" }}
-                          axisLine={{ stroke: "rgba(245,240,232,0.15)" }}
-                          tickLine={false}
-                          width={32}
-                        />
-                        <Tooltip
-                          cursor={{ fill: "rgba(245,240,232,0.10)" }}
-                          contentStyle={{
-                            background: "#1A2A20",
-                            border: "1px solid rgba(245,240,232,0.2)",
-                            borderRadius: 8,
-                            fontSize: 12,
-                          }}
-                          labelStyle={{ color: "rgba(245,240,232,0.7)", fontSize: 11 }}
-                          itemStyle={{ color: "var(--bone)", fontSize: 12 }}
-                          formatter={(value) => [Number(value).toFixed(1), valueLabel]}
-                          labelFormatter={(label) => formatDate(String(label))}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <MiniBars
+                    data={shown.map(s => ({ date: s.date, value: s.avgReps }))}
+                    color="var(--moss)"
+                  />
                 </div>
 
-                <div style={{ marginBottom: 24 }}>
-                  <div style={{
-                    fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.10em",
-                    color: "rgba(245,240,232,0.85)", marginBottom: 12,
-                  }}>
-                    RPE POR SESIÓN
+                <div style={{ marginBottom: 28 }}>
+                  <div style={{ ...SECTION_LABEL, marginBottom: 14 }}>
+                    ESFUERZO (RPE) POR SESIÓN
                   </div>
-                  <div style={{ width: "100%", height: 120 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={sessions} margin={{ top: 6, right: 6, bottom: 20, left: 6 }}>
-                        <Bar
-                          dataKey="avgRpe"
-                          fill="#C9C96E"
-                          radius={[4, 4, 0, 0]}
-                          barSize={16}
-                          isAnimationActive={false}
-                        />
-                        <XAxis
-                          dataKey="date"
-                          tickFormatter={formatDate}
-                          tick={TICK_STYLE}
-                          axisLine={{ stroke: "rgba(245,240,232,0.15)" }}
-                          tickLine={false}
-                          interval="preserveStartEnd"
-                          dy={8}
-                        />
-                        <YAxis
-                          domain={[0, 10]}
-                          tick={{ fontSize: 10, fill: "rgba(245,240,232,0.5)" }}
-                          axisLine={{ stroke: "rgba(245,240,232,0.15)" }}
-                          tickLine={false}
-                          width={32}
-                        />
-                        <Tooltip
-                          cursor={{ fill: "rgba(245,240,232,0.10)" }}
-                          contentStyle={{
-                            background: "#1A2A20",
-                            border: "1px solid rgba(245,240,232,0.2)",
-                            borderRadius: 8,
-                            fontSize: 12,
-                          }}
-                          labelStyle={{ color: "rgba(245,240,232,0.7)", fontSize: 11 }}
-                          itemStyle={{ color: "var(--bone)", fontSize: 12 }}
-                          formatter={(value) => [Number(value).toFixed(1), "RPE"]}
-                          labelFormatter={(label) => formatDate(String(label))}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <MiniBars
+                    data={shown.map(s => ({ date: s.date, value: s.avgRpe }))}
+                    color="var(--sun)"
+                    max={10}
+                    height={72}
+                    fmt={v => v.toFixed(v % 1 ? 1 : 0)}
+                  />
                 </div>
 
                 <div>
-                  <div style={{
-                    fontSize: 10, fontFamily: "var(--font-mono)", letterSpacing: "0.10em",
-                    color: "rgba(245,240,232,0.85)", marginBottom: 12,
-                  }}>
+                  <div style={{ ...SECTION_LABEL, marginBottom: 14 }}>
                     DOLOR POR SESIÓN
                   </div>
-                  <div style={{ width: "100%", height: 120 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={sessions} margin={{ top: 6, right: 6, bottom: 20, left: 6 }}>
-                        <Bar
-                          dataKey="avgPain"
-                          fill="#C96E6E"
-                          radius={[4, 4, 0, 0]}
-                          barSize={16}
-                          isAnimationActive={false}
-                        />
-                        <XAxis
-                          dataKey="date"
-                          tickFormatter={formatDate}
-                          tick={TICK_STYLE}
-                          axisLine={{ stroke: "rgba(245,240,232,0.15)" }}
-                          tickLine={false}
-                          interval="preserveStartEnd"
-                          dy={8}
-                        />
-                        <YAxis
-                          domain={[0, 10]}
-                          tick={{ fontSize: 10, fill: "rgba(245,240,232,0.5)" }}
-                          axisLine={{ stroke: "rgba(245,240,232,0.15)" }}
-                          tickLine={false}
-                          width={32}
-                        />
-                        <Tooltip
-                          cursor={{ fill: "rgba(245,240,232,0.10)" }}
-                          contentStyle={{
-                            background: "#1A2A20",
-                            border: "1px solid rgba(245,240,232,0.2)",
-                            borderRadius: 8,
-                            fontSize: 12,
-                          }}
-                          labelStyle={{ color: "rgba(245,240,232,0.7)", fontSize: 11 }}
-                          itemStyle={{ color: "var(--bone)", fontSize: 12 }}
-                          formatter={(value) => [Number(value).toFixed(1), "Dolor"]}
-                          labelFormatter={(label) => formatDate(String(label))}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
+                  {noPain ? (
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "14px 16px",
+                      borderRadius: "var(--r-sm)",
+                      background: "rgba(138,168,140,0.10)",
+                      border: "1px solid rgba(138,168,140,0.30)",
+                    }}>
+                      <span style={{
+                        width: 26, height: 26, borderRadius: 999, flexShrink: 0,
+                        background: "var(--moss)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}>
+                        <Ico.check s={13} c="#fff" />
+                      </span>
+                      <span style={{ fontSize: 13, color: "rgba(245,240,232,0.80)" }}>
+                        Sin dolor en estas sesiones. Buena señal.
+                      </span>
+                    </div>
+                  ) : (
+                    <MiniBars
+                      data={shown.map(s => ({ date: s.date, value: s.avgPain }))}
+                      color="var(--clay)"
+                      max={10}
+                      height={72}
+                      fmt={v => v.toFixed(v % 1 ? 1 : 0)}
+                    />
+                  )}
                 </div>
 
                 <div style={{
-                  marginTop: 20, padding: 12,
-                  background: "rgba(245,240,232,0.03)", borderRadius: 8,
-                  fontSize: 11, color: "rgba(245,240,232,0.5)",
-                  fontFamily: "var(--font-mono)",
+                  marginTop: 24, padding: "10px 14px",
+                  background: "rgba(245,240,232,0.04)",
+                  border: "1px solid rgba(245,240,232,0.07)",
+                  borderRadius: "var(--r-sm)",
+                  fontSize: 11, color: "rgba(245,240,232,0.55)",
+                  fontFamily: "var(--font-mono)", letterSpacing: "0.02em",
                 }}>
-                  RPE promedio: {avgRpe.toFixed(1)} · {totalSessions} sesiones totales
+                  RPE promedio {avgRpe.toFixed(1)} · {totalSessions} {totalSessions === 1 ? "sesión" : "sesiones"} en total
                 </div>
               </>
             )}
