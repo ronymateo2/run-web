@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { Ico } from "./icons";
 import type { DaySession } from "../../data/repositories";
 
@@ -22,6 +22,20 @@ interface MonthGrid {
 }
 
 const DAY_LABELS = ["L", "M", "M", "J", "V", "S", "D"];
+
+const navBtnStyle: CSSProperties = {
+  width: 28,
+  height: 28,
+  borderRadius: 999,
+  background: "var(--card-soft)",
+  border: "1px solid var(--line)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+  color: "var(--ink)",
+  padding: 0,
+};
 
 function localToday(tz?: string | null): string {
   if (tz) {
@@ -54,7 +68,8 @@ function getMonthGrid(year: number, month: number, tz?: string | null): MonthGri
     cells.push({ date: null, dayNum: 0, isToday: false });
   }
 
-  const label = first.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+  const raw = first.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+  const label = raw.charAt(0).toUpperCase() + raw.slice(1);
   return { label, cells };
 }
 
@@ -84,69 +99,38 @@ export function MonthCalendar({
     return Math.max(...sessions.map((s) => s.phase_num));
   };
 
+  const phasesInMonth = Array.from(
+    new Set(
+      monthGrid.cells
+        .map((c) => phaseFor(c.date))
+        .filter((p): p is number => p !== null)
+    )
+  ).sort((a, b) => a - b);
+
   return (
-    <div className="card mt-20" style={{ padding: "18px 20px 20px" }}>
-      <div
-        className="row between"
-        style={{ marginBottom: 14, alignItems: "baseline" }}
-      >
-        <div className="eyebrow">Calendario</div>
-        <div
-          className="row"
-          style={{ gap: 8, alignItems: "center" }}
+    <div className="card rise rise-3" style={{ marginTop: 22, padding: "20px 18px 16px" }}>
+      <div className="row between" style={{ marginBottom: 14, alignItems: "center" }}>
+        <span
+          className="serif"
+          style={{ fontSize: 21, textTransform: "capitalize", letterSpacing: "-0.01em", color: "var(--ink)" }}
         >
-          <button
-            onClick={prevMonth}
-            style={{
-              background: "transparent",
-              border: "none",
-              padding: 4,
-              cursor: "pointer",
-              color: "var(--ink)",
-              display: "flex",
-              alignItems: "center",
-            }}
-            aria-label="Mes anterior"
-          >
-            <Ico.chevL s={14} />
+          {monthGrid.label}
+        </span>
+        <div className="row" style={{ gap: 6 }}>
+          <button onClick={prevMonth} style={navBtnStyle} aria-label="Mes anterior">
+            <Ico.chevL s={13} />
           </button>
-          <span
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 11,
-              color: "var(--muted)",
-              letterSpacing: "0.02em",
-              textTransform: "capitalize",
-              minWidth: 100,
-              textAlign: "center",
-            }}
-          >
-            {monthGrid.label}
-          </span>
-          <button
-            onClick={nextMonth}
-            style={{
-              background: "transparent",
-              border: "none",
-              padding: 4,
-              cursor: "pointer",
-              color: "var(--ink)",
-              display: "flex",
-              alignItems: "center",
-            }}
-            aria-label="Mes siguiente"
-          >
-            <Ico.chevR s={14} />
+          <button onClick={nextMonth} style={navBtnStyle} aria-label="Mes siguiente">
+            <Ico.chevR s={13} />
           </button>
         </div>
       </div>
 
-      {/* Single grid: weekdays + days aligned perfectly */}
       <div
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(7, 1fr)",
-          gap: 4,
+          rowGap: 4,
         }}
       >
         {/* Weekday header */}
@@ -154,106 +138,108 @@ export function MonthCalendar({
           <div
             key={`h-${i}`}
             style={{
-              width: "100%",
               textAlign: "center",
               fontFamily: "var(--font-mono)",
-              fontSize: 10,
-              color: "var(--ink-3)",
-              letterSpacing: "0.03em",
-              marginBottom: 2,
+              fontSize: 9,
+              color: "var(--faint)",
+              letterSpacing: "0.08em",
+              marginBottom: 4,
             }}
           >
             {label}
           </div>
         ))}
         {monthGrid.cells.map((cell, idx) => {
-          if (!cell.date)
-            return (
-              <div
-                key={idx}
-                style={{
-                  aspectRatio: "1",
-                  border: "1px solid transparent",
-                  boxSizing: "border-box",
-                }}
-              />
-            );
+          if (!cell.date) return <div key={idx} style={{ aspectRatio: "1" }} />;
           const ph = phaseFor(cell.date);
-          const badgeColor =
-            ph !== null ? phaseColors[(ph - 1) % phaseColors.length] : null;
+          const color = ph !== null ? phaseColors[(ph - 1) % phaseColors.length] : null;
+          const clickable = ph !== null && !!onDateClick;
           return (
             <div
               key={cell.date}
-              role="button"
-              tabIndex={0}
+              role={clickable ? "button" : undefined}
+              tabIndex={clickable ? 0 : undefined}
               onClick={() => {
-                if (ph !== null && onDateClick) onDateClick(cell.date!);
+                if (clickable) onDateClick!(cell.date!);
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && ph !== null && onDateClick) onDateClick(cell.date!);
+                if (e.key === "Enter" && clickable) onDateClick!(cell.date!);
               }}
               style={{
-                position: "relative",
                 aspectRatio: "1",
                 display: "flex",
-                flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 2,
-                borderRadius: 8,
-                cursor: ph !== null && onDateClick ? "pointer" : "default",
-                background: cell.isToday ? "var(--ink)" : "transparent",
-                border: "1px solid",
-                borderColor: cell.isToday ? "transparent" : "var(--line)",
-                boxSizing: "border-box",
+                cursor: clickable ? "pointer" : "default",
               }}
             >
-              {/* F-badge */}
               <div
                 style={{
-                  height: 14,
+                  width: 32,
+                  height: 32,
+                  borderRadius: 999,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  background: color ?? (cell.isToday ? "var(--ink)" : "transparent"),
+                  boxShadow:
+                    cell.isToday && color
+                      ? "0 0 0 2px var(--card), 0 0 0 3.5px var(--ink)"
+                      : "none",
                 }}
               >
-                {ph !== null && badgeColor && (
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 9,
-                      fontWeight: 700,
-                      lineHeight: 1,
-                      padding: "1px 3px",
-                      borderRadius: 3,
-                      color: "#fff",
-                      background: cell.isToday
-                        ? "rgba(255,255,255,0.25)"
-                        : badgeColor,
-                    }}
-                  >
-                    F{ph}
-                  </span>
-                )}
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 12,
+                    fontWeight: cell.isToday || ph !== null ? 700 : 400,
+                    color: ph !== null || cell.isToday ? "#fff" : "var(--ink-3)",
+                  }}
+                >
+                  {cell.dayNum}
+                </span>
               </div>
-              <span
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 12,
-                  fontWeight: cell.isToday ? 700 : 400,
-                  color: cell.isToday
-                    ? "#fff"
-                    : ph !== null
-                      ? "var(--ink)"
-                      : "var(--ink-3)",
-                }}
-              >
-                {cell.dayNum}
-              </span>
             </div>
           );
         })}
       </div>
+
+      {phasesInMonth.length > 0 && (
+        <div
+          className="row"
+          style={{
+            gap: 14,
+            marginTop: 14,
+            paddingTop: 12,
+            borderTop: "1px solid var(--line)",
+            flexWrap: "wrap",
+          }}
+        >
+          {phasesInMonth.map((p) => (
+            <span
+              key={p}
+              className="row"
+              style={{
+                gap: 6,
+                fontFamily: "var(--font-mono)",
+                fontSize: 10,
+                color: "var(--muted)",
+                letterSpacing: "0.06em",
+              }}
+            >
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 999,
+                  background: phaseColors[(p - 1) % phaseColors.length],
+                }}
+              />
+              FASE {p}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
