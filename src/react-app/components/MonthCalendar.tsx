@@ -112,7 +112,7 @@ export function MonthCalendar({
       <div className="row between" style={{ marginBottom: 14, alignItems: "center" }}>
         <span
           className="serif"
-          style={{ fontSize: 21, textTransform: "capitalize", letterSpacing: "-0.01em", color: "var(--ink)" }}
+          style={{ fontSize: 21, letterSpacing: "-0.01em", color: "var(--ink)" }}
         >
           {monthGrid.label}
         </span>
