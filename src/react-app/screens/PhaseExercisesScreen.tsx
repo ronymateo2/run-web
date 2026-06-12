@@ -9,11 +9,47 @@ import { Ico } from "../components/icons";
 import { injuryRepository, exerciseRepository, type Phase, type Exercise } from "../../data/repositories";
 import { localToday } from "../utils/timezone";
 
+// Mirrors PhaseJourneyScreen — keeps phase color continuity between the two screens.
+const PHASE_COLORS = ["var(--clay)", "var(--moss)", "var(--sun)", "#7B8FA1", "#B59A6A"];
+
 /** Rough minutes for one exercise — mirrors ExerciseList's estimateMins. */
 function estimateMins(sets?: number | null, reps?: number | null, duration_s?: number | null): number {
   if (sets && reps) return Math.ceil((sets * reps * 4) / 60);
   if (sets && duration_s) return Math.ceil((sets * duration_s) / 60);
   return 0;
+}
+
+/** Compact dial echoing PhaseJourneyScreen's ProgressRing — serif count inside. */
+function SessionRing({ done, total, color }: { done: number; total: number; color: string }) {
+  const R = 30;
+  const C = 2 * Math.PI * R;
+  const frac = total ? done / total : 0;
+  const allDone = total > 0 && done >= total;
+  return (
+    <svg width={84} height={84} viewBox="0 0 84 84" style={{ flexShrink: 0 }}>
+      <circle cx={42} cy={42} r={R} fill="none" stroke="var(--line)" strokeWidth={5} />
+      <motion.circle
+        cx={42} cy={42} r={R} fill="none"
+        stroke={allDone ? "var(--moss)" : color}
+        strokeWidth={5} strokeLinecap="round"
+        strokeDasharray={C}
+        initial={{ strokeDashoffset: C }}
+        animate={{ strokeDashoffset: C * (1 - frac) }}
+        transition={{ type: "spring", stiffness: 60, damping: 18 }}
+        transform="rotate(-90 42 42)"
+      />
+      {allDone ? (
+        <g transform="translate(42 42)">
+          <circle r={16} fill="var(--moss)" />
+          <path d="M -6 0 L -2 4.5 L 6 -4.5" fill="none" stroke="#fff" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+      ) : (
+        <text x={42} y={47} textAnchor="middle" fontFamily="var(--font-serif)" fontSize={22} fill="var(--ink)">
+          {done}<tspan fontSize={13} fill="var(--muted)"> / {total}</tspan>
+        </text>
+      )}
+    </svg>
+  );
 }
 
 interface PhaseExercisesData {
@@ -87,7 +123,7 @@ export function PhaseExercisesScreen() {
   const doneCnt = countDone(exercises, setsDone);
   const total = exercises.length;
   const remaining = total - doneCnt;
-  const pct = total ? (doneCnt / total) * 100 : 0;
+  const phaseColor = PHASE_COLORS[(phase.phase_num - 1) % PHASE_COLORS.length];
   const totalMins = exercises.reduce((sum, e) => sum + estimateMins(e.sets, e.reps, e.duration_s), 0);
   const remainingMins = exercises.reduce(
     (sum, e) => (setsDone.get(e.id) ?? 0) >= (e.sets ?? 1) ? sum : sum + estimateMins(e.sets, e.reps, e.duration_s),
@@ -102,39 +138,77 @@ export function PhaseExercisesScreen() {
       </ScreenNav>
       <div className="screen-body" style={{ paddingBottom: 170 }}>
 
-        <div className="mt-20">
-          <div className="row between" style={{ alignItems: "baseline" }}>
-            <div className="title-md serif">Ejercicios de hoy</div>
-            <div className="label num">{doneCnt} / {total}</div>
+        {/* Hero — mirrors PhaseJourneyScreen: title block left, dial right */}
+        <div className="row between rise rise-1" style={{ alignItems: "center", gap: 12, marginTop: 18 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="eyebrow" style={{ color: phaseColor }}>{phase.name}</div>
+            <div className="title-lg mt-6" style={{ lineHeight: 1.05 }}>Ejercicios de hoy</div>
+            <div className="row gap-8 mt-12" style={{ alignItems: "center", flexWrap: "wrap" }}>
+              <span className="chip" style={{ fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.04em" }}>
+                <span className="dot" style={{ background: phaseColor }} />
+                {total} {total === 1 ? "ejercicio" : "ejercicios"}
+              </span>
+              {totalMins > 0 && (
+                <span className="chip" style={{ fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.04em" }}>
+                  ≈ {totalMins} min
+                </span>
+              )}
+            </div>
           </div>
-
-          <div className="row gap-8 mt-4" style={{ alignItems: "center" }}>
-            <span className="eyebrow">{total} {total === 1 ? "ejercicio" : "ejercicios"}</span>
-            {totalMins > 0 && (
-              <>
-                <span style={{ width: 3, height: 3, borderRadius: 999, background: "var(--faint)" }} />
-                <span className="eyebrow num">≈ {totalMins} min</span>
-              </>
-            )}
-          </div>
+          {total > 0 && <SessionRing done={doneCnt} total={total} color={phaseColor} />}
         </div>
 
-        <div className="bar mt-12" style={{ background: "rgba(31,58,46,0.08)" }}>
-          <div
-            className="bar-fill"
-            style={{
-              width: `${pct}%`,
-              background: "var(--moss)",
-              transition: "width 0.4s var(--ease-bounce)",
-            }}
-          />
-        </div>
+        {/* Segmented progress — one segment per exercise: moss done, clay partial */}
+        {total > 0 && (
+          <div className="row gap-4 rise rise-2" style={{ marginTop: 20 }}>
+            {exercises.map((e) => {
+              const sd = setsDone.get(e.id) ?? 0;
+              const full = sd >= (e.sets ?? 1);
+              const partial = !full && sd > 0;
+              return (
+                <span
+                  key={e.id}
+                  style={{
+                    flex: 1,
+                    height: 6,
+                    borderRadius: 999,
+                    background: full ? "var(--moss)" : partial ? "var(--clay)" : "var(--line)",
+                    transition: "background 0.35s ease",
+                  }}
+                />
+              );
+            })}
+          </div>
+        )}
 
-        <ExerciseList exercises={exercises} setsDone={setsDone} />
+        {/* All-done banner */}
+        <AnimatePresence>
+          {total > 0 && remaining === 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.97 }}
+              transition={{ type: "spring", stiffness: 300, damping: 26 }}
+              className="card-flat"
+              style={{ marginTop: 16, padding: "14px 16px", background: "rgba(138,168,140,0.14)", borderColor: "rgba(138,168,140,0.35)" }}
+            >
+              <div className="title-md serif">¡Listo por hoy!</div>
+              <div className="body-sm mt-4">
+                Completaste {total} {total === 1 ? "ejercicio" : "ejercicios"}
+                {totalMins > 0 && <span className="num"> · ≈ {totalMins} min</span>}. Tu cuerpo hace el resto.
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="rise rise-3">
+          <ExerciseList exercises={exercises} setsDone={setsDone} />
+        </div>
 
         {total === 0 && (
-          <div style={{ paddingTop: 32, textAlign: "center" }}>
-            <span className="body-sm" style={{ color: "var(--muted)" }}>Sin ejercicios para esta fase.</span>
+          <div className="card-flat rise rise-2" style={{ marginTop: 20, padding: "28px 20px", textAlign: "center" }}>
+            <div className="title-md serif">Día de descanso</div>
+            <div className="body-sm mt-8">Sin ejercicios para esta fase. Descansar también es entrenar.</div>
           </div>
         )}
       </div>

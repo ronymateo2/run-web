@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { useAuth } from "../auth/AuthContext";
@@ -75,7 +75,7 @@ function logsToSets(logs: ExerciseLog[], count: number, defaultValue: number): S
 
 // ── EditableNum ────────────────────────────────────────────────────────────────
 function EditableNum({
-  value, min, max, completed, onChange, suffix,
+  value, min, max, completed, onChange, suffix, size = 22,
 }: {
   value: number;
   min: number;
@@ -83,6 +83,7 @@ function EditableNum({
   completed: boolean;
   onChange: (v: number) => void;
   suffix?: string;
+  size?: number;
 }) {
   const [editing, setEditing] = useState(false);
   const [local, setLocal] = useState(String(value));
@@ -116,13 +117,13 @@ function EditableNum({
           onBlur={commit}
           onKeyDown={e => e.key === "Enter" && commit()}
           style={{
-            width: 56,
+            width: Math.max(56, size * 2.6),
             background: "rgba(245,240,232,0.10)",
             border: "1.5px solid rgba(245,240,232,0.30)",
             borderRadius: 8,
             color: "var(--bone)",
             fontFamily: "var(--font-mono)",
-            fontSize: 20,
+            fontSize: size - 2,
             fontWeight: 600,
             textAlign: "center",
             padding: "4px 2px",
@@ -141,8 +142,8 @@ function EditableNum({
       <span style={{
         fontFamily: "var(--font-mono)",
         fontWeight: 600,
-        fontSize: 22,
-        color: completed ? "rgba(245,240,232,0.97)" : "rgba(245,240,232,0.45)",
+        fontSize: size,
+        color: completed ? "rgba(245,240,232,0.97)" : "rgba(245,240,232,0.55)",
         transition: "color 0.25s",
         display: "flex",
         alignItems: "baseline",
@@ -150,7 +151,7 @@ function EditableNum({
       }}>
         {value}
         {suffix && (
-          <span style={{ fontSize: 13, fontWeight: 400, opacity: 0.65 }}>{suffix}</span>
+          <span style={{ fontSize: Math.round(size * 0.6), fontWeight: 400, opacity: 0.65 }}>{suffix}</span>
         )}
       </span>
     </div>
@@ -164,7 +165,8 @@ export function ExerciseDetailScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const push = useSync();
-  const exerciseIds: string[] = location.state?.exerciseIds ?? [];
+  // Stable identity — a fresh [] fallback per render would refire the effects below forever.
+  const exerciseIds: string[] = useMemo(() => location.state?.exerciseIds ?? [], [location.state]);
 
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [nextExercise, setNextExercise] = useState<Exercise | null>(null);
@@ -296,7 +298,12 @@ export function ExerciseDetailScreen() {
       }}>
 
         {/* Title */}
-        <div style={{ textAlign: "center", marginTop: 8, marginBottom: 24 }}>
+        <div style={{ textAlign: "center", marginTop: 8, marginBottom: 20 }}>
+          {exerciseIds.length > 1 && id && exerciseIds.indexOf(id) >= 0 && (
+            <div className="eyebrow" style={{ marginBottom: 10 }}>
+              Ejercicio {exerciseIds.indexOf(id) + 1} de {exerciseIds.length}
+            </div>
+          )}
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
           }}>
@@ -346,72 +353,71 @@ export function ExerciseDetailScreen() {
           </div>
         )}
 
-        {/* Column headers */}
-        {exercise && (
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "32px 1.05fr 0.85fr 0.85fr 46px 34px",
-            padding: "0 4px 10px",
-            borderBottom: "1px solid rgba(245,240,232,0.10)",
-            marginBottom: 0,
-          }}>
-            {(["SET", "PREVIO", "RPE", isTimeBased ? "TIEMPO" : "REPS", "", ""] as string[]).map((h, i) => (
-              <div key={i} style={{
-                fontSize: 10,
-                fontFamily: "var(--font-mono)",
-                letterSpacing: "0.12em",
-                color: "rgba(245,240,232,0.55)",
-                textAlign: i === 0 ? "left" : "center",
-                paddingLeft: i === 0 ? 8 : 0,
-              }}>
-                {h}
-              </div>
+        {/* Per-set progress strip */}
+        {exercise && sets.length > 1 && (
+          <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
+            {sets.map((s, i) => (
+              <span key={i} style={{
+                flex: 1, height: 5, borderRadius: 999,
+                background: s.completed ? "var(--moss)" : "rgba(245,240,232,0.12)",
+                transition: "background 0.3s ease",
+              }} />
             ))}
           </div>
         )}
 
-        {/* Set rows */}
+        {/* Set cards */}
         {exercise && sets.map((row, i) => (
-          <div key={i}>
-            {/* Row */}
+          <div
+            key={i}
+            style={{
+              borderRadius: "var(--r-md)",
+              overflow: "hidden",
+              marginBottom: 10,
+              background: row.completed ? "rgba(138,168,140,0.12)" : "rgba(245,240,232,0.04)",
+              border: `1px solid ${row.completed ? "rgba(138,168,140,0.40)" : "rgba(245,240,232,0.09)"}`,
+              transition: "background 0.3s ease, border-color 0.3s ease",
+            }}
+          >
             <div style={{
-              display: "grid",
-              gridTemplateColumns: "32px 1.05fr 0.85fr 0.85fr 46px 34px",
-              alignItems: "center",
-              minHeight: 64,
-              padding: "6px 4px",
-              background: row.completed ? "rgba(110,201,110,0.07)" : "transparent",
-              transition: "background 0.3s ease",
-              borderBottom: "1px solid rgba(245,240,232,0.07)",
+              display: "flex", alignItems: "center", gap: 14,
+              minHeight: 68, padding: "10px 14px",
             }}>
-              {/* Set number */}
-              <div style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 22,
-                fontWeight: 700,
-                color: row.completed ? "rgba(245,240,232,0.95)" : "rgba(245,240,232,0.45)",
-                paddingLeft: 8,
-                transition: "color 0.25s",
-              }}>
-                {i + 1}
-              </div>
+              {/* Check circle — same language as ExerciseRow on the light list */}
+              <motion.button
+                onClick={() => toggleCompleted(i)}
+                whileTap={{ scale: 0.88 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                aria-label={row.completed ? `Serie ${i + 1} completada` : `Marcar serie ${i + 1}`}
+                style={{
+                  width: 42, height: 42, borderRadius: 999, flexShrink: 0,
+                  background: row.completed ? "var(--moss)" : "transparent",
+                  border: row.completed ? "none" : "1.5px dashed rgba(245,240,232,0.30)",
+                  cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  transition: "background 0.2s ease, border-color 0.2s ease",
+                }}
+              >
+                {row.completed && (
+                  <svg width="17" height="13" viewBox="0 0 16 12" fill="none">
+                    <path d="M1 6L5.5 10.5L15 1.5" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </motion.button>
 
-              {/* Previous session: ghost-chip (tap copies last time's value+RPE to today). */}
-              {(() => {
-                const p = prev.get(i);
-                if (!p) {
+              {/* Set label + previous-session ghost chip (tap copies value+RPE) */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 5, flex: 1, minWidth: 0, alignItems: "flex-start" }}>
+                <span style={{
+                  fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.12em",
+                  color: row.completed ? "rgba(245,240,232,0.92)" : "rgba(245,240,232,0.60)",
+                  textTransform: "uppercase", transition: "color 0.25s",
+                }}>
+                  Serie {i + 1}
+                </span>
+                {(() => {
+                  const p = prev.get(i);
+                  if (!p) return null;
                   return (
-                    <div style={{
-                      display: "flex", justifyContent: "center", alignItems: "center",
-                      fontFamily: "var(--font-mono)", fontSize: 13,
-                      color: "rgba(245,240,232,0.22)",
-                    }}>
-                      —
-                    </div>
-                  );
-                }
-                return (
-                  <div style={{ display: "flex", justifyContent: "center" }}>
                     <motion.button
                       type="button"
                       onClick={() => { updateSet(i, "value", p.value); updateSet(i, "rpe", p.rpe); }}
@@ -420,92 +426,83 @@ export function ExerciseDetailScreen() {
                       aria-label={`Última vez: ${p.value}${isTimeBased ? " segundos" : " reps"}, RPE ${p.rpe}. Copiar.`}
                       style={{
                         display: "inline-flex", alignItems: "baseline", gap: 4,
-                        fontFamily: "var(--font-mono)", fontSize: 13, lineHeight: 1,
-                        padding: "5px 9px",
+                        fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1,
+                        padding: "4px 8px",
                         borderRadius: 999,
                         border: "none",
-                        background: "rgba(245,240,232,0.055)",
-                        color: "rgba(245,240,232,0.62)",
+                        background: "rgba(245,240,232,0.06)",
+                        color: "rgba(245,240,232,0.60)",
                         cursor: "pointer",
                       }}
                     >
-                      <span style={{ fontWeight: 600 }}>
-                        {p.value}{isTimeBased ? "s" : "×"}
-                      </span>
-                      <span style={{ opacity: 0.3 }}>·</span>
-                      <span style={{ opacity: 0.5, fontSize: 11, fontWeight: 400 }}>
-                        {p.rpe}
-                      </span>
+                      <span style={{ opacity: 0.55, fontSize: 10, letterSpacing: "0.08em" }}>PREVIO</span>
+                      <span style={{ fontWeight: 600 }}>{p.value}{isTimeBased ? "s" : "×"}</span>
+                      <span style={{ opacity: 0.5, fontSize: 10 }}>@{p.rpe}</span>
                     </motion.button>
-                  </div>
-                );
-              })()}
-
-              <EditableNum
-                value={row.rpe} min={1} max={10}
-                completed={row.completed}
-                onChange={v => updateSet(i, "rpe", v)}
-              />
-
-              {/* Static hold target (duration_s on a reps exercise) lives in the protocol
-                  chip above the table, not here — this column is the editable rep count only. */}
-              <EditableNum
-                value={row.value}
-                min={1}
-                max={isTimeBased ? 300 : 200}
-                completed={row.completed}
-                onChange={v => updateSet(i, "value", v)}
-                suffix={isTimeBased ? "s" : "×"}
-              />
-
-              {/* Check button */}
-              <div style={{ display: "flex", justifyContent: "center" }}>
-                <button
-                  onClick={() => toggleCompleted(i)}
-                  style={{
-                    width: 38, height: 38,
-                    borderRadius: 10,
-                    border: row.completed ? "none" : "1.5px solid rgba(245,240,232,0.22)",
-                    background: row.completed ? "#6EC96E" : "transparent",
-                    cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    transition: "all 0.2s ease",
-                    flexShrink: 0,
-                  }}
-                >
-                  {row.completed && (
-                    <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
-                      <path
-                        d="M1 6L5.5 10.5L15 1.5"
-                        stroke="white"
-                        strokeWidth="2.2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  )}
-                </button>
+                  );
+                })()}
               </div>
 
-              {/* Expand caret */}
-              <div style={{ display: "flex", justifyContent: "center" }}>
-                <button
-                  onClick={() => toggleExpand(i)}
-                  style={{
-                    background: "none", border: "none", cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    width: 32, height: 32,
-                  }}
-                >
+              {/* Value (reps/time) big, RPE small underneath */}
+              <div style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                  <EditableNum
+                    value={row.value}
+                    min={1}
+                    max={isTimeBased ? 300 : 200}
+                    completed={row.completed}
+                    onChange={v => updateSet(i, "value", v)}
+                    suffix={isTimeBased ? "s" : "×"}
+                    size={26}
+                  />
                   <span style={{
-                    display: "flex", alignItems: "center",
-                    transform: row.expanded ? "rotate(90deg)" : "rotate(0deg)",
-                    transition: "transform 0.18s ease",
+                    fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em",
+                    color: "rgba(245,240,232,0.40)",
                   }}>
-                    <Ico.chevR s={15} c="rgba(245,240,232,0.55)" />
+                    {isTimeBased ? "TIEMPO" : "REPS"}
                   </span>
-                </button>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                  <EditableNum
+                    value={row.rpe} min={1} max={10}
+                    completed={row.completed}
+                    onChange={v => updateSet(i, "rpe", v)}
+                    size={18}
+                  />
+                  <span style={{
+                    fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em",
+                    color: "rgba(245,240,232,0.40)",
+                  }}>
+                    RPE
+                  </span>
+                </div>
               </div>
+
+              {/* Expand caret — pain panel; dot signals logged pain when collapsed */}
+              <button
+                onClick={() => toggleExpand(i)}
+                aria-label="Registrar dolor"
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  width: 32, height: 32, flexShrink: 0, position: "relative",
+                }}
+              >
+                {!row.expanded && row.painDuring > 0 && (
+                  <span style={{
+                    position: "absolute", top: 4, right: 4,
+                    width: 6, height: 6, borderRadius: 999,
+                    background: row.painDuring <= 4 ? "#C9C96E" : "#C96E6E",
+                  }} />
+                )}
+                <span style={{
+                  display: "flex", alignItems: "center",
+                  transform: row.expanded ? "rotate(90deg)" : "rotate(0deg)",
+                  transition: "transform 0.18s ease",
+                }}>
+                  <Ico.chevR s={15} c="rgba(245,240,232,0.55)" />
+                </span>
+              </button>
             </div>
 
             {/* Pain panel */}
@@ -516,14 +513,12 @@ export function ExerciseDetailScreen() {
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2, ease: "easeInOut" }}
-                  style={{
-                    overflow: "hidden",
-                    borderBottom: "1px solid rgba(245,240,232,0.07)",
-                  }}
+                  style={{ overflow: "hidden" }}
                 >
                   <div style={{
                     padding: "14px 16px 18px",
-                    background: "rgba(245,240,232,0.03)",
+                    borderTop: "1px solid rgba(245,240,232,0.08)",
+                    background: "rgba(17,30,22,0.35)",
                   }}>
                     <div style={{
                       display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -613,10 +608,16 @@ export function ExerciseDetailScreen() {
               }}
             >
               <span style={{
+                fontSize: 11, fontFamily: "var(--font-mono)", letterSpacing: "0.1em",
+                color: "rgba(245,240,232,0.50)", textTransform: "uppercase",
+              }}>
+                Siguiente
+              </span>
+              <span style={{
                 fontSize: 13,
-                fontFamily: "var(--font-body)",
                 color: "var(--bone)",
                 fontWeight: 500,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
                 {nextExercise.name}
               </span>
