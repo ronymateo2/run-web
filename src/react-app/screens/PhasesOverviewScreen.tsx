@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "motion/react";
 import { useAuth } from "../auth/AuthContext";
 import { Plant, Leaf, Flower, Tree } from "@phosphor-icons/react";
 import { Ico } from "../components/icons";
@@ -11,6 +12,8 @@ const PHASE_ICONS = [
   (s?: number, c?: string) => <Flower size={s ?? 18} weight="regular" color={c} />,
   (s?: number, c?: string) => <Tree   size={s ?? 18} weight="regular" color={c} />,
 ];
+
+const MS_PER_WEEK = 7 * 24 * 3600 * 1000;
 
 interface PhaseWithProgress extends Phase {
   progressPct: number;
@@ -28,7 +31,6 @@ export function PhasesOverviewScreen() {
   const navigate = useNavigate();
   const [data, setData] = useState<InjuryData[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [phasesExpanded, setPhasesExpanded] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -47,7 +49,6 @@ export function PhasesOverviewScreen() {
             })
           );
           const startedAt = inj.started_at ?? Date.now();
-          const MS_PER_WEEK = 7 * 24 * 3600 * 1000;
           const activityWeeks = new Set(
             sessionDates.map(d => Math.max(1, Math.floor((new Date(d + "T00:00:00").getTime() - startedAt) / MS_PER_WEEK) + 1))
           );
@@ -62,82 +63,29 @@ export function PhasesOverviewScreen() {
     return () => { active = false; };
   }, [user, lastSyncAt]);
 
-  const selectInjury = (id: string) => {
-    setSelectedId(id);
-    setPhasesExpanded(false);
-  };
-
   const sel = data?.find(d => d.injury.id === (selectedId ?? data[0]?.injury.id)) ?? null;
 
-  // Renders a single phase card. `hero` = large current-phase card (with progress bar);
-  // otherwise a compact card (locked/done) for the collapsed list.
-  const renderPhaseCard = (p: PhaseWithProgress, i: number, current: Phase | null, hero: boolean) => {
-    const isCurrent = p.id === current?.id;
-    const isPast = current ? p.phase_num < (current.phase_num ?? 0) : false;
-    const isLocked = current ? p.phase_num > (current.phase_num ?? 0) : i > 0;
-    const isUnlocking = isCurrent && p.progressPct < p.threshold_pct;
-
+  // Row of week dots for a phase: one dot per week in its range,
+  // filled (moss) when there was at least one session that week.
+  const renderWeekDots = (p: Phase, activityWeeks: Set<number>, muted: boolean) => {
+    const weeks: number[] = [];
+    for (let w = p.week_start; w <= p.week_end; w++) weeks.push(w);
     return (
-      <div
-        key={p.id}
-        className="card"
-        style={{
-          padding: 18, opacity: isLocked ? 0.55 : 1,
-          cursor: isCurrent ? "pointer" : "default",
-        }}
-        onClick={() => isCurrent && navigate(`/path/phase/${p.id}`)}
-      >
-        <div className="row between" style={{ alignItems: "flex-start" }}>
-          <div className="col gap-4" style={{ flex: 1 }}>
-            <div className="row gap-8" style={{ alignItems: "center" }}>
-              <span style={{ display: "flex" }}>{PHASE_ICONS[i](20)}</span>
-              <div>
-                <div className="eyebrow" style={{ fontSize: 12 }}>
-                  Fase {p.phase_num} · semanas {p.week_start}–{p.week_end}
-                </div>
-                <div className="title-md serif" style={{ lineHeight: 1.1, marginTop: 2 }}>
-                  {p.name}
-                </div>
-              </div>
-            </div>
-
-            {hero && isCurrent && (
-              <div style={{ marginTop: 10 }}>
-                <div className="row between" style={{ marginBottom: 6 }}>
-                  <span className="body-sm" style={{ fontSize: 14 }}>Progreso</span>
-                  <span className="body-sm num" style={{ fontSize: 14 }}>{p.progressPct}% / {p.threshold_pct}%</span>
-                </div>
-                <div style={{ position: "relative", height: 6, borderRadius: 999, background: "var(--line)", overflow: "visible" }}>
-                  <div style={{ width: `${p.progressPct}%`, height: "100%", background: "var(--ink)", borderRadius: 999 }} />
-                  {/* Threshold marker */}
-                  <div style={{
-                    position: "absolute", top: -4, left: `${p.threshold_pct}%`,
-                    width: 2, height: 14, background: "var(--clay)", borderRadius: 1,
-                  }} />
-                </div>
-                {isUnlocking && (
-                  <div className="body-sm mt-6" style={{ color: "var(--clay-deep)", fontSize: 14 }}>
-                    Te faltan {p.threshold_pct - p.progressPct}% para desbloquear fase {p.phase_num + 1}.
-                  </div>
-                )}
-              </div>
-            )}
-
-            {p.description && <div className="body mt-6">{p.description}</div>}
-          </div>
-
-          <div style={{ marginLeft: 12 }}>
-            {isLocked ? (
-              <Ico.lock s={18} c="var(--muted)" />
-            ) : isCurrent ? (
-              <Ico.chevR s={18} c="var(--muted)" />
-            ) : isPast ? (
-              <Ico.check s={18} c="var(--moss)" />
-            ) : (
-              <Ico.chevR s={18} c="var(--muted)" />
-            )}
-          </div>
-        </div>
+      <div className="row gap-6 mt-8" style={{ alignItems: "center" }}>
+        {weeks.map(w => (
+          <span
+            key={w}
+            style={{
+              width: 7, height: 7, borderRadius: 999,
+              background: activityWeeks.has(w) ? "var(--moss)" : "transparent",
+              border: activityWeeks.has(w) ? "1px solid var(--moss)" : "1px solid var(--line-2)",
+              opacity: muted ? 0.6 : 1,
+            }}
+          />
+        ))}
+        <span className="eyebrow" style={{ fontSize: 10, marginLeft: 4 }}>
+          sem {p.week_start}–{p.week_end}
+        </span>
       </div>
     );
   };
@@ -172,10 +120,7 @@ export function PhasesOverviewScreen() {
 
         {/* Injury selector */}
         {data && data.length > 1 && (
-          <div
-            className="row gap-8 mt-20"
-            style={{ flexWrap: "wrap" }}
-          >
+          <div className="row gap-8 mt-20" style={{ flexWrap: "wrap" }}>
             {data.map(({ injury }) => {
               const active = injury.id === sel?.injury.id;
               return (
@@ -189,7 +134,7 @@ export function PhasesOverviewScreen() {
                     color: active ? "#fff" : "var(--ink)",
                     border: active ? "1px solid var(--clay)" : "1px solid var(--line)",
                   }}
-                  onClick={() => selectInjury(injury.id)}
+                  onClick={() => setSelectedId(injury.id)}
                 >
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {injury.name}
@@ -201,69 +146,153 @@ export function PhasesOverviewScreen() {
         )}
 
         {sel && (() => {
-          const { phases, current } = sel;
-          const hero = phases.find(p => p.id === current?.id) ?? phases[0];
-          const heroIdx = phases.findIndex(p => p.id === hero?.id);
-          const others = phases.map((p, i) => ({ p, i })).filter(({ p }) => p.id !== hero?.id);
+          const { injury, phases, current, activityWeeks } = sel;
+          const currentNum = current?.phase_num ?? phases[0]?.phase_num ?? 1;
+          const totalPhases = Math.max(currentNum, ...phases.map(p => p.phase_num ?? 0));
+          const totalWeeks = phases.length ? Math.max(...phases.map(p => p.week_end)) : 20;
+          const startedAt = injury.started_at ?? Date.now();
+          const weekNow = Math.min(
+            totalWeeks,
+            Math.max(1, Math.floor((Date.now() - startedAt) / MS_PER_WEEK) + 1)
+          );
 
           return (
-            <div style={{ marginTop: 20 }}>
-              {/* Phase timeline */}
-              <div className="card" style={{ padding: "16px 20px", marginBottom: 16, overflow: "hidden" }}>
-                <div style={{ position: "relative" }}>
-                  <div style={{
-                    position: "absolute", top: "50%", transform: "translateY(-50%)",
-                    left: 24, right: 24, height: 1, background: "var(--line)",
-                  }} />
-                  <div style={{ display: "flex", justifyContent: "space-between", position: "relative" }}>
-                    {phases.map((p, i) => {
-                      const isCurrent = p.id === current?.id;
-                      const isPast = current ? p.phase_num < (current.phase_num ?? 0) : false;
-                      const bg = isCurrent ? "var(--clay)" : "var(--line)";
-                      const iconColor = isCurrent ? "var(--bg)" : isPast ? "var(--ink)" : "var(--muted)";
-                      const sz = isCurrent ? 48 : 38;
-                      return (
-                        <div
-                          key={p.id}
-                          style={{
-                            width: sz, height: sz, borderRadius: "50%",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            background: bg, flexShrink: 0,
-                            cursor: isCurrent ? "pointer" : "default",
-                          }}
-                          onClick={() => isCurrent && navigate(`/path/phase/${p.id}`)}
-                        >
-                          {PHASE_ICONS[i](isCurrent ? 22 : 18, iconColor)}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+            <div key={injury.id} style={{ marginTop: 20 }}>
+              {/* Orientation strip */}
+              <div className="row gap-8" style={{ marginBottom: 20 }}>
+                <span className="chip num" style={{ fontSize: 11, letterSpacing: "0.08em" }}>
+                  SEMANA {weekNow} DE {totalWeeks}
+                </span>
+                <span className="chip num" style={{ fontSize: 11, letterSpacing: "0.08em" }}>
+                  FASE {currentNum} DE {totalPhases}
+                </span>
               </div>
 
-              {/* Hero — current phase */}
-              {hero && renderPhaseCard(hero, heroIdx, current, true)}
+              {/* Vertical sendero */}
+              {phases.map((p, i) => {
+                const isCurrent = p.id === current?.id;
+                const isPast = current ? (p.phase_num ?? 0) < (current.phase_num ?? 0) : false;
+                const isLocked = current ? (p.phase_num ?? 0) > (current.phase_num ?? 0) : i > 0;
+                const isUnlocking = isCurrent && p.progressPct < p.threshold_pct;
+                const isLast = i === phases.length - 1;
 
-              {/* Collapsible rest */}
-              {others.length > 0 && (
-                <>
-                  <button
-                    className="btn-pill ghost mt-12"
-                    onClick={() => setPhasesExpanded(v => !v)}
+                const nodeSize = isCurrent ? 48 : 38;
+                const nodeBg = isCurrent ? "var(--clay)" : isPast ? "var(--moss)" : "var(--card-soft)";
+                const nodeBorder = isLocked ? "1px solid var(--line-2)" : "none";
+                const iconColor = isCurrent || isPast ? "#fff" : "var(--muted)";
+
+                return (
+                  <motion.div
+                    key={p.id}
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35, delay: i * 0.07, ease: "easeOut" }}
+                    style={{ display: "flex", gap: 14 }}
                   >
-                    {phasesExpanded ? "Ocultar fases" : `Ver las ${phases.length} fases`}
-                    <span style={{ display: "flex", transform: phasesExpanded ? "rotate(-90deg)" : "rotate(90deg)" }}>
-                      <Ico.chevR s={16} c="var(--ink)" />
-                    </span>
-                  </button>
-
-                  {phasesExpanded && (
-                    <div className="col gap-12 mt-12">
-                      {others.map(({ p, i }) => renderPhaseCard(p, i, current, false))}
+                    {/* Rail: node + connector */}
+                    <div className="col" style={{ width: 48, alignItems: "center", flexShrink: 0 }}>
+                      <div
+                        style={{
+                          position: "relative",
+                          width: nodeSize, height: nodeSize, borderRadius: "50%",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          background: nodeBg, border: nodeBorder, flexShrink: 0,
+                          marginTop: isCurrent ? 0 : 5,
+                        }}
+                      >
+                        {isCurrent && (
+                          <span
+                            className="pulse"
+                            style={{
+                              position: "absolute", inset: -7, borderRadius: "50%",
+                              border: "2px solid var(--clay-soft)", pointerEvents: "none",
+                            }}
+                          />
+                        )}
+                        {isPast
+                          ? <Ico.check s={16} c="#fff" />
+                          : isLocked
+                            ? <Ico.lock s={15} c="var(--muted)" />
+                            : PHASE_ICONS[((p.phase_num ?? i + 1) - 1) % PHASE_ICONS.length]?.(isCurrent ? 22 : 17, iconColor)}
+                      </div>
+                      {!isLast && (
+                        <div
+                          style={{
+                            flex: 1, minHeight: 24, marginTop: 6, marginBottom: 6,
+                            width: isPast ? 2 : 0,
+                            background: isPast ? "var(--moss)" : "transparent",
+                            borderLeft: isPast ? "none" : "2px dashed var(--line-2)",
+                          }}
+                        />
+                      )}
                     </div>
-                  )}
-                </>
-              )}
+
+                    {/* Content */}
+                    <div style={{ flex: 1, minWidth: 0, paddingBottom: isLast ? 0 : 22 }}>
+                      {isCurrent ? (
+                        <div
+                          className="card card-tap"
+                          style={{ padding: 18, cursor: "pointer" }}
+                          onClick={() => navigate(`/path/phase/${p.id}`)}
+                        >
+                          <div className="row between" style={{ alignItems: "flex-start" }}>
+                            <div style={{ minWidth: 0 }}>
+                              <div className="eyebrow" style={{ fontSize: 11, color: "var(--clay-deep)" }}>
+                                Fase actual
+                              </div>
+                              <div className="title-md serif" style={{ lineHeight: 1.1, marginTop: 2 }}>
+                                {p.name}
+                              </div>
+                            </div>
+                            <Ico.chevR s={18} c="var(--muted)" />
+                          </div>
+
+                          <div style={{ marginTop: 14 }}>
+                            <div className="row between" style={{ marginBottom: 6 }}>
+                              <span className="body-sm" style={{ fontSize: 14 }}>Progreso</span>
+                              <span className="body-sm num" style={{ fontSize: 14 }}>
+                                {p.progressPct}% / {p.threshold_pct}%
+                              </span>
+                            </div>
+                            <div style={{ position: "relative", height: 6, borderRadius: 999, background: "var(--line)", overflow: "visible" }}>
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${p.progressPct}%` }}
+                                transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
+                                style={{ height: "100%", background: "var(--ink)", borderRadius: 999 }}
+                              />
+                              {/* Threshold marker */}
+                              <div style={{
+                                position: "absolute", top: -4, left: `${p.threshold_pct}%`,
+                                width: 2, height: 14, background: "var(--clay)", borderRadius: 1,
+                              }} />
+                            </div>
+                            {isUnlocking && (
+                              <div className="body-sm mt-6" style={{ color: "var(--clay-deep)", fontSize: 14 }}>
+                                Te faltan {p.threshold_pct - p.progressPct}% para desbloquear fase {p.phase_num + 1}.
+                              </div>
+                            )}
+                          </div>
+
+                          {p.description && <div className="body mt-8">{p.description}</div>}
+
+                          {renderWeekDots(p, activityWeeks, false)}
+                        </div>
+                      ) : (
+                        <div style={{ opacity: isLocked ? 0.55 : 1, paddingTop: 8 }}>
+                          <div className="eyebrow" style={{ fontSize: 11 }}>
+                            Fase {p.phase_num}{isPast ? " · completada" : ""}
+                          </div>
+                          <div className="serif" style={{ fontSize: 19, lineHeight: 1.15, marginTop: 2, color: "var(--ink)" }}>
+                            {p.name}
+                          </div>
+                          {renderWeekDots(p, isPast ? activityWeeks : new Set<number>(), isLocked)}
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           );
         })()}
