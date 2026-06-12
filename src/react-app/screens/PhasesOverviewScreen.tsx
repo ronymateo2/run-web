@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../auth/AuthContext";
-import { Plant, Leaf, Flower, Tree } from "@phosphor-icons/react";
+import { Plant, Leaf, Flower, Tree, CaretUpDown } from "@phosphor-icons/react";
 import { Ico } from "../components/icons";
 import { injuryRepository, exerciseRepository, effectiveFocusDays, type Injury, type Phase } from "../../data/repositories";
 
@@ -65,6 +66,9 @@ export function PhasesOverviewScreen() {
 
   const sel = data?.find(d => d.injury.id === (selectedId ?? data[0]?.injury.id)) ?? null;
 
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const selIndex = data && sel ? data.findIndex(d => d.injury.id === sel.injury.id) : -1;
+
   // Row of week dots for a phase: one dot per week in its range,
   // filled (moss) when there was at least one session that week.
   const renderWeekDots = (p: Phase, activityWeeks: Set<number>, muted: boolean) => {
@@ -118,31 +122,31 @@ export function PhasesOverviewScreen() {
           </div>
         )}
 
-        {/* Injury selector */}
-        {data && data.length > 1 && (
-          <div className="row gap-8 mt-20" style={{ flexWrap: "wrap" }}>
-            {data.map(({ injury }) => {
-              const active = injury.id === sel?.injury.id;
-              return (
-                <button
-                  key={injury.id}
-                  className="chip"
-                  style={{
-                    minWidth: 0, maxWidth: "100%", cursor: "pointer",
-                    fontWeight: active ? 600 : 400,
-                    background: active ? "var(--clay)" : "var(--card-soft)",
-                    color: active ? "#fff" : "var(--ink)",
-                    border: active ? "1px solid var(--clay)" : "1px solid var(--line)",
-                  }}
-                  onClick={() => setSelectedId(injury.id)}
-                >
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {injury.name}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+        {/* Injury selector — current injury + count, opens bottom sheet */}
+        {data && data.length > 1 && sel && (
+          <button
+            className="card-flat card-tap"
+            style={{
+              display: "flex", alignItems: "center", gap: 12, width: "100%",
+              padding: "12px 16px", marginTop: 20, cursor: "pointer",
+              textAlign: "left", fontFamily: "inherit",
+              WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
+            }}
+            onClick={() => setSheetOpen(true)}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="eyebrow" style={{ fontSize: 10 }}>
+                Lesión {selIndex + 1} de {data.length}
+              </div>
+              <div className="body" style={{
+                fontWeight: 600, marginTop: 2,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>
+                {sel.injury.name}
+              </div>
+            </div>
+            <CaretUpDown size={18} color="var(--muted)" />
+          </button>
         )}
 
         {sel && (() => {
@@ -158,14 +162,9 @@ export function PhasesOverviewScreen() {
 
           return (
             <div key={injury.id} style={{ marginTop: 20 }}>
-              {/* Orientation strip */}
-              <div className="row gap-8" style={{ marginBottom: 20 }}>
-                <span className="chip num" style={{ fontSize: 11, letterSpacing: "0.08em" }}>
-                  SEMANA {weekNow} DE {totalWeeks}
-                </span>
-                <span className="chip num" style={{ fontSize: 11, letterSpacing: "0.08em" }}>
-                  FASE {currentNum} DE {totalPhases}
-                </span>
+              {/* Orientation line — static info, intentionally not chip-shaped */}
+              <div className="eyebrow" style={{ marginBottom: 18 }}>
+                Semana {weekNow} · Fase {currentNum} de {totalPhases}
               </div>
 
               {/* Vertical sendero */}
@@ -297,6 +296,78 @@ export function PhasesOverviewScreen() {
           );
         })()}
       </div>
+
+      {/* Injury switcher — bottom sheet. Portaled to <body> so route-transition
+          transforms can't trap it in a stacking context below the tab bar. */}
+      {createPortal(
+      <AnimatePresence>
+        {sheetOpen && data && (
+          <>
+            <motion.div
+              key="scrim"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              style={{ position: "fixed", inset: 0, background: "rgba(31,58,46,0.40)", zIndex: 200 }}
+              onClick={() => setSheetOpen(false)}
+            />
+            <motion.div
+              key="sheet"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
+              style={{
+                position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 201,
+                background: "var(--card)", borderRadius: "26px 26px 0 0",
+                padding: "10px 22px calc(24px + var(--sab, 0px))",
+                boxShadow: "var(--shadow-2)",
+              }}
+            >
+              <div style={{ width: 36, height: 4, borderRadius: 999, background: "var(--line-2)", margin: "0 auto 16px" }} />
+              <div className="eyebrow" style={{ marginBottom: 4 }}>Tus lesiones</div>
+              {data.map((d, di) => {
+                const active = d.injury.id === sel?.injury.id;
+                const cur = d.phases.find(p => p.id === d.current?.id);
+                const tot = Math.max(d.current?.phase_num ?? 1, ...d.phases.map(p => p.phase_num ?? 0));
+                return (
+                  <button
+                    key={d.injury.id}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 12, width: "100%",
+                      padding: "14px 0", background: "none", border: "none",
+                      borderBottom: di < data.length - 1 ? "1px solid var(--line)" : "none",
+                      cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+                      WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
+                    }}
+                    onClick={() => { setSelectedId(d.injury.id); setSheetOpen(false); }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="body" style={{ fontWeight: active ? 700 : 500 }}>
+                        {d.injury.name}
+                      </div>
+                      <div className="body-sm mt-4">
+                        {cur
+                          ? <>Fase {cur.phase_num} de {tot} · <span className="num">{cur.progressPct}%</span> de la fase</>
+                          : `Fase – de ${tot}`}
+                      </div>
+                      {cur && (
+                        <div className="bar mt-6" style={{ maxWidth: 180 }}>
+                          <span className="bar-fill" style={{ width: `${cur.progressPct}%` }} />
+                        </div>
+                      )}
+                    </div>
+                    {active && <Ico.check s={18} c="var(--clay)" />}
+                  </button>
+                );
+              })}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>,
+      document.body
+      )}
     </div>
   );
 }
