@@ -1,11 +1,11 @@
-import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { useAuth } from "../auth/AuthContext";
 import { localDayName } from "../utils/timezone";
 import { useTodayData } from "../features/useTodayData";
 
-import { ExerciseList, countDone } from "../components/ExerciseList";
+import { HomeStats } from "../components/HomeStats";
+import { SessionCard } from "../components/SessionCard";
 import { NudgeSST } from "../components/NudgeSST";
 import { NudgePROM } from "../components/NudgePROM";
 import { BodyFigure } from "../components/BodyFigure";
@@ -17,27 +17,6 @@ export function HomeScreen() {
   const navigate = useNavigate();
   const { data } = useTodayData();
 
-  useEffect(() => {
-    if (!data) return;
-    const lastId = sessionStorage.getItem("lastExerciseId");
-    if (!lastId) return;
-    sessionStorage.removeItem("lastExerciseId");
-    // Wait for the route pop transition to settle, then scroll once. A single rAF
-    // fires before layout is final and lands at the top. Polls until the row exists
-    // and the transition window has passed.
-    const start = performance.now();
-    const tick = () => {
-      const el = document.querySelector(`[data-exercise-id="${lastId}"]`);
-      const settled = performance.now() - start > 480;
-      if (el && settled) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        return;
-      }
-      if (performance.now() - start < 1500) requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  }, [data]);
-
   if (!data) {
     return (
       <div className="screen">
@@ -48,7 +27,7 @@ export function HomeScreen() {
     );
   }
 
-  const { focusBlocks, setsDone, checkin, sstResult, sstDue, injuries, promsDue } = data;
+  const { focusBlocks, setsDone, checkin, sstResult, sstDue, injuries, promsDue, stats } = data;
   const focus = focusBlocks[0]?.injury ?? null;
   const isDualInjury = injuries.length >= 2;
   const isMultiFocus = focusBlocks.length >= 2;
@@ -84,6 +63,9 @@ export function HomeScreen() {
             </div>
           )}
         </div>
+
+        {/* Stats band — pain trend, week adherence, total sessions */}
+        <HomeStats stats={stats} />
 
         {/* Pain check-in hero card */}
         <motion.div
@@ -138,33 +120,19 @@ export function HomeScreen() {
         {/* PROM nudge — every due questionnaire as its own row; user picks which */}
         {promsDue.length > 0 && <NudgePROM instruments={promsDue} />}
 
-        {/* Today's exercises — one block per focus injury */}
-        {focusBlocks.map((block) => {
-          const blockDone = countDone(block.exercises, setsDone);
-          return block.exercises.length > 0 ? (
-            <div key={block.injury.id}>
-              <div className="row between mt-24" style={{ alignItems: "baseline" }}>
-                <div className="title-md serif">
-                  {isDualInjury ? `Ejercicios de ${block.injury.name.toLowerCase()}` : "Hoy toca…"}
-                </div>
-                <div className="label num">{blockDone} / {block.exercises.length} hechos</div>
-              </div>
-              {block.phase && (
-                <div className="eyebrow mt-4">{block.phase.name}</div>
-              )}
-              <div className="bar mt-8" style={{ background: "rgba(31,58,46,0.08)" }}>
-                <motion.div
-                  className="bar-fill"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${block.exercises.length ? (blockDone / block.exercises.length) * 100 : 0}%` }}
-                  transition={{ duration: 0.55, ease: [0.25, 0.46, 0.45, 0.94], delay: 0.1 }}
-                  style={{ background: "var(--ink)" }}
-                />
-              </div>
-              <ExerciseList exercises={block.exercises} setsDone={setsDone} />
-            </div>
-          ) : null;
-        })}
+        {/* Today's session — one condensed card per focus injury; the full
+            exercise list lives behind the phase link inside the card */}
+        {focusBlocks.map((block) =>
+          block.exercises.length > 0 ? (
+            <SessionCard
+              key={block.injury.id}
+              title={isDualInjury ? `Ejercicios de ${block.injury.name.toLowerCase()}` : "Hoy toca…"}
+              phase={block.phase}
+              exercises={block.exercises}
+              setsDone={setsDone}
+            />
+          ) : null
+        )}
 
         {/* Maintenance card for non-focus injuries */}
         {injuries
