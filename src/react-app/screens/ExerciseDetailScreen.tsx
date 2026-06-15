@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowLineDown, ClockCounterClockwise, ClipboardText } from "@phosphor-icons/react";
+import { ArrowLineDown, ClockCounterClockwise } from "@phosphor-icons/react";
 import { useAuth } from "../auth/AuthContext";
 import { useSync } from "../hooks/useSync";
 import { localToday } from "../utils/timezone";
@@ -448,7 +448,6 @@ export function ExerciseDetailScreen() {
                       <ClockCounterClockwise size={13} weight="bold" style={{ opacity: 0.55, alignSelf: "center" }} />
                       <span style={{ fontWeight: 600 }}>{p.value}{isTimeBased ? "s" : "×"}</span>
                       <span style={{ opacity: 0.5, fontSize: 10 }}>@{p.rpe}</span>
-                      <ClipboardText size={13} weight="bold" style={{ opacity: 0.7, alignSelf: "center", marginLeft: 2 }} />
                     </motion.button>
                   );
                 })()}
