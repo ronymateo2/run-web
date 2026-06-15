@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowLineDown } from "@phosphor-icons/react";
+import { ArrowLineDown, ClockCounterClockwise, ClipboardText } from "@phosphor-icons/react";
 import { useAuth } from "../auth/AuthContext";
 import { useSync } from "../hooks/useSync";
 import { localToday } from "../utils/timezone";
@@ -223,11 +223,11 @@ export function ExerciseDetailScreen() {
     setSets(prev => prev.map((s, idx) => idx === i ? { ...s, expanded: !s.expanded } : s));
   }
 
-  // Copy this set's value/RPE/pain to every LATER set; past sets stay untouched.
+  // Copy this set's value/RPE/pain to every LATER set and mark them completed; past sets stay untouched.
   function copyToFollowing(i: number) {
     setSets(prev => prev.map((s, idx) =>
       idx > i
-        ? { ...s, value: prev[i].value, rpe: prev[i].rpe, painDuring: prev[i].painDuring }
+        ? { ...s, value: prev[i].value, rpe: prev[i].rpe, painDuring: prev[i].painDuring, completed: true }
         : s,
     ));
   }
@@ -416,7 +416,7 @@ export function ExerciseDetailScreen() {
               </motion.button>
 
               {/* Set label + previous-session ghost chip (tap copies value+RPE) */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 5, flex: 1, minWidth: 0, alignItems: "flex-start" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5, flex: 1, minWidth: 0, alignItems: "flex-start", paddingRight: 6 }}>
                 <span style={{
                   fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.12em",
                   color: row.completed ? "rgba(245,240,232,0.92)" : "rgba(245,240,232,0.60)",
@@ -445,17 +445,18 @@ export function ExerciseDetailScreen() {
                         cursor: "pointer",
                       }}
                     >
-                      <span style={{ opacity: 0.55, fontSize: 10, letterSpacing: "0.08em" }}>PREVIO</span>
+                      <ClockCounterClockwise size={13} weight="bold" style={{ opacity: 0.55, alignSelf: "center" }} />
                       <span style={{ fontWeight: 600 }}>{p.value}{isTimeBased ? "s" : "×"}</span>
                       <span style={{ opacity: 0.5, fontSize: 10 }}>@{p.rpe}</span>
+                      <ClipboardText size={13} weight="bold" style={{ opacity: 0.7, alignSelf: "center", marginLeft: 2 }} />
                     </motion.button>
                   );
                 })()}
               </div>
 
-              {/* Value (reps/time) big, RPE small underneath */}
-              <div style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+              {/* Metrics — fixed-width columns so numbers line up across every set */}
+              <div style={{ display: "flex", alignItems: "center", gap: 18, flexShrink: 0 }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, minWidth: 46 }}>
                   <EditableNum
                     value={row.value}
                     min={1}
@@ -472,7 +473,7 @@ export function ExerciseDetailScreen() {
                     {isTimeBased ? "TIEMPO" : "REPS"}
                   </span>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, minWidth: 28 }}>
                   <EditableNum
                     value={row.rpe} min={1} max={10}
                     completed={row.completed}
@@ -488,49 +489,58 @@ export function ExerciseDetailScreen() {
                 </div>
               </div>
 
-              {/* Copy values to all following sets (none for the last set) */}
-              {i < sets.length - 1 && (
-                <motion.button
-                  type="button"
-                  onClick={() => copyToFollowing(i)}
-                  whileTap={{ scale: 0.88 }}
-                  aria-label={`Copiar valores de la serie ${i + 1} a las siguientes`}
-                  title="Copiar a las series siguientes"
+              {/* Divider — separates data from actions */}
+              <div style={{
+                width: 1, alignSelf: "stretch", margin: "14px 0", flexShrink: 0,
+                background: "rgba(245,240,232,0.10)",
+              }} />
+
+              {/* Actions — copy-down + expand caret, aligned across rows (spacer on last set) */}
+              <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
+                {i < sets.length - 1 ? (
+                  <motion.button
+                    type="button"
+                    onClick={() => copyToFollowing(i)}
+                    whileTap={{ scale: 0.88 }}
+                    aria-label={`Copiar valores de la serie ${i + 1} a las siguientes`}
+                    title="Copiar a las series siguientes"
+                    style={{
+                      background: "none", border: "none", cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      width: 30, height: 30, borderRadius: 8,
+                    }}
+                  >
+                    <ArrowLineDown size={17} weight="bold" color="rgba(245,240,232,0.50)" />
+                  </motion.button>
+                ) : (
+                  <span style={{ width: 30, height: 30, flexShrink: 0 }} />
+                )}
+
+                <button
+                  onClick={() => toggleExpand(i)}
+                  aria-label="Registrar dolor"
                   style={{
                     background: "none", border: "none", cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    width: 32, height: 32, flexShrink: 0,
+                    width: 30, height: 30, borderRadius: 8, position: "relative",
                   }}
                 >
-                  <ArrowLineDown size={17} weight="bold" color="rgba(245,240,232,0.55)" />
-                </motion.button>
-              )}
-
-              {/* Expand caret — pain panel; dot signals logged pain when collapsed */}
-              <button
-                onClick={() => toggleExpand(i)}
-                aria-label="Registrar dolor"
-                style={{
-                  background: "none", border: "none", cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  width: 32, height: 32, flexShrink: 0, position: "relative",
-                }}
-              >
-                {!row.expanded && row.painDuring > 0 && (
+                  {!row.expanded && row.painDuring > 0 && (
+                    <span style={{
+                      position: "absolute", top: 3, right: 3,
+                      width: 6, height: 6, borderRadius: 999,
+                      background: row.painDuring <= 4 ? "#C9C96E" : "#C96E6E",
+                    }} />
+                  )}
                   <span style={{
-                    position: "absolute", top: 4, right: 4,
-                    width: 6, height: 6, borderRadius: 999,
-                    background: row.painDuring <= 4 ? "#C9C96E" : "#C96E6E",
-                  }} />
-                )}
-                <span style={{
-                  display: "flex", alignItems: "center",
-                  transform: row.expanded ? "rotate(90deg)" : "rotate(0deg)",
-                  transition: "transform 0.18s ease",
-                }}>
-                  <Ico.chevR s={15} c="rgba(245,240,232,0.55)" />
-                </span>
-              </button>
+                    display: "flex", alignItems: "center",
+                    transform: row.expanded ? "rotate(90deg)" : "rotate(0deg)",
+                    transition: "transform 0.18s ease",
+                  }}>
+                    <Ico.chevR s={15} c="rgba(245,240,232,0.55)" />
+                  </span>
+                </button>
+              </div>
             </div>
 
             {/* Pain panel */}
