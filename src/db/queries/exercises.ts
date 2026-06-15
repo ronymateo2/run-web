@@ -21,6 +21,7 @@ export type ExerciseInput = {
   exercise_type: Exercise["exercise_type"];
   sort_order: number | null;
   video_url: string | null;
+  warmup_sets: number;
 };
 
 // Soft-deleted rows (deselected sets) are excluded from every read/count. Use this
@@ -260,15 +261,15 @@ export function softDeleteExerciseLogStatements(
 // Upsert an exercise edit locally; the repo enqueues it for push (queue-XOR-synced).
 export function saveExerciseStatements(ex: ExerciseInput): SqlStatement[] {
   return [{
-    sql: `INSERT INTO exercises (id, phase_id, name, detail, sets, reps, duration_s, exercise_type, sort_order, video_url, synced)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    sql: `INSERT INTO exercises (id, phase_id, name, detail, sets, reps, duration_s, exercise_type, sort_order, video_url, warmup_sets, synced)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
           ON CONFLICT(id) DO UPDATE SET
             phase_id = excluded.phase_id, name = excluded.name, detail = excluded.detail,
             sets = excluded.sets, reps = excluded.reps, duration_s = excluded.duration_s,
             exercise_type = excluded.exercise_type, sort_order = excluded.sort_order,
-            video_url = excluded.video_url, synced = 1`,
+            video_url = excluded.video_url, warmup_sets = excluded.warmup_sets, synced = 1`,
     bind: [ex.id, ex.phase_id, ex.name, ex.detail, ex.sets, ex.reps, ex.duration_s,
-           ex.exercise_type, ex.sort_order, ex.video_url],
+           ex.exercise_type, ex.sort_order, ex.video_url, ex.warmup_sets],
   }];
 }
 

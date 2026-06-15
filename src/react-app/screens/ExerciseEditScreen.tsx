@@ -24,6 +24,7 @@ export function ExerciseEditScreen() {
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [measure, setMeasure] = useState<Measure>("reps");
   const [sets, setSets] = useState("3");
+  const [warmup, setWarmup] = useState("0");
   const [value, setValue] = useState("10");
   const [durationOpt, setDurationOpt] = useState("");
   const [type, setType] = useState<Exercise["exercise_type"]>("mobility");
@@ -40,6 +41,7 @@ export function ExerciseEditScreen() {
     const isTime = !!ex.duration_s && !ex.reps;
     setMeasure(isTime ? "time" : "reps");
     setSets(String(ex.sets ?? 3));
+    setWarmup(String(ex.warmup_sets ?? 0));
     setValue(String(isTime ? (ex.duration_s ?? 30) : (ex.reps ?? 10)));
     // In reps mode, duration_s is an optional time target shown alongside reps.
     setDurationOpt(!isTime && ex.duration_s ? String(ex.duration_s) : "");
@@ -66,6 +68,7 @@ export function ExerciseEditScreen() {
       exercise_type: type,
       sort_order: exercise.sort_order ?? 0,
       video_url: videoUrl.trim() ? normalize(videoUrl.trim()) : null,
+      warmup_sets: Number(warmup) || 0,
     });
     push();
     navigate(-1);
@@ -126,6 +129,12 @@ export function ExerciseEditScreen() {
                 <input style={inputStyle} type="number" inputMode="numeric" value={durationOpt} onChange={e => setDurationOpt(e.target.value)} placeholder="—" />
               </div>
             )}
+          </div>
+
+          <div className="col gap-4">
+            <span className="eyebrow">Calentamientos</span>
+            <input style={inputStyle} type="number" inputMode="numeric" min={0} value={warmup} onChange={e => setWarmup(e.target.value)} />
+            <span className="body-sm" style={{ color: "var(--ink-3)" }}>Series de calentamiento al iniciar una sesión nueva.</span>
           </div>
 
           <div className="col gap-4">

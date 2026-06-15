@@ -65,6 +65,7 @@ export const exercises = sqliteTable("exercises", {
   }).notNull(),
   sort_order: integer("sort_order").default(0),
   video_url: text("video_url"),
+  warmup_sets: integer("warmup_sets").notNull().default(0),
   synced: integer("synced").default(0),
 });
 

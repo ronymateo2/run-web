@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS phase_criteria (
 CREATE TABLE IF NOT EXISTS exercises (
   id TEXT PRIMARY KEY, phase_id TEXT NOT NULL, name TEXT NOT NULL,
   detail TEXT, sets INTEGER, reps INTEGER, duration_s INTEGER,
-  exercise_type TEXT NOT NULL, sort_order INTEGER DEFAULT 0, video_url TEXT, synced INTEGER DEFAULT 0
+  exercise_type TEXT NOT NULL, sort_order INTEGER DEFAULT 0, video_url TEXT,
+  warmup_sets INTEGER NOT NULL DEFAULT 0, synced INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS pain_checkins (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, injury_id TEXT, date TEXT NOT NULL,
@@ -195,6 +196,11 @@ ALTER TABLE prom_results ADD COLUMN deleted_at INTEGER;`,
   {
     id: 12,
     sql: `ALTER TABLE exercise_logs ADD COLUMN set_type TEXT NOT NULL DEFAULT 'normal'`,
+  },
+  // Per-exercise default number of warm-up rows seeded on a fresh session.
+  {
+    id: 14,
+    sql: `ALTER TABLE exercises ADD COLUMN warmup_sets INTEGER NOT NULL DEFAULT 0`,
   },
 ];
 
