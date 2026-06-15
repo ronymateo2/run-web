@@ -224,10 +224,13 @@ export function ExerciseDetailScreen() {
   }
 
   // Copy this set's value/RPE/pain to every LATER set and mark them completed; past sets stay untouched.
+  // The source set gets selected too (no-op if already selected).
   function copyToFollowing(i: number) {
     setSets(prev => prev.map((s, idx) =>
       idx > i
         ? { ...s, value: prev[i].value, rpe: prev[i].rpe, painDuring: prev[i].painDuring, completed: true }
+        : idx === i
+        ? { ...s, completed: true }
         : s,
     ));
   }
