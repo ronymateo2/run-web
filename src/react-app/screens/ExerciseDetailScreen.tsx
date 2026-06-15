@@ -454,7 +454,7 @@ export function ExerciseDetailScreen() {
               </div>
 
               {/* Metrics — fixed-width columns so numbers line up across every set */}
-              <div style={{ display: "flex", alignItems: "center", gap: 18, flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 0, flexShrink: 0 }}>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, minWidth: 46 }}>
                   <EditableNum
                     value={row.value}
@@ -488,58 +488,31 @@ export function ExerciseDetailScreen() {
                 </div>
               </div>
 
-              {/* Divider — separates data from actions */}
-              <div style={{
-                width: 1, alignSelf: "stretch", margin: "14px 0", flexShrink: 0,
-                background: "rgba(245,240,232,0.10)",
-              }} />
-
-              {/* Actions — copy-down + expand caret, aligned across rows (spacer on last set) */}
-              <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
-                {i < sets.length - 1 ? (
-                  <motion.button
-                    type="button"
-                    onClick={() => copyToFollowing(i)}
-                    whileTap={{ scale: 0.88 }}
-                    aria-label={`Copiar valores de la serie ${i + 1} a las siguientes`}
-                    title="Copiar a las series siguientes"
-                    style={{
-                      background: "none", border: "none", cursor: "pointer",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      width: 30, height: 30, borderRadius: 8,
-                    }}
-                  >
-                    <ArrowLineDown size={17} weight="bold" color="rgba(245,240,232,0.50)" />
-                  </motion.button>
-                ) : (
-                  <span style={{ width: 30, height: 30, flexShrink: 0 }} />
-                )}
-
-                <button
-                  onClick={() => toggleExpand(i)}
-                  aria-label="Registrar dolor"
-                  style={{
-                    background: "none", border: "none", cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    width: 30, height: 30, borderRadius: 8, position: "relative",
-                  }}
-                >
-                  {!row.expanded && row.painDuring > 0 && (
-                    <span style={{
-                      position: "absolute", top: 3, right: 3,
-                      width: 6, height: 6, borderRadius: 999,
-                      background: row.painDuring <= 4 ? "#C9C96E" : "#C96E6E",
-                    }} />
-                  )}
+              {/* Expand caret — opens panel (pain + copy-to-following) */}
+              <button
+                onClick={() => toggleExpand(i)}
+                aria-label="Más opciones"
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  width: 30, height: 30, borderRadius: 8, position: "relative", flexShrink: 0,
+                }}
+              >
+                {!row.expanded && row.painDuring > 0 && (
                   <span style={{
-                    display: "flex", alignItems: "center",
-                    transform: row.expanded ? "rotate(90deg)" : "rotate(0deg)",
-                    transition: "transform 0.18s ease",
-                  }}>
-                    <Ico.chevR s={15} c="rgba(245,240,232,0.55)" />
-                  </span>
-                </button>
-              </div>
+                    position: "absolute", top: 3, right: 3,
+                    width: 6, height: 6, borderRadius: 999,
+                    background: row.painDuring <= 4 ? "#C9C96E" : "#C96E6E",
+                  }} />
+                )}
+                <span style={{
+                  display: "flex", alignItems: "center",
+                  transform: row.expanded ? "rotate(90deg)" : "rotate(0deg)",
+                  transition: "transform 0.18s ease",
+                }}>
+                  <Ico.chevR s={15} c="rgba(245,240,232,0.55)" />
+                </span>
+              </button>
             </div>
 
             {/* Pain panel */}
@@ -602,6 +575,31 @@ export function ExerciseDetailScreen() {
                     }}>
                       <span>0</span><span>5</span><span>10</span>
                     </div>
+
+                    {/* Copy all values (incl. pain) to every following set */}
+                    {i < sets.length - 1 && (
+                      <motion.button
+                        type="button"
+                        onClick={() => copyToFollowing(i)}
+                        whileTap={{ scale: 0.97 }}
+                        aria-label={`Copiar valores de la serie ${i + 1} a las siguientes`}
+                        style={{
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                          width: "100%", marginTop: 18,
+                          padding: "11px 14px",
+                          borderRadius: 10,
+                          border: "1px solid rgba(245,240,232,0.12)",
+                          background: "rgba(245,240,232,0.05)",
+                          color: "rgba(245,240,232,0.78)",
+                          fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.08em",
+                          textTransform: "uppercase",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <ArrowLineDown size={16} weight="bold" />
+                        Copiar a las series siguientes
+                      </motion.button>
+                    )}
                   </div>
                 </motion.div>
               )}
