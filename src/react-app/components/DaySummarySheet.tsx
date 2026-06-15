@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Ico } from "./icons";
 import { BottomSheet } from "./BottomSheet";
-import { exerciseRepository, type Exercise, type ExerciseLog } from "../../data/repositories";
+import { exerciseRepository, injuryRepository, type Exercise, type ExerciseLog } from "../../data/repositories";
 import { pullHistory, WINDOW_DAYS } from "../../data/sync";
 
 // A session date older than the sync window has no raw logs locally; fetch on demand.
@@ -13,10 +13,14 @@ function isBeforeWindow(date: string): boolean {
 interface Props {
   date: string;
   userId: string;
-  exercises: Exercise[];
-  phaseColor: string;
-  phaseName: string;
+  injuryId: string;
+  phaseColors: string[];
   onClose: () => void;
+}
+
+interface DayPhase {
+  name: string;
+  color: string;
 }
 
 interface GroupedExercise {
@@ -41,12 +45,12 @@ function formatDate(dateStr: string): string {
 export function DaySummarySheet({
   date,
   userId,
-  exercises,
-  phaseColor,
-  phaseName,
+  injuryId,
+  phaseColors,
   onClose,
 }: Props) {
   const [grouped, setGrouped] = useState<GroupedExercise[] | null>(null);
+  const [dayPhase, setDayPhase] = useState<DayPhase | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,7 +64,21 @@ export function DaySummarySheet({
         logs = await exerciseRepository.getTodayLogs(userId, date);
       }
       if (cancelled) return;
-      const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
+      // Resolve each logged exercise from its own id (not the current phase's list),
+      // so days from a past phase still show their exercises and the right chip.
+      const exIds = [...new Set(logs.map((l) => l.exercise_id))];
+      const exs = (await Promise.all(exIds.map((id) => exerciseRepository.getExerciseById(id))))
+        .filter((e): e is Exercise => e != null);
+      if (cancelled) return;
+      const phaseIds = [...new Set(exs.map((e) => e.phase_id))];
+      const phs = (await Promise.all(phaseIds.map((id) => injuryRepository.getPhaseById(id))))
+        .filter((p) => p != null);
+      if (cancelled) return;
+      const phaseById = new Map(phs.map((p) => [p!.id, p!]));
+      // Scope to this injury (the calendar is per-injury; a day can also hold other injuries' work).
+      const exerciseMap = new Map(
+        exs.filter((e) => phaseById.get(e.phase_id)?.injury_id === injuryId).map((e) => [e.id, e]),
+      );
       const filtered = logs.filter((l) => exerciseMap.has(l.exercise_id));
       const byId = new Map<string, ExerciseLog[]>();
       for (const log of filtered) {
@@ -74,11 +92,29 @@ export function DaySummarySheet({
         if (exercise) result.push({ exercise, logs });
       }
       result.sort((a, b) => a.exercise.sort_order! - b.exercise.sort_order!);
+
+      // Day's phase = the phase most of that day's logged exercises belong to.
+      const counts = new Map<string, number>();
+      for (const log of filtered) {
+        const phaseId = exerciseMap.get(log.exercise_id)!.phase_id;
+        counts.set(phaseId, (counts.get(phaseId) ?? 0) + 1);
+      }
+      let topPhaseId: string | null = null;
+      let topCount = -1;
+      for (const [pid, n] of counts) {
+        if (n > topCount) { topPhaseId = pid; topCount = n; }
+      }
+      const phase = topPhaseId ? phaseById.get(topPhaseId) : null;
       setGrouped(result);
+      setDayPhase(
+        phase
+          ? { name: phase.name, color: phaseColors[(phase.phase_num - 1) % phaseColors.length] }
+          : null,
+      );
     }
     load();
     return () => { cancelled = true; };
-  }, [userId, date, exercises]);
+  }, [userId, date, injuryId, phaseColors]);
 
   return (
     <BottomSheet onClose={onClose}>
@@ -111,16 +147,18 @@ export function DaySummarySheet({
                   <Ico.chevL s={14} />
                   Cerrar
                 </button>
-                <div
-                  className="chip"
-                  style={{
-                    background: phaseColor,
-                    color: "#fff",
-                    border: "none",
-                  }}
-                >
-                  {phaseName}
-                </div>
+                {dayPhase && (
+                  <div
+                    className="chip"
+                    style={{
+                      background: dayPhase.color,
+                      color: "#fff",
+                      border: "none",
+                    }}
+                  >
+                    {dayPhase.name}
+                  </div>
+                )}
               </div>
               <div
                 className="title-md mt-10"

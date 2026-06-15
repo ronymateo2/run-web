@@ -209,9 +209,8 @@ export function PhaseJourneyScreen() {
         <DaySummarySheet
           date={selectedDate}
           userId={user.id}
-          exercises={exercises}
-          phaseColor={phaseColor}
-          phaseName={phase.name}
+          injuryId={phase.injury_id}
+          phaseColors={PHASE_COLORS}
           onClose={() => setSelectedDate(null)}
         />
       )}
