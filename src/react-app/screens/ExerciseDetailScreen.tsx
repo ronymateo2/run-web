@@ -454,7 +454,7 @@ export function ExerciseDetailScreen() {
               </div>
 
               {/* Metrics — fixed-width columns so numbers line up across every set */}
-              <div style={{ display: "flex", alignItems: "center", gap: 0, flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, minWidth: 46 }}>
                   <EditableNum
                     value={row.value}
