@@ -21,7 +21,10 @@ const PAIN_LABELS = [
   "Muy fuerte", "Intenso", "Máximo",
 ];
 
+type SetType = "normal" | "warmup";
+
 type SetRow = {
+  type: SetType;
   rpe: number;
   value: number;
   painDuring: number;
@@ -31,6 +34,7 @@ type SetRow = {
 
 function initSets(count: number, defaultValue: number): SetRow[] {
   return Array.from({ length: count }, () => ({
+    type: "normal" as SetType,
     rpe: DEFAULT_RPE,
     value: defaultValue,
     painDuring: 0,
@@ -57,18 +61,44 @@ function prevByIndex(logs: ExerciseLog[], defaultValue: number): Map<number, { v
   return map;
 }
 
+function maxLoggedIdx(logs: ExerciseLog[]): number {
+  return logs.reduce((m, log) => {
+    const idx = parseSetIdx(log);
+    return Number.isInteger(idx) && idx > m ? idx : m;
+  }, -1);
+}
+
+// Resume today's session: rebuild rows (incl. type, values) from today's saved logs.
+// Length covers both the prescribed count and any extra/sparse logged indices.
 function logsToSets(logs: ExerciseLog[], count: number, defaultValue: number): SetRow[] {
-  const base = initSets(count, defaultValue);
+  const length = Math.max(count, maxLoggedIdx(logs) + 1);
+  const base = initSets(length, defaultValue);
   logs.forEach(log => {
     const idx = parseSetIdx(log);
     if (Number.isInteger(idx) && idx >= 0 && idx < base.length) {
       base[idx] = {
+        type: log.set_type === "warmup" ? "warmup" : "normal",
         rpe: log.rpe ?? DEFAULT_RPE,
         value: log.reps_done ?? defaultValue,
         painDuring: log.pain_during ?? 0,
         completed: true,
         expanded: false,
       };
+    }
+  });
+  return base;
+}
+
+// Use the last session as a template: same number of rows and same warmup positions,
+// but unchecked and at default values — the PREVIO ghost (prevByIndex) brings the
+// numbers in when tapped. Falls back to the prescribed count if last session is empty.
+function templateFromLogs(logs: ExerciseLog[], count: number, defaultValue: number): SetRow[] {
+  const length = Math.max(count, maxLoggedIdx(logs) + 1);
+  const base = initSets(length, defaultValue);
+  logs.forEach(log => {
+    const idx = parseSetIdx(log);
+    if (Number.isInteger(idx) && idx >= 0 && idx < base.length) {
+      base[idx].type = log.set_type === "warmup" ? "warmup" : "normal";
     }
   });
   return base;
@@ -174,6 +204,9 @@ export function ExerciseDetailScreen() {
   const [sets, setSets] = useState<SetRow[]>([]);
   const [prev, setPrev] = useState<Map<number, { value: number; rpe: number }>>(new Map());
   const [hadLogs, setHadLogs] = useState(false);
+  // How many set rows were already saved for today (max saved index + 1). On save we
+  // soft-delete any of those indices the user has since removed or unchecked.
+  const [loadedCount, setLoadedCount] = useState(0);
   const [saving, setSaving] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
@@ -182,6 +215,9 @@ export function ExerciseDetailScreen() {
   const isTimeBased = !!exercise?.duration_s && !exercise?.reps;
   const defaultValue = isTimeBased ? (exercise?.duration_s ?? 30) : (exercise?.reps ?? 10);
   const completedCount = sets.filter(s => s.completed).length;
+  // Warmups are saved but don't count toward the working-set target shown in the footer.
+  const workingTotal = sets.filter(s => s.type === "normal").length;
+  const workingDone = sets.filter(s => s.type === "normal" && s.completed).length;
 
   useEffect(() => {
     if (!id) return;
@@ -198,16 +234,26 @@ export function ExerciseDetailScreen() {
   useEffect(() => {
     if (!user || !exercise) return;
     const sessionDate = localToday(user?.timezone);
-    exerciseRepository.getLogsForExercise(user.id, exercise.id, sessionDate).then(logs => {
-      setHadLogs(logs.length > 0);
-      setSets(
-        logs.length > 0
-          ? logsToSets(logs, totalSets, defaultValue)
-          : initSets(totalSets, defaultValue),
-      );
-    });
-    exerciseRepository.getLastSessionForExercise(user.id, exercise.id, sessionDate).then(last => {
+    Promise.all([
+      exerciseRepository.getLogsForExercise(user.id, exercise.id, sessionDate),
+      exerciseRepository.getLastSessionForExercise(user.id, exercise.id, sessionDate),
+    ]).then(([todayLogs, last]) => {
+      setHadLogs(todayLogs.length > 0);
       setPrev(last ? prevByIndex(last.logs, defaultValue) : new Map());
+      if (todayLogs.length > 0) {
+        const rows = logsToSets(todayLogs, totalSets, defaultValue);
+        setLoadedCount(rows.length);
+        setSets(rows);
+      } else {
+        // First visit of the day: mirror last session's structure (count + warmups),
+        // or fall back to the prescribed set count on the very first session ever.
+        setLoadedCount(0);
+        setSets(
+          last && last.logs.length > 0
+            ? templateFromLogs(last.logs, totalSets, defaultValue)
+            : initSets(totalSets, defaultValue),
+        );
+      }
     });
   }, [user, exercise]);
 
@@ -235,22 +281,42 @@ export function ExerciseDetailScreen() {
     ));
   }
 
+  function newRow(type: SetType): SetRow {
+    return { type, rpe: DEFAULT_RPE, value: defaultValue, painDuring: 0, completed: false, expanded: false };
+  }
+
+  // Working sets append at the end; warmups go to the top (rendered before working sets).
+  function addSet() {
+    setSets(prev => [...prev, newRow("normal")]);
+  }
+  function addWarmup() {
+    setSets(prev => [newRow("warmup"), ...prev]);
+  }
+  function removeSet(i: number) {
+    setSets(prev => prev.filter((_, idx) => idx !== i));
+  }
+
   async function handleSave() {
     if (!user || !exercise || (completedCount === 0 && !hadLogs)) return;
     setSaving(true);
     const sessionDate = localToday(user?.timezone);
     const now = Date.now();
-    for (let i = 0; i < sets.length; i++) {
+    // Cover removed/unchecked rows too: indices that were saved earlier today but no
+    // longer exist (sets.length shrank) get soft-deleted so they stop counting.
+    const upper = Math.max(sets.length, loadedCount);
+    for (let i = 0; i < upper; i++) {
       const id = `${user.id}:${exercise.id}:${sessionDate}:${i}`;
-      if (sets[i].completed) {
+      const row = sets[i];
+      if (row && row.completed) {
         await exerciseRepository.saveExerciseLog({
           id,
           user_id: user.id,
           exercise_id: exercise.id,
           session_date: sessionDate,
-          reps_done: sets[i].value,
-          pain_during: sets[i].painDuring,
-          rpe: sets[i].rpe,
+          reps_done: row.value,
+          pain_during: row.painDuring,
+          rpe: row.rpe,
+          set_type: row.type,
           completed_at: now + i,
         });
       } else {
@@ -274,9 +340,9 @@ export function ExerciseDetailScreen() {
     ? hadLogs
       ? "Borrar registro"
       : "Completa al menos una serie"
-    : completedCount === totalSets
+    : workingDone === workingTotal
     ? "Registrar todas las series"
-    : `Registrar ${completedCount} de ${totalSets} series`;
+    : `Registrar ${workingDone} de ${workingTotal} series`;
 
   const canSave = completedCount > 0 || hadLogs;
 
@@ -372,7 +438,9 @@ export function ExerciseDetailScreen() {
             {sets.map((s, i) => (
               <span key={i} style={{
                 flex: 1, height: 5, borderRadius: 999,
-                background: s.completed ? "var(--moss)" : "rgba(245,240,232,0.12)",
+                background: s.completed
+                  ? (s.type === "warmup" ? "var(--clay)" : "var(--moss)")
+                  : "rgba(245,240,232,0.12)",
                 transition: "background 0.3s ease",
               }} />
             ))}
@@ -380,15 +448,20 @@ export function ExerciseDetailScreen() {
         )}
 
         {/* Set cards */}
-        {exercise && sets.map((row, i) => (
+        {exercise && sets.map((row, i) => {
+          const isWarmup = row.type === "warmup";
+          // Working sets are numbered among themselves; warmups don't consume a number.
+          const workingNum = sets.slice(0, i + 1).filter(s => s.type === "normal").length;
+          const accent = isWarmup ? "217,119,87" : "138,168,140"; // clay : moss
+          return (
           <div
             key={i}
             style={{
               borderRadius: "var(--r-md)",
               overflow: "hidden",
               marginBottom: 10,
-              background: row.completed ? "rgba(138,168,140,0.12)" : "rgba(245,240,232,0.04)",
-              border: `1px solid ${row.completed ? "rgba(138,168,140,0.40)" : "rgba(245,240,232,0.09)"}`,
+              background: row.completed ? `rgba(${accent},0.12)` : "rgba(245,240,232,0.04)",
+              border: `1px solid ${row.completed ? `rgba(${accent},0.40)` : "rgba(245,240,232,0.09)"}`,
               transition: "background 0.3s ease, border-color 0.3s ease",
             }}
           >
@@ -401,10 +474,12 @@ export function ExerciseDetailScreen() {
                 onClick={() => toggleCompleted(i)}
                 whileTap={{ scale: 0.88 }}
                 transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                aria-label={row.completed ? `Serie ${i + 1} completada` : `Marcar serie ${i + 1}`}
+                aria-label={isWarmup
+                  ? (row.completed ? "Calentamiento completado" : "Marcar calentamiento")
+                  : (row.completed ? `Serie ${workingNum} completada` : `Marcar serie ${workingNum}`)}
                 style={{
                   width: 42, height: 42, borderRadius: 999, flexShrink: 0,
-                  background: row.completed ? "var(--moss)" : "transparent",
+                  background: row.completed ? (isWarmup ? "var(--clay)" : "var(--moss)") : "transparent",
                   border: row.completed ? "none" : "1.5px dashed rgba(245,240,232,0.30)",
                   cursor: "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center",
@@ -420,13 +495,32 @@ export function ExerciseDetailScreen() {
 
               {/* Set label + previous-session ghost chip (tap copies value+RPE) */}
               <div style={{ display: "flex", flexDirection: "column", gap: 5, flex: 1, minWidth: 0, alignItems: "flex-start", paddingRight: 6 }}>
-                <span style={{
-                  fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.12em",
-                  color: row.completed ? "rgba(245,240,232,0.92)" : "rgba(245,240,232,0.60)",
-                  textTransform: "uppercase", transition: "color 0.25s",
-                }}>
-                  Serie {i + 1}
-                </span>
+                {isWarmup ? (
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.12em",
+                    color: row.completed ? "rgba(245,240,232,0.92)" : "rgba(245,240,232,0.60)",
+                    textTransform: "uppercase", transition: "color 0.25s",
+                  }}>
+                    <span style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      width: 18, height: 18, borderRadius: 5, fontSize: 11, fontWeight: 700,
+                      letterSpacing: 0,
+                      color: "var(--clay)",
+                      background: "rgba(217,119,87,0.16)",
+                      border: "1px solid rgba(217,119,87,0.40)",
+                    }}>W</span>
+                    Calent.
+                  </span>
+                ) : (
+                  <span style={{
+                    fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.12em",
+                    color: row.completed ? "rgba(245,240,232,0.92)" : "rgba(245,240,232,0.60)",
+                    textTransform: "uppercase", transition: "color 0.25s",
+                  }}>
+                    Serie {workingNum}
+                  </span>
+                )}
                 {(() => {
                   const p = prev.get(i);
                   if (!p) return null;
@@ -603,12 +697,79 @@ export function ExerciseDetailScreen() {
                         Copiar a las series siguientes
                       </motion.button>
                     )}
+
+                    {/* Remove this set row from the session */}
+                    <button
+                      type="button"
+                      onClick={() => removeSet(i)}
+                      aria-label={isWarmup ? "Eliminar calentamiento" : `Eliminar serie ${workingNum}`}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                        width: "100%", marginTop: 10,
+                        padding: "11px 14px",
+                        borderRadius: 10,
+                        border: "1px solid rgba(201,110,110,0.25)",
+                        background: "transparent",
+                        color: "rgba(201,110,110,0.85)",
+                        fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <Ico.close s={14} c="rgba(201,110,110,0.85)" />
+                      {isWarmup ? "Eliminar calentamiento" : "Eliminar serie"}
+                    </button>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
-        ))}
+          );
+        })}
+
+        {/* Add set / warmup */}
+        {exercise && (
+          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+            <button
+              type="button"
+              onClick={addSet}
+              style={{
+                flex: 1,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                padding: "12px 14px",
+                borderRadius: "var(--r-md)",
+                border: "1px dashed rgba(245,240,232,0.22)",
+                background: "rgba(245,240,232,0.03)",
+                color: "rgba(245,240,232,0.80)",
+                fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+              }}
+            >
+              <Ico.plus s={15} c="rgba(245,240,232,0.80)" />
+              Serie
+            </button>
+            <button
+              type="button"
+              onClick={addWarmup}
+              style={{
+                flex: 1,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                padding: "12px 14px",
+                borderRadius: "var(--r-md)",
+                border: "1px dashed rgba(217,119,87,0.40)",
+                background: "rgba(217,119,87,0.06)",
+                color: "var(--clay)",
+                fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+              }}
+            >
+              <Ico.plus s={15} c="var(--clay)" />
+              Calentamiento
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Footer */}

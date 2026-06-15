@@ -88,6 +88,8 @@ export const exerciseLogs = sqliteTable("exercise_logs", {
   pain_during: integer("pain_during"),
   rpe: integer("rpe"),
   note: text("note"),
+  // Warmup rows ('warmup') are saved but excluded from the rollup / phase progress.
+  set_type: text("set_type", { enum: ["normal", "warmup"] }).notNull().default("normal"),
   completed_at: integer("completed_at"),
   // Soft delete: deselected sets keep their row with deleted_at set; re-checking nulls it.
   deleted_at: integer("deleted_at"),

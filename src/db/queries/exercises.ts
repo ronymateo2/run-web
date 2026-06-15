@@ -238,7 +238,8 @@ export function refreshDayCountStatement(
     sql: `INSERT INTO log_day_counts (user_id, exercise_id, session_date, sets)
           VALUES (?, ?, ?,
             (SELECT COUNT(*) FROM exercise_logs
-             WHERE user_id = ? AND exercise_id = ? AND session_date = ? AND deleted_at IS NULL))
+             WHERE user_id = ? AND exercise_id = ? AND session_date = ? AND deleted_at IS NULL
+               AND set_type != 'warmup'))
           ON CONFLICT(user_id, exercise_id, session_date) DO UPDATE SET sets = excluded.sets`,
     bind: [userId, exerciseId, sessionDate, userId, exerciseId, sessionDate],
   };
@@ -275,13 +276,13 @@ export function saveExerciseStatements(ex: ExerciseInput): SqlStatement[] {
 export function saveExerciseLogStatements(log: NewExerciseLog): SqlStatement[] {
   return [
     {
-      sql: `INSERT INTO exercise_logs (id, user_id, exercise_id, session_date, reps_done, pain_during, rpe, note, completed_at, deleted_at, synced)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 1)
+      sql: `INSERT INTO exercise_logs (id, user_id, exercise_id, session_date, reps_done, pain_during, rpe, note, set_type, completed_at, deleted_at, synced)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 1)
             ON CONFLICT(id) DO UPDATE SET
               reps_done = excluded.reps_done, pain_during = excluded.pain_during, rpe = excluded.rpe,
-              note = excluded.note, completed_at = excluded.completed_at, deleted_at = NULL, synced = 1`,
+              note = excluded.note, set_type = excluded.set_type, completed_at = excluded.completed_at, deleted_at = NULL, synced = 1`,
       bind: [log.id, log.user_id, log.exercise_id, log.session_date, log.reps_done ?? null,
-             log.pain_during ?? null, log.rpe ?? null, log.note ?? null, log.completed_at ?? null],
+             log.pain_during ?? null, log.rpe ?? null, log.note ?? null, log.set_type ?? "normal", log.completed_at ?? null],
     },
     refreshDayCountStatement(log.user_id, log.exercise_id, log.session_date),
   ];

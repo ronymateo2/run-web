@@ -187,10 +187,10 @@ const BUILDERS: Record<string, RowBuilder> = {
     bind: [row.id, row.user_id, row.injury_id ?? null, row.date, row.zones, row.created_at, row.deleted_at ?? null],
   }),
   exercise_logs: (row) => ({
-    sql: `INSERT OR REPLACE INTO exercise_logs (id, user_id, exercise_id, session_date, reps_done, pain_during, rpe, note, completed_at, deleted_at, synced)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+    sql: `INSERT OR REPLACE INTO exercise_logs (id, user_id, exercise_id, session_date, reps_done, pain_during, rpe, note, set_type, completed_at, deleted_at, synced)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
     bind: [row.id, row.user_id, row.exercise_id, row.session_date, row.reps_done ?? null,
-           row.pain_during ?? null, row.rpe ?? null, row.note ?? null, row.completed_at ?? null, row.deleted_at ?? null],
+           row.pain_during ?? null, row.rpe ?? null, row.note ?? null, row.set_type ?? "normal", row.completed_at ?? null, row.deleted_at ?? null],
   }),
   sst_results: (row) => ({
     sql: `INSERT OR REPLACE INTO sst_results (id, user_id, injury_id, date, strength_score, pain_score, note, deleted_at, synced)

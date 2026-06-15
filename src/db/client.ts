@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS pain_checkins (
 CREATE TABLE IF NOT EXISTS exercise_logs (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, exercise_id TEXT NOT NULL,
   session_date TEXT NOT NULL, reps_done INTEGER, pain_during INTEGER, rpe INTEGER,
-  note TEXT, completed_at INTEGER, deleted_at INTEGER, synced INTEGER DEFAULT 0
+  note TEXT, set_type TEXT NOT NULL DEFAULT 'normal', completed_at INTEGER, deleted_at INTEGER, synced INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS sst_results (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, injury_id TEXT NOT NULL,
@@ -190,6 +190,11 @@ UPDATE phase_criteria SET synced = 1 WHERE synced = 0;`,
     sql: `ALTER TABLE pain_checkins ADD COLUMN deleted_at INTEGER;
 ALTER TABLE sst_results ADD COLUMN deleted_at INTEGER;
 ALTER TABLE prom_results ADD COLUMN deleted_at INTEGER;`,
+  },
+  // Warm-up sets: tag each set row; warmups are excluded from the rollup count.
+  {
+    id: 12,
+    sql: `ALTER TABLE exercise_logs ADD COLUMN set_type TEXT NOT NULL DEFAULT 'normal'`,
   },
 ];
 
