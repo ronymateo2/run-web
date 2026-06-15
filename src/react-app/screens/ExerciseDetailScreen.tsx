@@ -24,6 +24,7 @@ const PAIN_LABELS = [
 type SetType = "normal" | "warmup";
 
 type SetRow = {
+  uid: string;       // stable React key so AnimatePresence exits the right row on delete
   type: SetType;
   rpe: number;
   value: number;
@@ -32,8 +33,12 @@ type SetRow = {
   expanded: boolean;
 };
 
+let _setUid = 0;
+const newUid = () => `set-${++_setUid}`;
+
 function initSets(count: number, defaultValue: number): SetRow[] {
   return Array.from({ length: count }, () => ({
+    uid: newUid(),
     type: "normal" as SetType,
     rpe: DEFAULT_RPE,
     value: defaultValue,
@@ -54,7 +59,8 @@ function prevByIndex(logs: ExerciseLog[], defaultValue: number): Map<number, { v
   const map = new Map<number, { value: number; rpe: number }>();
   logs.forEach(log => {
     const idx = parseSetIdx(log);
-    if (Number.isInteger(idx) && idx >= 0) {
+    // Skip uncompleted warmup placeholders (completed_at NULL) — no real values to show.
+    if (Number.isInteger(idx) && idx >= 0 && log.completed_at != null) {
       map.set(idx, { value: log.reps_done ?? defaultValue, rpe: log.rpe ?? DEFAULT_RPE });
     }
   });
@@ -77,11 +83,13 @@ function logsToSets(logs: ExerciseLog[], count: number, defaultValue: number): S
     const idx = parseSetIdx(log);
     if (Number.isInteger(idx) && idx >= 0 && idx < base.length) {
       base[idx] = {
+        uid: base[idx].uid,
         type: log.set_type === "warmup" ? "warmup" : "normal",
         rpe: log.rpe ?? DEFAULT_RPE,
         value: log.reps_done ?? defaultValue,
         painDuring: log.pain_during ?? 0,
-        completed: true,
+        // completed_at NULL = an uncompleted warmup placeholder (type kept, not done).
+        completed: log.completed_at != null,
         expanded: false,
       };
     }
@@ -207,6 +215,10 @@ export function ExerciseDetailScreen() {
   // How many set rows were already saved for today (max saved index + 1). On save we
   // soft-delete any of those indices the user has since removed or unchecked.
   const [loadedCount, setLoadedCount] = useState(0);
+  // Gate the card list until the async load resolves, so AnimatePresence mounts with the
+  // real rows already present (initial={false} then suppresses the enter animation) —
+  // otherwise the rows pop/settle in on first open.
+  const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
@@ -218,6 +230,8 @@ export function ExerciseDetailScreen() {
   // Warmups are saved but don't count toward the working-set target shown in the footer.
   const workingTotal = sets.filter(s => s.type === "normal").length;
   const workingDone = sets.filter(s => s.type === "normal" && s.completed).length;
+  // Warmups persist their structure even uncompleted, so their presence alone is saveable.
+  const hasWarmup = sets.some(s => s.type === "warmup");
 
   useEffect(() => {
     if (!id) return;
@@ -233,6 +247,7 @@ export function ExerciseDetailScreen() {
 
   useEffect(() => {
     if (!user || !exercise) return;
+    setLoaded(false);
     const sessionDate = localToday(user?.timezone);
     Promise.all([
       exerciseRepository.getLogsForExercise(user.id, exercise.id, sessionDate),
@@ -254,6 +269,7 @@ export function ExerciseDetailScreen() {
             : initSets(totalSets, defaultValue),
         );
       }
+      setLoaded(true);
     });
   }, [user, exercise]);
 
@@ -282,7 +298,7 @@ export function ExerciseDetailScreen() {
   }
 
   function newRow(type: SetType): SetRow {
-    return { type, rpe: DEFAULT_RPE, value: defaultValue, painDuring: 0, completed: false, expanded: false };
+    return { uid: newUid(), type, rpe: DEFAULT_RPE, value: defaultValue, painDuring: 0, completed: false, expanded: false };
   }
 
   // Working sets append at the end; warmups go to the top (rendered before working sets).
@@ -297,7 +313,7 @@ export function ExerciseDetailScreen() {
   }
 
   async function handleSave() {
-    if (!user || !exercise || (completedCount === 0 && !hadLogs)) return;
+    if (!user || !exercise || (completedCount === 0 && !hadLogs && !hasWarmup)) return;
     setSaving(true);
     const sessionDate = localToday(user?.timezone);
     const now = Date.now();
@@ -319,6 +335,21 @@ export function ExerciseDetailScreen() {
           set_type: row.type,
           completed_at: now + i,
         });
+      } else if (row && row.type === "warmup") {
+        // Persist an uncompleted warmup as a structural placeholder (completed_at NULL,
+        // no values) so its "warmup" type survives a reload instead of reverting to a
+        // normal set — warmups are ad-hoc and can't be recovered from the prescription.
+        await exerciseRepository.saveExerciseLog({
+          id,
+          user_id: user.id,
+          exercise_id: exercise.id,
+          session_date: sessionDate,
+          reps_done: null,
+          pain_during: null,
+          rpe: null,
+          set_type: "warmup",
+          completed_at: null,
+        });
       } else {
         await exerciseRepository.softDeleteExerciseLog(id);
       }
@@ -337,14 +368,16 @@ export function ExerciseDetailScreen() {
   const saveLabel = saving
     ? "Guardando..."
     : completedCount === 0
-    ? hadLogs
+    ? hasWarmup
+      ? "Guardar calentamiento"
+      : hadLogs
       ? "Borrar registro"
       : "Completa al menos una serie"
     : workingDone === workingTotal
     ? "Registrar todas las series"
     : `Registrar ${workingDone} de ${workingTotal} series`;
 
-  const canSave = completedCount > 0 || hadLogs;
+  const canSave = completedCount > 0 || hadLogs || hasWarmup;
 
   return (
     <div className="screen screen-dark" style={{ position: "relative" }}>
@@ -448,27 +481,52 @@ export function ExerciseDetailScreen() {
         )}
 
         {/* Set cards */}
-        {exercise && sets.map((row, i) => {
+        {loaded && exercise && (
+        <AnimatePresence initial={false}>
+        {sets.map((row, i) => {
           const isWarmup = row.type === "warmup";
           // Working sets are numbered among themselves; warmups don't consume a number.
           const workingNum = sets.slice(0, i + 1).filter(s => s.type === "normal").length;
           const accent = isWarmup ? "217,119,87" : "138,168,140"; // clay : moss
           return (
-          <div
-            key={i}
-            style={{
-              borderRadius: "var(--r-md)",
-              overflow: "hidden",
-              marginBottom: 10,
-              background: row.completed ? `rgba(${accent},0.12)` : "rgba(245,240,232,0.04)",
-              border: `1px solid ${row.completed ? `rgba(${accent},0.40)` : "rgba(245,240,232,0.09)"}`,
-              transition: "background 0.3s ease, border-color 0.3s ease",
-            }}
+          <motion.div
+            key={row.uid}
+            layout
+            exit={{ opacity: 0, height: 0, marginBottom: 0, transition: { duration: 0.2 } }}
+            style={{ position: "relative", marginBottom: 10, borderRadius: "var(--r-md)", overflow: "hidden" }}
           >
+            {/* Red layer revealed when the card is swiped left → release past threshold deletes */}
             <div style={{
-              display: "flex", alignItems: "center", gap: 14,
-              minHeight: 68, padding: "10px 14px",
+              position: "absolute", inset: 0,
+              background: "#B0532F",
+              display: "flex", alignItems: "center", justifyContent: "flex-end",
+              gap: 8, paddingRight: 22,
+              fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.08em",
+              textTransform: "uppercase", color: "var(--bone)",
             }}>
+              <Ico.close s={16} c="var(--bone)" />
+              Eliminar
+            </div>
+            {/* Draggable front. Opaque base hides the red layer until swiped. */}
+            <motion.div
+              drag="x"
+              dragDirectionLock
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.6}
+              onDragEnd={(_e, info) => { if (info.offset.x < -90) removeSet(i); }}
+              style={{ position: "relative", background: "#111E16", borderRadius: "var(--r-md)", cursor: "grab", touchAction: "pan-y" }}
+            >
+              <div style={{
+                borderRadius: "var(--r-md)",
+                overflow: "hidden",
+                background: row.completed ? `rgba(${accent},0.12)` : "rgba(245,240,232,0.04)",
+                border: `1px solid ${row.completed ? `rgba(${accent},0.40)` : "rgba(245,240,232,0.09)"}`,
+                transition: "background 0.3s ease, border-color 0.3s ease",
+              }}>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 14,
+                  minHeight: 68, padding: "10px 14px",
+                }}>
               {/* Check circle — same language as ExerciseRow on the light list */}
               <motion.button
                 onClick={() => toggleCompleted(i)}
@@ -697,35 +755,17 @@ export function ExerciseDetailScreen() {
                         Copiar a las series siguientes
                       </motion.button>
                     )}
-
-                    {/* Remove this set row from the session */}
-                    <button
-                      type="button"
-                      onClick={() => removeSet(i)}
-                      aria-label={isWarmup ? "Eliminar calentamiento" : `Eliminar serie ${workingNum}`}
-                      style={{
-                        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                        width: "100%", marginTop: 10,
-                        padding: "11px 14px",
-                        borderRadius: 10,
-                        border: "1px solid rgba(201,110,110,0.25)",
-                        background: "transparent",
-                        color: "rgba(201,110,110,0.85)",
-                        fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.08em",
-                        textTransform: "uppercase",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <Ico.close s={14} c="rgba(201,110,110,0.85)" />
-                      {isWarmup ? "Eliminar calentamiento" : "Eliminar serie"}
-                    </button>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
+              </div>
+            </motion.div>
+          </motion.div>
           );
         })}
+        </AnimatePresence>
+        )}
 
         {/* Add set / warmup */}
         {exercise && (

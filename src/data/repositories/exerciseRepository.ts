@@ -80,7 +80,8 @@ export const exerciseRepository = {
           id: log.id, user_id: log.user_id, exercise_id: log.exercise_id,
           session_date: log.session_date, reps_done: log.reps_done ?? null,
           pain_during: log.pain_during ?? null, rpe: log.rpe ?? null,
-          note: log.note ?? null, completed_at: log.completed_at ?? null, deleted_at: null,
+          note: log.note ?? null, set_type: log.set_type ?? "normal",
+          completed_at: log.completed_at ?? null, deleted_at: null,
         },
       }),
     ]);
