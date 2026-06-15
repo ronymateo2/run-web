@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
+import { ArrowLineDown } from "@phosphor-icons/react";
 import { useAuth } from "../auth/AuthContext";
 import { useSync } from "../hooks/useSync";
 import { localToday } from "../utils/timezone";
@@ -220,6 +221,15 @@ export function ExerciseDetailScreen() {
 
   function toggleExpand(i: number) {
     setSets(prev => prev.map((s, idx) => idx === i ? { ...s, expanded: !s.expanded } : s));
+  }
+
+  // Copy this set's value/RPE/pain to every LATER set; past sets stay untouched.
+  function copyToFollowing(i: number) {
+    setSets(prev => prev.map((s, idx) =>
+      idx > i
+        ? { ...s, value: prev[i].value, rpe: prev[i].rpe, painDuring: prev[i].painDuring }
+        : s,
+    ));
   }
 
   async function handleSave() {
@@ -477,6 +487,24 @@ export function ExerciseDetailScreen() {
                   </span>
                 </div>
               </div>
+
+              {/* Copy values to all following sets (none for the last set) */}
+              {i < sets.length - 1 && (
+                <motion.button
+                  type="button"
+                  onClick={() => copyToFollowing(i)}
+                  whileTap={{ scale: 0.88 }}
+                  aria-label={`Copiar valores de la serie ${i + 1} a las siguientes`}
+                  title="Copiar a las series siguientes"
+                  style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    width: 32, height: 32, flexShrink: 0,
+                  }}
+                >
+                  <ArrowLineDown size={17} weight="bold" color="rgba(245,240,232,0.55)" />
+                </motion.button>
+              )}
 
               {/* Expand caret — pain panel; dot signals logged pain when collapsed */}
               <button
