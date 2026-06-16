@@ -170,11 +170,11 @@ const BUILDERS: Record<string, RowBuilder> = {
            row.week_start, row.week_end, row.threshold_pct, row.focus_days ?? null, row.deleted_at ?? null],
   }),
   exercises: (row) => ({
-    sql: `INSERT OR REPLACE INTO exercises (id, phase_id, name, detail, sets, reps, duration_s, exercise_type, sort_order, video_url, warmup_sets, synced)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+    sql: `INSERT OR REPLACE INTO exercises (id, phase_id, name, detail, sets, reps, duration_s, exercise_type, sort_order, video_url, how_to, warmup_sets, synced)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
     bind: [row.id, row.phase_id, row.name, row.detail ?? null, row.sets ?? null,
            row.reps ?? null, row.duration_s ?? null, row.exercise_type, row.sort_order ?? 0, row.video_url ?? null,
-           row.warmup_sets ?? 0],
+           row.how_to ?? null, row.warmup_sets ?? 0],
   }),
   phase_criteria: (row) => ({
     sql: `INSERT INTO phase_criteria (id, phase_id, description, done, deleted_at, synced)

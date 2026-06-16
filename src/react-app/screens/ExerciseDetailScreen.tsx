@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
@@ -22,6 +24,7 @@ export function ExerciseDetailScreen() {
   } = useExerciseSession(id);
 
   const [videoOpen, setVideoOpen] = useState(false);
+  const [howToOpen, setHowToOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   // Which set row is currently swiped open to reveal the delete action.
   const [swipedSet, setSwipedSet] = useState<string | null>(null);
@@ -69,19 +72,32 @@ export function ExerciseDetailScreen() {
             <div className="title-xl serif" style={{ color: "var(--bone)", lineHeight: 1.05 }}>
               {exercise?.name ?? "Ejercicio"}
             </div>
-            {exercise?.video_url && (
-              <button
-                onClick={() => setVideoOpen(true)}
-                aria-label="Ver video"
-                style={{
-                  background: "none", border: "none", cursor: "pointer", padding: 4,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <Ico.video s={32} c="var(--bone)" />
-              </button>
-            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+              {exercise?.video_url && (
+                <button
+                  onClick={() => setVideoOpen(true)}
+                  aria-label="Ver video"
+                  style={{
+                    background: "none", border: "none", cursor: "pointer", padding: 4,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}
+                >
+                  <Ico.video s={32} c="var(--bone)" />
+                </button>
+              )}
+              {exercise?.how_to && (
+                <button
+                  onClick={() => setHowToOpen(true)}
+                  aria-label="Ver instrucciones"
+                  style={{
+                    background: "none", border: "none", cursor: "pointer", padding: 4,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}
+                >
+                  <Ico.presentation s={32} c="var(--bone)" />
+                </button>
+              )}
+            </div>
           </div>
           {exercise?.detail && (
             <div className="body" style={{
@@ -227,6 +243,46 @@ export function ExerciseDetailScreen() {
         hasNextExercise={!!nextExercise}
         visible={!!exercise}
       />
+
+      {/* How-to sheet */}
+      {howToOpen && !!exercise?.how_to && (
+        <BottomSheet variant="dark" size="default" onClose={() => setHowToOpen(false)}>
+          {(close) => (
+            <div style={{
+              display: "flex", flexDirection: "column", height: "100%", overflow: "hidden",
+            }}>
+              <div style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "12px 16px", flexShrink: 0,
+              }}>
+                <span style={{
+                  fontSize: 11, fontFamily: "var(--font-mono)", letterSpacing: "0.12em",
+                  color: "rgba(245,240,232,0.55)",
+                }}>
+                  CÓMO HACERLO
+                </span>
+                <button
+                  onClick={close}
+                  aria-label="Cerrar"
+                  style={{
+                    background: "none", border: "none", cursor: "pointer", padding: 4,
+                    display: "flex", alignItems: "center",
+                  }}
+                >
+                  <Ico.close s={20} c="rgba(245,240,232,0.70)" />
+                </button>
+              </div>
+              <div style={{
+                flex: 1, minHeight: 0, overflowY: "auto", padding: "0 20px 24px",
+              }}>
+                <div className="md-body md-body-dark">
+                  <Markdown remarkPlugins={[remarkGfm]}>{exercise.how_to!}</Markdown>
+                </div>
+              </div>
+            </div>
+          )}
+        </BottomSheet>
+      )}
 
       {/* Video sheet */}
       {videoOpen && !!exercise?.video_url && (

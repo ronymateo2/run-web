@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS phase_criteria (
 CREATE TABLE IF NOT EXISTS exercises (
   id TEXT PRIMARY KEY, phase_id TEXT NOT NULL, name TEXT NOT NULL,
   detail TEXT, sets INTEGER, reps INTEGER, duration_s INTEGER,
-  exercise_type TEXT NOT NULL, sort_order INTEGER DEFAULT 0, video_url TEXT,
+  exercise_type TEXT NOT NULL, sort_order INTEGER DEFAULT 0, video_url TEXT, how_to TEXT,
   warmup_sets INTEGER NOT NULL DEFAULT 0, archived_at INTEGER, synced INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS pain_checkins (
@@ -91,6 +91,8 @@ CREATE INDEX IF NOT EXISTS idx_phase_criteria_phase ON phase_criteria(phase_id);
 const MIGRATIONS: Array<{ id: number; sql: string }> = [
   // id 15: archive exercises (no delete). ids 1–14 retired by the squash.
   { id: 15, sql: `ALTER TABLE exercises ADD COLUMN archived_at INTEGER` },
+  // id 16: optional Markdown instructions alongside video_url.
+  { id: 16, sql: `ALTER TABLE exercises ADD COLUMN how_to TEXT` },
 ];
 
 async function initSchema(proxy: DbWorkerApi): Promise<void> {

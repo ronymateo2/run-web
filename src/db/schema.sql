@@ -67,6 +67,9 @@ CREATE TABLE IF NOT EXISTS exercises (
   exercise_type TEXT NOT NULL,
   sort_order INTEGER DEFAULT 0,
   video_url TEXT,
+  how_to TEXT,
+  warmup_sets INTEGER NOT NULL DEFAULT 0,
+  archived_at INTEGER,
   synced INTEGER DEFAULT 0
 );
 

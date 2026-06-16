@@ -3,7 +3,7 @@ import {
   CaretRight, CaretLeft, X, Hand, Bell, Book, ChartBar,
   House, Person, Path, Lock, ArrowCounterClockwise,
   User, Globe, SignOut, Plus, TrashSimple, PencilSimple, Video, Timer,
-  DotsSixVertical, Archive,
+  DotsSixVertical, Archive, Presentation,
 } from '@phosphor-icons/react';
 
 interface IcoProps { s?: number; c?: string; }
@@ -38,8 +38,9 @@ export const Ico = {
   plus:    (p?: IcoProps) => <Plus    size={sz(p, 16)} color={cl(p)} weight="bold"    />,
   trash:   (p?: IcoProps) => <TrashSimple size={sz(p, 16)} color={cl(p)} weight="regular" />,
   pencil:  (p?: IcoProps) => <PencilSimple size={sz(p, 16)} color={cl(p)} weight="regular" />,
-  video:   (p?: IcoProps) => <Video   size={sz(p, 20)} color={cl(p)} weight="regular" />,
-  timer:   (p?: IcoProps) => <Timer   size={sz(p, 16)} color={cl(p)} weight="regular" />,
+  video:        (p?: IcoProps) => <Video        size={sz(p, 20)} color={cl(p)} weight="regular" />,
+  presentation: (p?: IcoProps) => <Presentation size={sz(p, 32)} color={cl(p)} weight="regular" />,
+  timer:        (p?: IcoProps) => <Timer        size={sz(p, 16)} color={cl(p)} weight="regular" />,
   grip:    (p?: IcoProps) => <DotsSixVertical size={sz(p, 20)} color={cl(p)} weight="bold" />,
   archive: (p?: IcoProps) => <Archive size={sz(p, 16)} color={cl(p)} weight="regular" />,
 };

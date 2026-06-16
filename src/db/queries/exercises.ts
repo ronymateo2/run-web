@@ -21,6 +21,7 @@ export type ExerciseInput = {
   exercise_type: Exercise["exercise_type"];
   sort_order: number | null;
   video_url: string | null;
+  how_to: string | null;
   warmup_sets: number;
   archived_at: number | null;
 };
@@ -269,16 +270,16 @@ export function softDeleteExerciseLogStatements(
 // Upsert an exercise edit locally; the repo enqueues it for push (queue-XOR-synced).
 export function saveExerciseStatements(ex: ExerciseInput): SqlStatement[] {
   return [{
-    sql: `INSERT INTO exercises (id, phase_id, name, detail, sets, reps, duration_s, exercise_type, sort_order, video_url, warmup_sets, archived_at, synced)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    sql: `INSERT INTO exercises (id, phase_id, name, detail, sets, reps, duration_s, exercise_type, sort_order, video_url, how_to, warmup_sets, archived_at, synced)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
           ON CONFLICT(id) DO UPDATE SET
             phase_id = excluded.phase_id, name = excluded.name, detail = excluded.detail,
             sets = excluded.sets, reps = excluded.reps, duration_s = excluded.duration_s,
             exercise_type = excluded.exercise_type, sort_order = excluded.sort_order,
-            video_url = excluded.video_url, warmup_sets = excluded.warmup_sets,
+            video_url = excluded.video_url, how_to = excluded.how_to, warmup_sets = excluded.warmup_sets,
             archived_at = excluded.archived_at, synced = 1`,
     bind: [ex.id, ex.phase_id, ex.name, ex.detail, ex.sets, ex.reps, ex.duration_s,
-           ex.exercise_type, ex.sort_order, ex.video_url, ex.warmup_sets, ex.archived_at],
+           ex.exercise_type, ex.sort_order, ex.video_url, ex.how_to, ex.warmup_sets, ex.archived_at],
   }];
 }
 

@@ -29,6 +29,7 @@ export function ExerciseEditScreen() {
   const [durationOpt, setDurationOpt] = useState("");
   const [type, setType] = useState<Exercise["exercise_type"]>("mobility");
   const [videoUrl, setVideoUrl] = useState("");
+  const [howTo, setHowTo] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -47,6 +48,7 @@ export function ExerciseEditScreen() {
     setDurationOpt(!isTime && ex.duration_s ? String(ex.duration_s) : "");
     setType(ex.exercise_type);
     setVideoUrl(ex.video_url ?? "");
+    setHowTo(ex.how_to ?? "");
     setLoaded(true);
   }, [id]);
 
@@ -68,6 +70,7 @@ export function ExerciseEditScreen() {
       exercise_type: type,
       sort_order: exercise.sort_order ?? 0,
       video_url: videoUrl.trim() ? normalize(videoUrl.trim()) : null,
+      how_to: howTo.trim() || null,
       warmup_sets: Number(warmup) || 0,
       archived_at: exercise.archived_at,
     });
@@ -148,6 +151,17 @@ export function ExerciseEditScreen() {
           <div className="col gap-4">
             <span className="eyebrow">Video (URL YouTube)</span>
             <input style={inputStyle} type="url" inputMode="url" value={videoUrl} onChange={e => setVideoUrl(e.target.value)} placeholder="https://youtu.be/…" />
+          </div>
+
+          <div className="col gap-4">
+            <span className="eyebrow">Instrucciones (Markdown)</span>
+            <textarea
+              style={{ ...inputStyle, minHeight: 120, resize: "vertical" }}
+              value={howTo}
+              onChange={e => setHowTo(e.target.value)}
+              placeholder="Pasos detallados, opcionalmente en Markdown…"
+            />
+            <span className="body-sm" style={{ color: "var(--ink-3)" }}>Soporta negritas, listas y enlaces en Markdown.</span>
           </div>
         </div>
 

@@ -778,6 +778,48 @@ body {
   overflow-x: auto;
 }
 
+/* Markdown rendered inside dark sheets (e.g. exercise how-to) */
+.md-body-dark {
+  color: rgba(245, 240, 232, 0.90);
+}
+
+.md-body-dark h1,
+.md-body-dark h2,
+.md-body-dark h3 {
+  color: var(--bone);
+}
+
+.md-body-dark strong {
+  color: var(--bone);
+}
+
+.md-body-dark code {
+  background: rgba(245, 240, 232, 0.10);
+  color: var(--bone);
+}
+
+.md-body-dark blockquote {
+  border-left-color: var(--clay);
+  color: rgba(245, 240, 232, 0.70);
+}
+
+.md-body-dark hr {
+  border-top-color: rgba(245, 240, 232, 0.15);
+}
+
+.md-body-dark th,
+.md-body-dark td {
+  border-bottom-color: rgba(245, 240, 232, 0.15);
+}
+
+.md-body-dark th {
+  color: rgba(245, 240, 232, 0.60);
+}
+
+.md-body-dark a {
+  color: var(--clay-soft);
+}
+
 /* Scrollbar hide for mobile feel */
 .screen::-webkit-scrollbar {
   display: none;
