@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
@@ -11,6 +9,7 @@ import { BottomSheet } from "../components/BottomSheet";
 import { ExerciseStatsSheet } from "../components/ExerciseStatsSheet";
 import { ExerciseFAB } from "../components/ExerciseFAB";
 import { SetCard } from "../components/SetCard";
+import { HowToSheet } from "../components/HowToSheet";
 import { useExerciseSession } from "../features/useExerciseSession";
 
 export function ExerciseDetailScreen() {
@@ -246,42 +245,10 @@ export function ExerciseDetailScreen() {
 
       {/* How-to sheet */}
       {howToOpen && !!exercise?.how_to && (
-        <BottomSheet variant="dark" size="default" onClose={() => setHowToOpen(false)}>
-          {(close) => (
-            <div style={{
-              display: "flex", flexDirection: "column", height: "100%", overflow: "hidden",
-            }}>
-              <div style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "12px 16px", flexShrink: 0,
-              }}>
-                <span style={{
-                  fontSize: 11, fontFamily: "var(--font-mono)", letterSpacing: "0.12em",
-                  color: "rgba(245,240,232,0.55)",
-                }}>
-                  CÓMO HACERLO
-                </span>
-                <button
-                  onClick={close}
-                  aria-label="Cerrar"
-                  style={{
-                    background: "none", border: "none", cursor: "pointer", padding: 4,
-                    display: "flex", alignItems: "center",
-                  }}
-                >
-                  <Ico.close s={20} c="rgba(245,240,232,0.70)" />
-                </button>
-              </div>
-              <div style={{
-                flex: 1, minHeight: 0, overflowY: "auto", padding: "0 20px 24px",
-              }}>
-                <div className="md-body md-body-dark">
-                  <Markdown remarkPlugins={[remarkGfm]}>{exercise.how_to!}</Markdown>
-                </div>
-              </div>
-            </div>
-          )}
-        </BottomSheet>
+        <HowToSheet
+          content={exercise.how_to}
+          onClose={() => setHowToOpen(false)}
+        />
       )}
 
       {/* Video sheet */}
