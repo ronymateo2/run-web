@@ -820,6 +820,26 @@ body {
   color: var(--clay-soft);
 }
 
+/* How-to sheet live-caption while speech is playing */
+.how-to-caption {
+  font-size: 17px;
+  line-height: 1.55;
+  color: rgba(245, 240, 232, 0.95);
+  background: rgba(245, 240, 232, 0.06);
+  border: 1px solid rgba(245, 240, 232, 0.10);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+}
+
+.how-to-caption .speaking-word {
+  color: var(--clay);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: var(--clay-soft);
+  text-underline-offset: 3px;
+}
+
 /* Scrollbar hide for mobile feel */
 .screen::-webkit-scrollbar {
   display: none;
