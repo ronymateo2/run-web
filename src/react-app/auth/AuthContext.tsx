@@ -122,7 +122,7 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
       }
 
       // First login won't have a server-side timezone; detect it and persist so
-      // push reminders fire at the user's local hour (not UTC).
+      // exercise/checkin dates land on the user's local day (not UTC).
       let timezone = apiUser.timezone ?? null;
       if (!timezone) {
         const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
