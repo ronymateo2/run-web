@@ -37,9 +37,9 @@ function ProgressRing({ pct, threshold, locked }: { pct: number; threshold: numb
         stroke="var(--clay)" strokeWidth={2} strokeLinecap="round"
       />
       <text x={50} y={51} textAnchor="middle" fontFamily="var(--font-serif)" fontSize={27} fill="var(--ink)">
-        {pct}<tspan fontSize={13} fill="var(--muted)">%</tspan>
+        {pct}<tspan fontSize={14} fill="var(--ink-3)">%</tspan>
       </text>
-      <text x={50} y={66} textAnchor="middle" fontFamily="var(--font-mono)" fontSize={7.5} fill="var(--muted)" letterSpacing="0.12em">
+      <text x={50} y={67} textAnchor="middle" fontFamily="var(--font-mono)" fontSize={8.5} fontWeight={600} fill="var(--ink-3)" letterSpacing="0.08em">
         UMBRAL {threshold}%
       </text>
     </svg>
