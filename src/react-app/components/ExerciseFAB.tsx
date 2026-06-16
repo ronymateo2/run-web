@@ -9,33 +9,50 @@ interface ExerciseFABProps {
   visible: boolean;
 }
 
+const springItem = { type: "spring", stiffness: 500, damping: 30 } as const;
+
+const itemBase: React.CSSProperties = {
+  display: "flex", alignItems: "center", gap: 8, padding: "11px 16px",
+  borderRadius: "var(--r-md)", cursor: "pointer", pointerEvents: "auto",
+  fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.08em",
+  textTransform: "uppercase", boxShadow: "0 6px 20px rgba(0,0,0,0.35)",
+  backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
+};
+
+function FABItem({
+  label, onClick, color, border, bg, delay,
+}: {
+  label: string;
+  onClick: () => void;
+  color: string;
+  border: string;
+  bg: string;
+  delay?: number;
+}) {
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      initial={{ opacity: 0, y: 10, scale: 0.9 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 10, scale: 0.9 }}
+      transition={{ ...springItem, delay }}
+      whileTap={{ scale: 0.95 }}
+      style={{ ...itemBase, border, background: bg, color }}
+    >
+      <Ico.plus s={15} c={color} />
+      {label}
+    </motion.button>
+  );
+}
+
 export function ExerciseFAB({
-  onAddSet,
-  onAddWarmup,
-  hasNextExercise,
-  visible,
+  onAddSet, onAddWarmup, hasNextExercise, visible,
 }: ExerciseFABProps) {
   const [fabOpen, setFabOpen] = useState(false);
   if (!visible) return null;
 
-  const bottomOffset = hasNextExercise ? 140 : 85;
-
-  const itemBase: React.CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    padding: "11px 16px",
-    borderRadius: "var(--r-md)",
-    cursor: "pointer",
-    pointerEvents: "auto",
-    fontFamily: "var(--font-mono)",
-    fontSize: 11,
-    letterSpacing: "0.08em",
-    textTransform: "uppercase",
-    boxShadow: "0 6px 20px rgba(0,0,0,0.35)",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
-  };
+  const close = () => setFabOpen(false);
 
   return (
     <>
@@ -46,76 +63,37 @@ export function ExerciseFAB({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            onClick={() => setFabOpen(false)}
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 40,
-              background: "rgba(17,30,22,0.35)",
-            }}
+            onClick={close}
+            style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(17,30,22,0.35)" }}
           />
         )}
       </AnimatePresence>
-      <div
-        style={{
-          position: "fixed",
-          right: 24,
-          bottom: `calc(${bottomOffset}px + env(safe-area-inset-bottom, 0px))`,
-          zIndex: 50,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-end",
-          gap: 12,
-          pointerEvents: "none",
-        }}
-      >
+      <div style={{
+        position: "fixed", right: 24,
+        bottom: `calc(${hasNextExercise ? 140 : 85}px + env(safe-area-inset-bottom, 0px))`,
+        zIndex: 50, display: "flex", flexDirection: "column", alignItems: "flex-end",
+        gap: 12, pointerEvents: "none",
+      }}>
         <AnimatePresence>
           {fabOpen && (
             <>
-              <motion.button
+              <FABItem
                 key="add-serie"
-                type="button"
-                onClick={() => {
-                  onAddSet();
-                  setFabOpen(false);
-                }}
-                initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.9 }}
-                transition={{ type: "spring", stiffness: 500, damping: 30, delay: 0.04 }}
-                whileTap={{ scale: 0.95 }}
-                style={{
-                  ...itemBase,
-                  border: "1px solid rgba(138,168,140,0.35)",
-                  background: "rgba(20,34,26,0.92)",
-                  color: "var(--bone)",
-                }}
-              >
-                <Ico.plus s={15} c="var(--moss)" />
-                Serie
-              </motion.button>
-              <motion.button
+                label="Serie"
+                onClick={() => { onAddSet(); close(); }}
+                color="var(--moss)"
+                border="1px solid rgba(138,168,140,0.35)"
+                bg="rgba(20,34,26,0.92)"
+                delay={0.04}
+              />
+              <FABItem
                 key="add-warmup"
-                type="button"
-                onClick={() => {
-                  onAddWarmup();
-                  setFabOpen(false);
-                }}
-                initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.9 }}
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                whileTap={{ scale: 0.95 }}
-                style={{
-                  ...itemBase,
-                  border: "1px solid rgba(217,119,87,0.45)",
-                  background: "rgba(36,24,18,0.92)",
-                  color: "var(--clay)",
-                }}
-              >
-                <Ico.plus s={15} c="var(--clay)" />
-                Calentamiento
-              </motion.button>
+                label="Calentamiento"
+                onClick={() => { onAddWarmup(); close(); }}
+                color="var(--clay)"
+                border="1px solid rgba(217,119,87,0.45)"
+                bg="rgba(36,24,18,0.92)"
+              />
             </>
           )}
         </AnimatePresence>
@@ -127,17 +105,9 @@ export function ExerciseFAB({
           whileTap={{ scale: 0.92 }}
           transition={{ type: "spring", stiffness: 400, damping: 25 }}
           style={{
-            width: 56,
-            height: 56,
-            borderRadius: 999,
-            border: "none",
-            background: "var(--clay)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            pointerEvents: "auto",
-            boxShadow: "0 8px 24px rgba(217,119,87,0.45)",
+            width: 56, height: 56, borderRadius: 999, border: "none",
+            background: "var(--clay)", display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", pointerEvents: "auto", boxShadow: "0 8px 24px rgba(217,119,87,0.45)",
           }}
         >
           <motion.span
