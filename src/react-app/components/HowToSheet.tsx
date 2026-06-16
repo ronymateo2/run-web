@@ -10,11 +10,15 @@ interface Props {
   title?: string;
 }
 
-function stripMarkdown(md: string): string {
-  return md
+function prepareSpeechText(md: string): string {
+  const cleaned = md
     .replace(/!\[.*?\]\(.*?\)/g, "")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/(\*\*|__|\*|_|`|>|#|~|\-)/g, " ")
+    .replace(/(\*\*|__|\*|_|`|>|#|~|\-)/g, " ");
+  // Add space after punctuation so the synthesizer makes clearer pauses.
+  return cleaned
+    .replace(/([.])/g, "$1 ")
+    .replace(/([,;:!?])/g, "$1 ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -45,9 +49,10 @@ export function HowToSheet({ content, onClose, title = "CÓMO HACERLO" }: Props)
       const esVoice = voices.find((v) => v.lang.toLowerCase().startsWith("es-mx"))
         ?? voices.find((v) => v.lang.toLowerCase().startsWith("es"))
         ?? voices[0];
-      const utterance = new SpeechSynthesisUtterance(stripMarkdown(text));
+      const utterance = new SpeechSynthesisUtterance(prepareSpeechText(text));
       utterance.lang = "es-MX";
-      utterance.rate = 1;
+      utterance.rate = 0.92;
+      utterance.pitch = 1.12;
       if (esVoice) utterance.voice = esVoice;
       utterance.onend = () => setSpeaking(false);
       utterance.onerror = () => setSpeaking(false);
