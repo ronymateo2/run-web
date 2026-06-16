@@ -3,33 +3,39 @@
 // expandable pain panel with copy-to-following. Purely presentational — all state
 // lives in useExerciseSession and is passed down by index.
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowLineDown, ClockCounterClockwise, Trash } from "@phosphor-icons/react";
+import { ArrowLineDown, ClockCounterClockwise, Palette, Trash } from "@phosphor-icons/react";
 import { Ico } from "./icons";
 import { EditableNum } from "./EditableNum";
-import { PAIN_LABELS, type SetRow } from "../features/exerciseSets";
+import { PAIN_LABELS, bandBySlug, type SetRow, type PrevValue } from "../features/exerciseSets";
+
+export type EquipmentType = "none" | "weight" | "band";
 
 export function SetCard({
-  row, i, workingNum, isTimeBased, isLast, prevForRow, swiped,
-  onSwipe, onDragStart, onToggleCompleted, onToggleExpand, onUpdate, onCopyPrev, onCopyFollowing, onRemove,
+  row, i, workingNum, isTimeBased, isLast, prevForRow, equipmentType, swiped,
+  onSwipe, onDragStart, onToggleCompleted, onToggleExpand, onUpdate, onOpenBand, onCopyPrev, onCopyFollowing, onRemove,
 }: {
   row: SetRow;
   i: number;
   workingNum: number;
   isTimeBased: boolean;
   isLast: boolean;
-  prevForRow: { value: number; rpe: number } | undefined;
+  prevForRow: PrevValue | undefined;
+  equipmentType: EquipmentType;
   swiped: boolean;
   onSwipe: (uid: string | null) => void;
   onDragStart: () => void;
   onToggleCompleted: (i: number) => void;
   onToggleExpand: (i: number) => void;
-  onUpdate: (i: number, field: "rpe" | "value" | "painDuring", val: number) => void;
-  onCopyPrev: (i: number, value: number, rpe: number) => void;
+  onUpdate: (i: number, field: "value" | "load" | "painDuring", val: number) => void;
+  onOpenBand: (i: number) => void;
+  onCopyPrev: (i: number, prev: PrevValue) => void;
   onCopyFollowing: (i: number) => void;
   onRemove: (i: number) => void;
 }) {
   const isWarmup = row.type === "warmup";
   const accent = isWarmup ? "217,119,87" : "138,168,140"; // clay : moss
+  const prevBand = bandBySlug(prevForRow?.band);
+  const rowBand = bandBySlug(row.band);
 
   return (
     <motion.div
@@ -139,18 +145,20 @@ export function SetCard({
                   color: row.completed ? "rgba(245,240,232,0.92)" : "rgba(245,240,232,0.60)",
                   textTransform: "uppercase", transition: "color 0.25s",
                 }}>
-                  Serie {workingNum}
+                  S{workingNum}
                 </span>
               )}
               {prevForRow && (
                 <motion.button
                   type="button"
-                  onClick={() => onCopyPrev(i, prevForRow.value, prevForRow.rpe)}
+                  onClick={() => onCopyPrev(i, prevForRow)}
                   whileTap={{ scale: 0.9 }}
                   title="Copiar de la última vez"
-                  aria-label={`Última vez: ${prevForRow.value}${isTimeBased ? " segundos" : " reps"}, RPE ${prevForRow.rpe}. Copiar.`}
+                  aria-label={`Última vez: ${prevForRow.value}${isTimeBased ? " segundos" : " reps"}${
+                    equipmentType === "weight" && prevForRow.load != null ? `, ${prevForRow.load} kg` : ""
+                  }${equipmentType === "band" && prevBand ? `, banda ${prevBand.label}` : ""}. Copiar.`}
                   style={{
-                    display: "inline-flex", alignItems: "baseline", gap: 4,
+                    display: "inline-flex", alignItems: "center", gap: 4,
                     fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1,
                     padding: "4px 8px",
                     borderRadius: 999,
@@ -160,9 +168,17 @@ export function SetCard({
                     cursor: "pointer",
                   }}
                 >
-                  <ClockCounterClockwise size={13} weight="bold" style={{ opacity: 0.55, alignSelf: "center" }} />
+                  <ClockCounterClockwise size={13} weight="bold" style={{ opacity: 0.55 }} />
                   <span style={{ fontWeight: 600 }}>{prevForRow.value}{isTimeBased ? "s" : "×"}</span>
-                  <span style={{ opacity: 0.5, fontSize: 10 }}>@{prevForRow.rpe}</span>
+                  {equipmentType === "weight" && prevForRow.load != null && (
+                    <span style={{ opacity: 0.6, fontSize: 10 }}>· {prevForRow.load}kg</span>
+                  )}
+                  {equipmentType === "band" && prevBand && (
+                    <span style={{
+                      width: 9, height: 9, borderRadius: 999, marginLeft: 2,
+                      background: prevBand.hex, border: "1px solid rgba(245,240,232,0.3)",
+                    }} />
+                  )}
                 </motion.button>
               )}
             </div>
@@ -186,20 +202,47 @@ export function SetCard({
                   {isTimeBased ? "TIEMPO" : "REPS"}
                 </span>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, minWidth: 28 }}>
-                <EditableNum
-                  value={row.rpe} min={1} max={10}
-                  completed={row.completed}
-                  onChange={v => onUpdate(i, "rpe", v)}
-                  size={18}
-                />
-                <span style={{
-                  fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em",
-                  color: "rgba(245,240,232,0.40)",
-                }}>
-                  RPE
-                </span>
-              </div>
+              {equipmentType === "weight" && (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, minWidth: 46 }}>
+                  <EditableNum
+                    value={row.load}
+                    min={0}
+                    max={500}
+                    completed={row.completed}
+                    onChange={v => onUpdate(i, "load", v)}
+                    suffix="kg"
+                    size={26}
+                  />
+                  <span style={{
+                    fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em",
+                    color: "rgba(245,240,232,0.40)",
+                  }}>
+                    PESO
+                  </span>
+                </div>
+              )}
+              {equipmentType === "band" && (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, minWidth: 46 }}>
+                  <button
+                    onClick={() => onOpenBand(i)}
+                    aria-label={rowBand ? `Banda ${rowBand.label}. Cambiar.` : "Elegir banda"}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      width: 34, height: 34, borderRadius: 999, cursor: "pointer",
+                      background: rowBand ? rowBand.hex : "rgba(245,240,232,0.06)",
+                      border: rowBand ? "1px solid rgba(245,240,232,0.35)" : "1.5px dashed rgba(245,240,232,0.35)",
+                    }}
+                  >
+                    {!rowBand && <Palette size={17} weight="bold" color="rgba(245,240,232,0.60)" />}
+                  </button>
+                  <span style={{
+                    fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em",
+                    color: "rgba(245,240,232,0.40)",
+                  }}>
+                    BANDA
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Expand caret — opens panel (pain + copy-to-following) */}

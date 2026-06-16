@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS exercises (
   id TEXT PRIMARY KEY, phase_id TEXT NOT NULL, name TEXT NOT NULL,
   detail TEXT, sets INTEGER, reps INTEGER, duration_s INTEGER,
   exercise_type TEXT NOT NULL, sort_order INTEGER DEFAULT 0, video_url TEXT, how_to TEXT,
-  warmup_sets INTEGER NOT NULL DEFAULT 0, archived_at INTEGER, synced INTEGER DEFAULT 0
+  warmup_sets INTEGER NOT NULL DEFAULT 0, archived_at INTEGER,
+  equipment_type TEXT NOT NULL DEFAULT 'none', target_rpe INTEGER, synced INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS pain_checkins (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, injury_id TEXT, date TEXT NOT NULL,
@@ -41,7 +42,8 @@ CREATE TABLE IF NOT EXISTS pain_checkins (
 CREATE TABLE IF NOT EXISTS exercise_logs (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, exercise_id TEXT NOT NULL,
   session_date TEXT NOT NULL, reps_done INTEGER, pain_during INTEGER, rpe INTEGER,
-  note TEXT, set_type TEXT NOT NULL DEFAULT 'normal', completed_at INTEGER, deleted_at INTEGER, synced INTEGER DEFAULT 0
+  note TEXT, set_type TEXT NOT NULL DEFAULT 'normal', completed_at INTEGER, deleted_at INTEGER,
+  load REAL, band TEXT, synced INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS sst_results (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, injury_id TEXT NOT NULL,
@@ -93,6 +95,11 @@ const MIGRATIONS: Array<{ id: number; sql: string }> = [
   { id: 15, sql: `ALTER TABLE exercises ADD COLUMN archived_at INTEGER` },
   // id 16: optional Markdown instructions alongside video_url.
   { id: 16, sql: `ALTER TABLE exercises ADD COLUMN how_to TEXT` },
+  // id 17–20: equipment type + target RPE per exercise; logged equipment value per set.
+  { id: 17, sql: `ALTER TABLE exercises ADD COLUMN equipment_type TEXT NOT NULL DEFAULT 'none'` },
+  { id: 18, sql: `ALTER TABLE exercises ADD COLUMN target_rpe INTEGER` },
+  { id: 19, sql: `ALTER TABLE exercise_logs ADD COLUMN load REAL` },
+  { id: 20, sql: `ALTER TABLE exercise_logs ADD COLUMN band TEXT` },
 ];
 
 async function initSchema(proxy: DbWorkerApi): Promise<void> {

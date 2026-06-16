@@ -9,6 +9,8 @@ import { BottomSheet } from "../components/BottomSheet";
 import { ExerciseStatsSheet } from "../components/ExerciseStatsSheet";
 import { ExerciseFAB } from "../components/ExerciseFAB";
 import { SetCard } from "../components/SetCard";
+import { BandPicker } from "../components/BandPicker";
+import { EditableNum } from "../components/EditableNum";
 import { HowToSheet } from "../components/HowToSheet";
 import { useExerciseSession } from "../features/useExerciseSession";
 
@@ -18,7 +20,7 @@ export function ExerciseDetailScreen() {
   const {
     exercise, nextExercise, exerciseIds, sets, prev, loaded, saving,
     isTimeBased, completedCount, canSave, saveLabel,
-    updateSet, toggleCompleted, toggleExpand, copyToFollowing,
+    updateSet, updateBand, setTargetRpe, toggleCompleted, toggleExpand, copyToFollowing,
     addSet, addWarmup, removeSet, handleSave, goToNext,
   } = useExerciseSession(id);
 
@@ -27,6 +29,12 @@ export function ExerciseDetailScreen() {
   const [statsOpen, setStatsOpen] = useState(false);
   // Which set row is currently swiped open to reveal the delete action.
   const [swipedSet, setSwipedSet] = useState<string | null>(null);
+  // Which set row's band picker is open (null = closed).
+  const [bandPickerIdx, setBandPickerIdx] = useState<number | null>(null);
+  // Inline editor for the per-exercise target RPE (tap the chip).
+  const [rpeOpen, setRpeOpen] = useState(false);
+
+  const equipmentType = exercise?.equipment_type ?? "none";
 
   return (
     <div className="screen screen-dark" style={{ position: "relative" }}>
@@ -108,22 +116,42 @@ export function ExerciseDetailScreen() {
           )}
         </div>
 
-        {/* Protocol chip: static hold target per rep (reps exercise that also has a duration).
-            Constant across sets, so it sits above the table instead of in each row. */}
-        {exercise && !isTimeBased && !!exercise.duration_s && (
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
-            <span style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              fontFamily: "var(--font-mono)", fontSize: 12, letterSpacing: "0.04em",
-              color: "rgba(245,240,232,0.78)",
-              padding: "6px 12px",
-              borderRadius: 999,
-              background: "rgba(245,240,232,0.05)",
-              border: "1px solid rgba(245,240,232,0.10)",
-            }}>
-              <Ico.timer s={14} c="rgba(245,240,232,0.78)" />
-              Mantén <strong style={{ fontWeight: 700 }}>{exercise.duration_s}s</strong> por rep
-            </span>
+        {/* Protocol chips: constants across sets (hold target per rep, target RPE), so they
+            sit above the table instead of in each row. */}
+        {exercise && ((!isTimeBased && !!exercise.duration_s) || exercise.target_rpe != null) && (
+          <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+            {!isTimeBased && !!exercise.duration_s && (
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                fontFamily: "var(--font-mono)", fontSize: 12, letterSpacing: "0.04em",
+                color: "rgba(245,240,232,0.78)",
+                padding: "6px 12px",
+                borderRadius: 999,
+                background: "rgba(245,240,232,0.05)",
+                border: "1px solid rgba(245,240,232,0.10)",
+              }}>
+                <Ico.timer s={14} c="rgba(245,240,232,0.78)" />
+                Mantén <strong style={{ fontWeight: 700 }}>{exercise.duration_s}s</strong> por rep
+              </span>
+            )}
+            {exercise.target_rpe != null && (
+              <button
+                onClick={() => setRpeOpen(true)}
+                aria-label={`RPE objetivo ${exercise.target_rpe}. Editar.`}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer",
+                  fontFamily: "var(--font-mono)", fontSize: 12, letterSpacing: "0.04em",
+                  color: "rgba(245,240,232,0.78)",
+                  padding: "6px 12px",
+                  borderRadius: 999,
+                  background: "rgba(245,240,232,0.05)",
+                  border: "1px solid rgba(245,240,232,0.10)",
+                }}
+              >
+                RPE objetivo <strong style={{ fontWeight: 700 }}>{exercise.target_rpe}</strong>
+                <Ico.pencil s={12} c="rgba(245,240,232,0.55)" />
+              </button>
+            )}
           </div>
         )}
 
@@ -155,6 +183,7 @@ export function ExerciseDetailScreen() {
                 isTimeBased={isTimeBased}
                 isLast={i === sets.length - 1}
                 prevForRow={prev.get(i)}
+                equipmentType={equipmentType}
                 swiped={swipedSet === row.uid}
                 onSwipe={setSwipedSet}
                 onDragStart={() => {
@@ -163,7 +192,12 @@ export function ExerciseDetailScreen() {
                 onToggleCompleted={toggleCompleted}
                 onToggleExpand={toggleExpand}
                 onUpdate={updateSet}
-                onCopyPrev={(idx, value, rpe) => { updateSet(idx, "value", value); updateSet(idx, "rpe", rpe); }}
+                onOpenBand={setBandPickerIdx}
+                onCopyPrev={(idx, p) => {
+                  updateSet(idx, "value", p.value);
+                  if (equipmentType === "weight" && p.load != null) updateSet(idx, "load", p.load);
+                  if (equipmentType === "band" && p.band) updateBand(idx, p.band);
+                }}
                 onCopyFollowing={copyToFollowing}
                 onRemove={removeSet}
               />
@@ -242,6 +276,47 @@ export function ExerciseDetailScreen() {
         hasNextExercise={!!nextExercise}
         visible={!!exercise}
       />
+
+      {/* Inline editor for the per-exercise target RPE */}
+      {rpeOpen && exercise && (
+        <BottomSheet variant="dark" onClose={() => setRpeOpen(false)}>
+          {() => (
+            <div style={{
+              padding: "8px 16px calc(28px + env(safe-area-inset-bottom, 0px))",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 16,
+            }}>
+              <div style={{
+                fontSize: 11, fontFamily: "var(--font-mono)", letterSpacing: "0.12em",
+                color: "rgba(245,240,232,0.55)", textTransform: "uppercase",
+              }}>
+                RPE objetivo
+              </div>
+              <EditableNum
+                value={exercise.target_rpe ?? 6}
+                min={1}
+                max={10}
+                completed
+                onChange={(v) => setTargetRpe(v)}
+                size={40}
+              />
+              <div style={{
+                fontSize: 12, color: "rgba(245,240,232,0.50)", textAlign: "center", maxWidth: 260,
+              }}>
+                Esfuerzo percibido (1–10) para todas las series de este ejercicio.
+              </div>
+            </div>
+          )}
+        </BottomSheet>
+      )}
+
+      {/* Band picker for one set row */}
+      {bandPickerIdx != null && sets[bandPickerIdx] && (
+        <BandPicker
+          selected={sets[bandPickerIdx].band}
+          onSelect={(slug) => updateBand(bandPickerIdx, slug)}
+          onClose={() => setBandPickerIdx(null)}
+        />
+      )}
 
       {/* How-to sheet */}
       {howToOpen && !!exercise?.how_to && (

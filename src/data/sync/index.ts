@@ -170,11 +170,12 @@ const BUILDERS: Record<string, RowBuilder> = {
            row.week_start, row.week_end, row.threshold_pct, row.focus_days ?? null, row.deleted_at ?? null],
   }),
   exercises: (row) => ({
-    sql: `INSERT OR REPLACE INTO exercises (id, phase_id, name, detail, sets, reps, duration_s, exercise_type, sort_order, video_url, how_to, warmup_sets, synced)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+    sql: `INSERT OR REPLACE INTO exercises (id, phase_id, name, detail, sets, reps, duration_s, exercise_type, sort_order, video_url, how_to, warmup_sets, archived_at, equipment_type, target_rpe, synced)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
     bind: [row.id, row.phase_id, row.name, row.detail ?? null, row.sets ?? null,
            row.reps ?? null, row.duration_s ?? null, row.exercise_type, row.sort_order ?? 0, row.video_url ?? null,
-           row.how_to ?? null, row.warmup_sets ?? 0],
+           row.how_to ?? null, row.warmup_sets ?? 0, row.archived_at ?? null,
+           row.equipment_type ?? "none", row.target_rpe ?? null],
   }),
   phase_criteria: (row) => ({
     sql: `INSERT INTO phase_criteria (id, phase_id, description, done, deleted_at, synced)
@@ -188,10 +189,11 @@ const BUILDERS: Record<string, RowBuilder> = {
     bind: [row.id, row.user_id, row.injury_id ?? null, row.date, row.zones, row.created_at, row.deleted_at ?? null],
   }),
   exercise_logs: (row) => ({
-    sql: `INSERT OR REPLACE INTO exercise_logs (id, user_id, exercise_id, session_date, reps_done, pain_during, rpe, note, set_type, completed_at, deleted_at, synced)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+    sql: `INSERT OR REPLACE INTO exercise_logs (id, user_id, exercise_id, session_date, reps_done, pain_during, rpe, note, set_type, completed_at, deleted_at, load, band, synced)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
     bind: [row.id, row.user_id, row.exercise_id, row.session_date, row.reps_done ?? null,
-           row.pain_during ?? null, row.rpe ?? null, row.note ?? null, row.set_type ?? "normal", row.completed_at ?? null, row.deleted_at ?? null],
+           row.pain_during ?? null, row.rpe ?? null, row.note ?? null, row.set_type ?? "normal", row.completed_at ?? null, row.deleted_at ?? null,
+           row.load ?? null, row.band ?? null],
   }),
   sst_results: (row) => ({
     sql: `INSERT OR REPLACE INTO sst_results (id, user_id, injury_id, date, strength_score, pain_score, note, deleted_at, synced)

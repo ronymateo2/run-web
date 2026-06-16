@@ -114,7 +114,8 @@ export const exerciseRepository = {
           session_date: log.session_date, reps_done: log.reps_done ?? null,
           pain_during: log.pain_during ?? null, rpe: log.rpe ?? null,
           note: log.note ?? null, set_type: log.set_type ?? "normal",
-          completed_at: log.completed_at ?? null, deleted_at: null,
+          completed_at: log.completed_at ?? null,
+          load: log.load ?? null, band: log.band ?? null, deleted_at: null,
         },
       }),
     ]);

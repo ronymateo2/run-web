@@ -68,6 +68,10 @@ export const exercises = sqliteTable("exercises", {
   how_to: text("how_to"),
   warmup_sets: integer("warmup_sets").notNull().default(0),
   archived_at: integer("archived_at"),
+  // Equipment the exercise uses; the per-set value (kg / band color) lives in exercise_logs.
+  equipment_type: text("equipment_type", { enum: ["none", "weight", "band"] }).notNull().default("none"),
+  // Target RPE for the whole exercise (prescription). Written into each log on save.
+  target_rpe: integer("target_rpe"),
   synced: integer("synced").default(0),
 });
 
@@ -96,6 +100,9 @@ export const exerciseLogs = sqliteTable("exercise_logs", {
   completed_at: integer("completed_at"),
   // Soft delete: deselected sets keep their row with deleted_at set; re-checking nulls it.
   deleted_at: integer("deleted_at"),
+  // Per-set equipment value: load = kg (weight exercises), band = color slug (band exercises).
+  load: real("load"),
+  band: text("band"),
   synced: integer("synced").default(0),
 });
 

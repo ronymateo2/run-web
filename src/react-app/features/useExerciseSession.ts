@@ -10,6 +10,8 @@ import { localToday } from "../utils/timezone";
 import { exerciseRepository, type Exercise } from "../../data/repositories";
 import {
   type SetRow,
+  type PrevValue,
+  DEFAULT_RPE,
   newRow,
   prevByIndex,
   logsToSets,
@@ -28,7 +30,7 @@ export function useExerciseSession(id: string | undefined) {
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [nextExercise, setNextExercise] = useState<Exercise | null>(null);
   const [sets, setSets] = useState<SetRow[]>([]);
-  const [prev, setPrev] = useState<Map<number, { value: number; rpe: number }>>(new Map());
+  const [prev, setPrev] = useState<Map<number, PrevValue>>(new Map());
   const [hadLogs, setHadLogs] = useState(false);
   // How many set rows were already saved for today (max saved index + 1). On save we
   // soft-delete any of those indices the user has since removed or unchecked.
@@ -89,8 +91,15 @@ export function useExerciseSession(id: string | undefined) {
     });
   }, [user, exercise]);
 
-  function updateSet(i: number, field: "rpe" | "value" | "painDuring", val: number) {
+  function updateSet(i: number, field: "value" | "load" | "painDuring", val: number) {
     setSets(prev => prev.map((s, idx) => idx === i ? { ...s, [field]: val } : s));
+  }
+
+  // Set this row's band and autofill any other row that has no band yet (bands rarely
+  // differ across a session's sets) — one tap fills them all; the user can still
+  // override a row individually afterwards.
+  function updateBand(i: number, slug: string) {
+    setSets(prev => prev.map((s, idx) => (idx === i || !s.band) ? { ...s, band: slug } : s));
   }
 
   function toggleCompleted(i: number) {
@@ -106,7 +115,7 @@ export function useExerciseSession(id: string | undefined) {
   function copyToFollowing(i: number) {
     setSets(prev => prev.map((s, idx) =>
       idx > i
-        ? { ...s, value: prev[i].value, rpe: prev[i].rpe, painDuring: prev[i].painDuring, completed: true }
+        ? { ...s, value: prev[i].value, load: prev[i].load, band: prev[i].band, painDuring: prev[i].painDuring, completed: true }
         : idx === i
         ? { ...s, completed: true }
         : s,
@@ -124,7 +133,26 @@ export function useExerciseSession(id: string | undefined) {
     setSets(prev => prev.filter((_, idx) => idx !== i));
   }
 
-  const canSave = completedCount > 0 || hadLogs || hasWarmup;
+  // Band exercises: a completed working set must have a color chosen before saving.
+  const missingBand = exercise?.equipment_type === "band"
+    && sets.some(s => s.completed && s.type === "normal" && !s.band);
+  const canSave = (completedCount > 0 || hadLogs || hasWarmup) && !missingBand;
+
+  // Edit the per-exercise target RPE inline (tap the chip). Persists + syncs; updates
+  // local state so the chip reflects it immediately.
+  async function setTargetRpe(val: number) {
+    if (!exercise) return;
+    const updated = { ...exercise, target_rpe: val };
+    setExercise(updated);
+    await exerciseRepository.saveExercise({
+      id: exercise.id, phase_id: exercise.phase_id, name: exercise.name, detail: exercise.detail,
+      sets: exercise.sets, reps: exercise.reps, duration_s: exercise.duration_s,
+      exercise_type: exercise.exercise_type, sort_order: exercise.sort_order,
+      video_url: exercise.video_url, how_to: exercise.how_to, warmup_sets: exercise.warmup_sets,
+      archived_at: exercise.archived_at, equipment_type: exercise.equipment_type, target_rpe: val,
+    });
+    push();
+  }
 
   async function handleSave() {
     if (!user || !exercise || (completedCount === 0 && !hadLogs && !hasWarmup)) return;
@@ -134,6 +162,11 @@ export function useExerciseSession(id: string | undefined) {
     // Cover removed/unchecked rows too: indices that were saved earlier today but no
     // longer exist (sets.length shrank) get soft-deleted so they stop counting.
     const upper = Math.max(sets.length, loadedCount);
+    // RPE is now a per-exercise target, stamped onto every saved set. Equipment value is
+    // logged per set, but only the column matching the exercise's equipment_type.
+    const targetRpe = exercise.target_rpe ?? DEFAULT_RPE;
+    const eqLoad = (row: SetRow) => exercise.equipment_type === "weight" ? row.load : null;
+    const eqBand = (row: SetRow) => exercise.equipment_type === "band" ? (row.band ?? null) : null;
     for (let i = 0; i < upper; i++) {
       const logId = `${user.id}:${exercise.id}:${sessionDate}:${i}`;
       const row = sets[i];
@@ -145,7 +178,9 @@ export function useExerciseSession(id: string | undefined) {
           session_date: sessionDate,
           reps_done: row.value,
           pain_during: row.painDuring,
-          rpe: row.rpe,
+          rpe: targetRpe,
+          load: eqLoad(row),
+          band: eqBand(row),
           set_type: row.type,
           completed_at: now + i,
         });
@@ -189,6 +224,8 @@ export function useExerciseSession(id: string | undefined) {
 
   const saveLabel = saving
     ? "Guardando..."
+    : missingBand
+    ? "Elige banda en cada serie"
     : completedCount === 0
     ? hasWarmup
       ? "Guardar calentamiento"
@@ -212,6 +249,8 @@ export function useExerciseSession(id: string | undefined) {
     canSave,
     saveLabel,
     updateSet,
+    updateBand,
+    setTargetRpe,
     toggleCompleted,
     toggleExpand,
     copyToFollowing,

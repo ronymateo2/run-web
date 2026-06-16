@@ -16,6 +16,12 @@ const TYPE_OPTIONS: { value: Exercise["exercise_type"]; label: string }[] = [
   { value: "cardio", label: "Cardio" },
 ];
 
+const EQUIP_OPTIONS: { value: Exercise["equipment_type"]; label: string }[] = [
+  { value: "none", label: "Ninguno" },
+  { value: "weight", label: "Pesa (kg)" },
+  { value: "band", label: "Banda" },
+];
+
 export function ExerciseEditScreen() {
   const { id } = useParams<{ id: string }>();
   const push = useSync();
@@ -28,6 +34,8 @@ export function ExerciseEditScreen() {
   const [value, setValue] = useState("10");
   const [durationOpt, setDurationOpt] = useState("");
   const [type, setType] = useState<Exercise["exercise_type"]>("mobility");
+  const [equipment, setEquipment] = useState<Exercise["equipment_type"]>("none");
+  const [targetRpe, setTargetRpe] = useState("6");
   const [videoUrl, setVideoUrl] = useState("");
   const [howTo, setHowTo] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -47,6 +55,8 @@ export function ExerciseEditScreen() {
     // In reps mode, duration_s is an optional time target shown alongside reps.
     setDurationOpt(!isTime && ex.duration_s ? String(ex.duration_s) : "");
     setType(ex.exercise_type);
+    setEquipment(ex.equipment_type ?? "none");
+    setTargetRpe(String(ex.target_rpe ?? 6));
     setVideoUrl(ex.video_url ?? "");
     setHowTo(ex.how_to ?? "");
     setLoaded(true);
@@ -73,6 +83,8 @@ export function ExerciseEditScreen() {
       how_to: howTo.trim() || null,
       warmup_sets: Number(warmup) || 0,
       archived_at: exercise.archived_at,
+      equipment_type: equipment,
+      target_rpe: Number(targetRpe) || null,
     });
     push();
     navigate(-1);
@@ -146,6 +158,19 @@ export function ExerciseEditScreen() {
             <select style={inputStyle} value={type} onChange={e => setType(e.target.value as Exercise["exercise_type"])}>
               {TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
+          </div>
+
+          <div className="row gap-12">
+            <div className="col gap-4" style={{ flex: 1 }}>
+              <span className="eyebrow">Equipamiento</span>
+              <select style={inputStyle} value={equipment} onChange={e => setEquipment(e.target.value as Exercise["equipment_type"])}>
+                {EQUIP_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+            <div className="col gap-4" style={{ flex: 1 }}>
+              <span className="eyebrow">RPE objetivo</span>
+              <input style={inputStyle} type="number" inputMode="numeric" min={1} max={10} value={targetRpe} onChange={e => setTargetRpe(e.target.value)} />
+            </div>
           </div>
 
           <div className="col gap-4">
