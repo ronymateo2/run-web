@@ -10,7 +10,6 @@ import { localToday } from "../utils/timezone";
 import { exerciseRepository, type Exercise } from "../../data/repositories";
 import {
   type SetRow,
-  type SetType,
   newRow,
   prevByIndex,
   logsToSets,
