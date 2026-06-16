@@ -21,10 +21,12 @@ CREATE TABLE IF NOT EXISTS injuries (
 CREATE TABLE IF NOT EXISTS phases (
   id TEXT PRIMARY KEY, injury_id TEXT NOT NULL, phase_num INTEGER NOT NULL,
   name TEXT NOT NULL, description TEXT, week_start INTEGER NOT NULL,
-  week_end INTEGER NOT NULL, threshold_pct INTEGER NOT NULL DEFAULT 70, synced INTEGER DEFAULT 0
+  week_end INTEGER NOT NULL, threshold_pct INTEGER NOT NULL DEFAULT 70,
+  focus_days TEXT, deleted_at INTEGER, synced INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS phase_criteria (
-  id TEXT PRIMARY KEY, phase_id TEXT NOT NULL, description TEXT NOT NULL, done INTEGER NOT NULL DEFAULT 0, synced INTEGER NOT NULL DEFAULT 1
+  id TEXT PRIMARY KEY, phase_id TEXT NOT NULL, description TEXT NOT NULL, done INTEGER NOT NULL DEFAULT 0,
+  deleted_at INTEGER, synced INTEGER NOT NULL DEFAULT 1
 );
 CREATE TABLE IF NOT EXISTS exercises (
   id TEXT PRIMARY KEY, phase_id TEXT NOT NULL, name TEXT NOT NULL,
@@ -81,128 +83,12 @@ CREATE INDEX IF NOT EXISTS idx_exercises_phase ON exercises(phase_id);
 CREATE INDEX IF NOT EXISTS idx_phase_criteria_phase ON phase_criteria(phase_id);
 `;
 
-const MIGRATIONS: Array<{ id: number; sql: string }> = [
-  { id: 1, sql: `ALTER TABLE users ADD COLUMN timezone TEXT` },
-  { id: 2, sql: `ALTER TABLE phase_criteria ADD COLUMN synced INTEGER NOT NULL DEFAULT 1` },
-  { id: 3, sql: `ALTER TABLE exercise_logs ADD COLUMN deleted_at INTEGER` },
-  { id: 4, sql: `ALTER TABLE phases ADD COLUMN deleted_at INTEGER` },
-  { id: 5, sql: `ALTER TABLE phase_criteria ADD COLUMN deleted_at INTEGER` },
-  { id: 6, sql: `ALTER TABLE exercises ADD COLUMN video_url TEXT` },
-  { id: 7, sql: `ALTER TABLE phases ADD COLUMN focus_days TEXT` },
-  // Backfill the rollup from existing raw logs (runs once). The server only ships
-  // day-groups changed since last_sync, so without this an existing install would
-  // read zero progress until a forced resync. New installs no-op (empty source).
-  {
-    id: 8,
-    sql: `INSERT OR IGNORE INTO log_day_counts (user_id, exercise_id, session_date, sets)
-          SELECT user_id, exercise_id, session_date, COUNT(*)
-          FROM exercise_logs WHERE deleted_at IS NULL
-          GROUP BY user_id, exercise_id, session_date`,
-  },
-  // pain_checkins moved from the legacy synced=0 push path to sync_queue. Move any
-  // still-unsynced rows into the queue and mark them synced=1, otherwise they'd be
-  // stranded forever (the legacy push no longer scans this table).
-  {
-    id: 9,
-    sql: `INSERT INTO sync_queue (id, entity, entity_id, operation, payload_json, status, attempts, created_at, updated_at)
-          SELECT lower(hex(randomblob(16))), 'checkin', id, 'upsert',
-                 json_object('id', id, 'user_id', user_id, 'injury_id', injury_id,
-                             'date', date, 'zones', zones, 'created_at', created_at),
-                 'pending', 0, strftime('%s','now')*1000, strftime('%s','now')*1000
-          FROM pain_checkins WHERE synced = 0;
-          UPDATE pain_checkins SET synced = 1 WHERE synced = 0;`,
-  },
-  // Remaining entities moved to sync_queue (same rationale as id 9): backfill every
-  // still-unsynced row into the queue, then retire the synced=0 flag for pushes.
-  // phase_criteria rides BOTH channels (row content + criteria_done) because a
-  // synced=0 row could mean either kind of pending change — exactly what the old
-  // legacy push sent. `done` must serialize as JSON boolean (server zod requires it).
-  {
-    id: 10,
-    sql: `
-INSERT INTO sync_queue (id, entity, entity_id, operation, payload_json, status, attempts, created_at, updated_at)
-SELECT lower(hex(randomblob(16))), 'exercise_log', id, 'upsert',
-       json_object('id', id, 'user_id', user_id, 'exercise_id', exercise_id, 'session_date', session_date,
-                   'reps_done', reps_done, 'pain_during', pain_during, 'rpe', rpe, 'note', note,
-                   'completed_at', completed_at, 'deleted_at', deleted_at),
-       'pending', 0, strftime('%s','now')*1000, strftime('%s','now')*1000
-FROM exercise_logs WHERE synced = 0;
-UPDATE exercise_logs SET synced = 1 WHERE synced = 0;
-
-INSERT INTO sync_queue (id, entity, entity_id, operation, payload_json, status, attempts, created_at, updated_at)
-SELECT lower(hex(randomblob(16))), 'sst', id, 'upsert',
-       json_object('id', id, 'user_id', user_id, 'injury_id', injury_id, 'date', date,
-                   'strength_score', strength_score, 'pain_score', pain_score, 'note', note),
-       'pending', 0, strftime('%s','now')*1000, strftime('%s','now')*1000
-FROM sst_results WHERE synced = 0;
-UPDATE sst_results SET synced = 1 WHERE synced = 0;
-
-INSERT INTO sync_queue (id, entity, entity_id, operation, payload_json, status, attempts, created_at, updated_at)
-SELECT lower(hex(randomblob(16))), 'prom', id, 'upsert',
-       json_object('id', id, 'user_id', user_id, 'injury_id', injury_id, 'instrument_id', instrument_id,
-                   'date', date, 'score', score, 'answers', answers, 'note', note),
-       'pending', 0, strftime('%s','now')*1000, strftime('%s','now')*1000
-FROM prom_results WHERE synced = 0;
-UPDATE prom_results SET synced = 1 WHERE synced = 0;
-
-INSERT INTO sync_queue (id, entity, entity_id, operation, payload_json, status, attempts, created_at, updated_at)
-SELECT lower(hex(randomblob(16))), 'injury', id, 'upsert',
-       json_object('id', id, 'current_phase_id', current_phase_id, 'focus_days', focus_days),
-       'pending', 0, strftime('%s','now')*1000, strftime('%s','now')*1000
-FROM injuries WHERE synced = 0;
-UPDATE injuries SET synced = 1 WHERE synced = 0;
-
-INSERT INTO sync_queue (id, entity, entity_id, operation, payload_json, status, attempts, created_at, updated_at)
-SELECT lower(hex(randomblob(16))), 'phase', id, 'upsert',
-       json_object('id', id, 'injury_id', injury_id, 'phase_num', phase_num, 'name', name,
-                   'description', description, 'week_start', week_start, 'week_end', week_end,
-                   'threshold_pct', threshold_pct, 'focus_days', focus_days, 'deleted_at', deleted_at),
-       'pending', 0, strftime('%s','now')*1000, strftime('%s','now')*1000
-FROM phases WHERE synced = 0;
-UPDATE phases SET synced = 1 WHERE synced = 0;
-
-INSERT INTO sync_queue (id, entity, entity_id, operation, payload_json, status, attempts, created_at, updated_at)
-SELECT lower(hex(randomblob(16))), 'exercise', id, 'upsert',
-       json_object('id', id, 'phase_id', phase_id, 'name', name, 'detail', detail, 'sets', sets,
-                   'reps', reps, 'duration_s', duration_s, 'exercise_type', exercise_type,
-                   'sort_order', sort_order, 'video_url', video_url),
-       'pending', 0, strftime('%s','now')*1000, strftime('%s','now')*1000
-FROM exercises WHERE synced = 0;
-UPDATE exercises SET synced = 1 WHERE synced = 0;
-
-INSERT INTO sync_queue (id, entity, entity_id, operation, payload_json, status, attempts, created_at, updated_at)
-SELECT lower(hex(randomblob(16))), 'phase_criterion', id, 'upsert',
-       json_object('id', id, 'phase_id', phase_id, 'description', description, 'deleted_at', deleted_at),
-       'pending', 0, strftime('%s','now')*1000, strftime('%s','now')*1000
-FROM phase_criteria WHERE synced = 0;
-INSERT INTO sync_queue (id, entity, entity_id, operation, payload_json, status, attempts, created_at, updated_at)
-SELECT lower(hex(randomblob(16))), 'criteria_done', id, 'upsert',
-       json_object('criteria_id', id, 'done', json(CASE WHEN done THEN 'true' ELSE 'false' END)),
-       'pending', 0, strftime('%s','now')*1000, strftime('%s','now')*1000
-FROM phase_criteria WHERE synced = 0;
-UPDATE phase_criteria SET synced = 1 WHERE synced = 0;`,
-  },
-  // Tombstones for the three tables that had no delete propagation: a server-side
-  // delete (deleted_at) now reaches clients via the pull instead of living forever.
-  // On fresh installs SCHEMA_SQL already has the columns; the duplicate-column
-  // catch below makes this a no-op there.
-  {
-    id: 11,
-    sql: `ALTER TABLE pain_checkins ADD COLUMN deleted_at INTEGER;
-ALTER TABLE sst_results ADD COLUMN deleted_at INTEGER;
-ALTER TABLE prom_results ADD COLUMN deleted_at INTEGER;`,
-  },
-  // Warm-up sets: tag each set row; warmups are excluded from the rollup count.
-  {
-    id: 12,
-    sql: `ALTER TABLE exercise_logs ADD COLUMN set_type TEXT NOT NULL DEFAULT 'normal'`,
-  },
-  // Per-exercise default number of warm-up rows seeded on a fresh session.
-  {
-    id: 14,
-    sql: `ALTER TABLE exercises ADD COLUMN warmup_sets INTEGER NOT NULL DEFAULT 0`,
-  },
-];
+// Migrations 1–14 were squashed into SCHEMA_SQL above (all clients were forced to
+// reinstall, so every OPFS DB starts fresh at the current schema). Keep this list
+// empty; the next migration MUST start at id 15 — ids 1–14 stay retired so a rare
+// straggler that never reinstalled (already has 1–14 in _migrations) doesn't re-run
+// or collide with a reused id.
+const MIGRATIONS: Array<{ id: number; sql: string }> = [];
 
 async function initSchema(proxy: DbWorkerApi): Promise<void> {
   await proxy.exec(SCHEMA_SQL);
