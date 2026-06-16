@@ -8,7 +8,6 @@ import {
   getSyncQueueStatus, retryFailedMutations, discardFailedMutations, pushDelta,
   type SyncQueueStatus,
 } from "../../data/sync";
-import { pushSupported, enableReminders, disableReminders, setReminderHour, getReminderPrefs } from "../../push";
 
 export function ProfileScreen() {
   const { user, token, signOut, setTimezone } = useAuth();
@@ -20,42 +19,6 @@ export function ProfileScreen() {
   const [resetting, setResetting] = useState(false);
   const [resetDone, setResetDone] = useState(false);
   const [resetError, setResetError] = useState(false);
-
-  // Reminders (Web Push)
-  const pushOk = pushSupported();
-  const [remOn, setRemOn] = useState(false);
-  const [remHour, setRemHour] = useState(8);
-  const [remBusy, setRemBusy] = useState(false);
-  const [remDenied, setRemDenied] = useState(false);
-  const [remLoaded, setRemLoaded] = useState(false);
-
-  useEffect(() => {
-    if (!pushOk || !token) return;
-    getReminderPrefs().then((p) => { setRemOn(p.enabled); setRemHour(p.hour); setRemLoaded(true); });
-    if (typeof Notification !== "undefined" && Notification.permission === "denied") setRemDenied(true);
-  }, [pushOk, token]);
-
-  const handleToggleReminders = async () => {
-    if (remBusy) return;
-    setRemBusy(true);
-    try {
-      if (remOn) {
-        await disableReminders();
-        setRemOn(false);
-      } else {
-        const ok = await enableReminders(remHour);
-        setRemOn(ok);
-        if (!ok && typeof Notification !== "undefined" && Notification.permission === "denied") setRemDenied(true);
-      }
-    } finally {
-      setRemBusy(false);
-    }
-  };
-
-  const handleRemHourChange = async (h: number) => {
-    setRemHour(h);
-    if (remOn) await setReminderHour(h);
-  };
 
   const handleTzChange = (tz: string) => {
     setSelectedTz(tz);
@@ -227,75 +190,6 @@ export function ProfileScreen() {
             )}
           </div>
         </div>
-
-        {/* Reminders */}
-        {pushOk && (
-          <div style={{ marginTop: 28 }}>
-            <div className="row gap-6" style={{ marginBottom: 10, alignItems: "center" }}>
-              <Ico.refresh s={14} c="var(--muted)" />
-              <span className="eyebrow">Recordatorios</span>
-            </div>
-            <div className="card" style={{ padding: "14px 16px" }}>
-              <div className="row between" style={{ alignItems: "center", gap: 12 }}>
-                <div className="col gap-2" style={{ flex: 1 }}>
-                  <span className="body" style={{ fontWeight: 600 }}>Aviso diario</span>
-                  <span className="body-sm" style={{ color: "var(--ink-3)" }}>
-                    Notificación en tus días de enfoque.
-                  </span>
-                </div>
-                {remLoaded ? (
-                  <button
-                    onClick={handleToggleReminders}
-                    disabled={remBusy}
-                    aria-pressed={remOn}
-                    style={{
-                      width: 52, height: 30, flexShrink: 0, borderRadius: 999, border: "none",
-                      background: remOn ? "var(--moss)" : "var(--line-2)",
-                      position: "relative", cursor: remBusy ? "default" : "pointer",
-                      opacity: remBusy ? 0.6 : 1, transition: "background 0.2s",
-                    }}
-                  >
-                    <span style={{
-                      position: "absolute", top: 3, left: remOn ? 25 : 3, width: 24, height: 24,
-                      borderRadius: 999, background: "#fff", transition: "left 0.2s",
-                    }} />
-                  </button>
-                ) : (
-                  // Placeholder until prefs load — avoids the OFF→ON flip when the API returns.
-                  <div style={{
-                    width: 52, height: 30, flexShrink: 0, borderRadius: 999,
-                    background: "var(--line-2)", opacity: 0.4,
-                  }} />
-                )}
-              </div>
-
-              {remOn && (
-                <div className="row between" style={{ alignItems: "center", marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
-                  <span className="body-sm" style={{ color: "var(--ink-3)" }}>Hora del aviso</span>
-                  <select
-                    value={remHour}
-                    onChange={(e) => handleRemHourChange(Number(e.target.value))}
-                    style={{
-                      padding: "8px 10px", borderRadius: "var(--r-sm)", border: "1.5px solid var(--line-2)",
-                      background: "var(--bg)", color: "var(--ink)", fontFamily: "var(--font-sans)",
-                      fontSize: 13, fontWeight: 600, appearance: "none", WebkitAppearance: "none", cursor: "pointer",
-                    }}
-                  >
-                    {Array.from({ length: 24 }).map((_, h) => (
-                      <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {remDenied && (
-                <div className="body-sm" style={{ marginTop: 10, color: "var(--clay)", lineHeight: 1.5 }}>
-                  Permiso de notificaciones bloqueado. Actívalo en los ajustes del navegador.
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Sync status: only visible when something is pending or dead-lettered */}
         {queueStatus && (queueStatus.pending > 0 || queueStatus.failed > 0) && (
