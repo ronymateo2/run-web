@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowLineDown, ClockCounterClockwise } from "@phosphor-icons/react";
+import { ArrowLineDown, ClockCounterClockwise, Trash } from "@phosphor-icons/react";
 import { useAuth } from "../auth/AuthContext";
 import { useSync } from "../hooks/useSync";
 import { localToday } from "../utils/timezone";
@@ -238,6 +238,8 @@ export function ExerciseDetailScreen() {
   const [saving, setSaving] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
+  // Which set row is currently swiped open to reveal the delete action.
+  const [swipedSet, setSwipedSet] = useState<string | null>(null);
 
   const totalSets = exercise?.sets ?? 3;
   const isTimeBased = !!exercise?.duration_s && !exercise?.reps;
@@ -511,25 +513,51 @@ export function ExerciseDetailScreen() {
             exit={{ opacity: 0, height: 0, marginBottom: 0, transition: { duration: 0.2 } }}
             style={{ position: "relative", marginBottom: 10, borderRadius: "var(--r-md)", overflow: "hidden" }}
           >
-            {/* Red layer revealed when the card is swiped left → release past threshold deletes */}
-            <div style={{
-              position: "absolute", inset: 0,
-              background: "#B0532F",
-              display: "flex", alignItems: "center", justifyContent: "flex-end",
-              gap: 8, paddingRight: 22,
-              fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.08em",
-              textTransform: "uppercase", color: "var(--bone)",
-            }}>
-              <Ico.close s={16} c="var(--bone)" />
-              Eliminar
+            {/* Red layer revealed when the card is swiped left → tap to delete */}
+            <div
+              role="button"
+              onClick={() => {
+                if (swipedSet === row.uid) {
+                  setSwipedSet(null);
+                  removeSet(i);
+                }
+              }}
+              style={{
+                position: "absolute", inset: 0,
+                background: "#B0532F",
+                cursor: swipedSet === row.uid ? "pointer" : "default",
+              }}
+            >
+              <div style={{
+                position: "absolute", top: 0, right: 0, bottom: 0,
+                width: 90,
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                gap: 6,
+                fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.08em",
+                textTransform: "uppercase", color: "var(--bone)",
+              }}>
+                <Trash size={18} weight="bold" />
+                Eliminar
+              </div>
             </div>
-            {/* Draggable front. Opaque base hides the red layer until swiped. */}
+            {/* Draggable front. Swipe left to reveal the red delete layer. */}
             <motion.div
               drag="x"
               dragDirectionLock
-              dragConstraints={{ left: 0, right: 0 }}
-              dragElastic={0.6}
-              onDragEnd={(_e, info) => { if (info.offset.x < -90) removeSet(i); }}
+              dragConstraints={{ left: -90, right: 0 }}
+              dragElastic={0.2}
+              animate={swipedSet === row.uid ? { x: -90 } : { x: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              onDragStart={() => {
+                if (swipedSet && swipedSet !== row.uid) setSwipedSet(null);
+              }}
+              onDragEnd={(_e, info) => {
+                if (info.offset.x < -60) {
+                  setSwipedSet(row.uid);
+                } else {
+                  setSwipedSet(null);
+                }
+              }}
               style={{ position: "relative", background: "#111E16", borderRadius: "var(--r-md)", cursor: "grab", touchAction: "pan-y" }}
             >
               <div style={{
