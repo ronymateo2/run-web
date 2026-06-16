@@ -891,12 +891,12 @@ export function ExerciseDetailScreen() {
 
       {/* Video sheet */}
       {videoOpen && !!exercise?.video_url && (
-        <BottomSheet variant="dark" onClose={() => setVideoOpen(false)}>
+        <BottomSheet variant="dark" size="video" onClose={() => setVideoOpen(false)}>
           {(close) => (
-            <>
+            <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
               <div style={{
                 display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "14px 20px", flexShrink: 0,
+                padding: "12px 16px", flexShrink: 0,
               }}>
                 <span style={{
                   fontSize: 11, fontFamily: "var(--font-mono)", letterSpacing: "0.12em",
@@ -916,12 +916,13 @@ export function ExerciseDetailScreen() {
                 </button>
               </div>
               <div style={{
-                padding: "0 20px 20px",
-                paddingBottom: "calc(20px + env(safe-area-inset-bottom, 20px))",
+                flex: 1,
+                minHeight: 0,
+                paddingBottom: "env(safe-area-inset-bottom, 0px)",
               }}>
-                <VideoEmbed url={exercise.video_url!} />
+                <VideoEmbed url={exercise.video_url!} variant="full" />
               </div>
-            </>
+            </div>
           )}
         </BottomSheet>
       )}

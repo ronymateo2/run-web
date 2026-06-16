@@ -13,15 +13,15 @@ function embedUrl(url: string): string | null {
     const host = u.hostname.replace(/^www\./, "");
     if (host === "youtu.be") {
       const id = u.pathname.slice(1);
-      return id ? `https://www.youtube.com/embed/${id}` : null;
+      return id ? `https://www.youtube.com/embed/${id}?playsinline=1&rel=0` : null;
     }
     if (host === "youtube.com" || host === "m.youtube.com") {
       if (u.pathname.startsWith("/shorts/")) {
         const id = u.pathname.split("/").filter(Boolean)[1];
-        return id ? `https://www.youtube.com/embed/${id}` : null;
+        return id ? `https://www.youtube.com/embed/${id}?playsinline=1&rel=0` : null;
       }
       const id = u.searchParams.get("v");
-      return id ? `https://www.youtube.com/embed/${id}` : null;
+      return id ? `https://www.youtube.com/embed/${id}?playsinline=1&rel=0` : null;
     }
     if (host === "vimeo.com") {
       const id = u.pathname.split("/").filter(Boolean)[0];
@@ -33,16 +33,28 @@ function embedUrl(url: string): string | null {
   return null;
 }
 
-export function VideoEmbed({ url: rawUrl }: { url: string }) {
+export function VideoEmbed({
+  url: rawUrl,
+  variant = "default",
+}: {
+  url: string;
+  variant?: "default" | "full";
+}) {
   const url = normalize(rawUrl);
   const embed = embedUrl(url);
+  const isFull = variant === "full";
 
   if (embed) {
     return (
       <div style={{
-        position: "relative", width: "100%", aspectRatio: "16 / 9",
-        borderRadius: 14, overflow: "hidden", background: "rgba(0,0,0,0.30)",
-        maxWidth: 480, marginLeft: "auto", marginRight: "auto",
+        position: "relative", width: "100%",
+        height: isFull ? "100%" : undefined,
+        aspectRatio: isFull ? undefined : "16 / 9",
+        borderRadius: isFull ? 0 : 14,
+        overflow: "hidden",
+        background: "rgba(0,0,0,0.30)",
+        maxWidth: isFull ? undefined : 480,
+        marginLeft: "auto", marginRight: "auto",
       }}>
         <iframe
           src={embed}

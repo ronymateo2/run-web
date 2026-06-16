@@ -3,13 +3,32 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 
 type Variant = "light" | "dark";
+type Size = "default" | "video";
 
 interface Props {
   onClose: () => void;
   children: ReactNode | ((close: () => void) => ReactNode);
   variant?: Variant;
-  maxWidth?: number;
+  size?: Size;
+  maxWidth?: number | string;
 }
+
+const SIZE_STYLES: Record<
+  Size,
+  { maxWidth: number | string; maxHeight: string; height?: string; borderRadius: string }
+> = {
+  default: {
+    maxWidth: 480,
+    maxHeight: "calc(100vh - 60px)",
+    borderRadius: "24px 24px 0 0",
+  },
+  video: {
+    maxWidth: "100%",
+    maxHeight: "calc(100vh - 12px)",
+    height: "calc(100vh - 12px)",
+    borderRadius: "20px 20px 0 0",
+  },
+};
 
 const VARIANTS: Record<
   Variant,
@@ -33,11 +52,14 @@ export function BottomSheet({
   onClose,
   children,
   variant = "light",
-  maxWidth = 480,
+  size = "default",
+  maxWidth,
 }: Props) {
   const [visible, setVisible] = useState(true);
   const close = () => setVisible(false);
   const v = VARIANTS[variant];
+  const s = SIZE_STYLES[size];
+  const resolvedMaxWidth = maxWidth ?? s.maxWidth;
 
   return createPortal(
     <AnimatePresence onExitComplete={onClose}>
@@ -71,10 +93,11 @@ export function BottomSheet({
             onClick={(e) => e.stopPropagation()}
             style={{
               width: "100%",
-              maxWidth,
-              maxHeight: "calc(100vh - 60px)",
+              maxWidth: resolvedMaxWidth,
+              maxHeight: s.maxHeight,
+              height: s.height,
               background: v.bg,
-              borderRadius: "24px 24px 0 0",
+              borderRadius: s.borderRadius,
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
