@@ -56,6 +56,8 @@ export function DaySummarySheet({
     let cancelled = false;
     async function load() {
       let logs = await exerciseRepository.getTodayLogs(userId, date);
+      // Warm-up sets are structural helpers in the workout screen; hide them in the summary.
+      logs = logs.filter((l) => l.set_type !== "warmup");
       // Calendar dots come from the all-time rollup, but raw sets for an old day
       // live outside the sync window — fetch them on demand before giving up.
       if (logs.length === 0 && isBeforeWindow(date)) {
