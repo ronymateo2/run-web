@@ -11,6 +11,7 @@ import { ScreenNav } from "../components/ScreenNav";
 import { VideoEmbed } from "../components/VideoEmbed";
 import { BottomSheet } from "../components/BottomSheet";
 import { ExerciseStatsSheet } from "../components/ExerciseStatsSheet";
+import { ExerciseFAB } from "../components/ExerciseFAB";
 import { exerciseRepository, type Exercise, type ExerciseLog } from "../../data/repositories";
 
 const DEFAULT_RPE = 6;
@@ -230,7 +231,6 @@ export function ExerciseDetailScreen() {
   // How many set rows were already saved for today (max saved index + 1). On save we
   // soft-delete any of those indices the user has since removed or unchecked.
   const [loadedCount, setLoadedCount] = useState(0);
-  const [fabOpen, setFabOpen] = useState(false);
   // Gate the card list until the async load resolves, so AnimatePresence mounts with the
   // real rows already present (initial={false} then suppresses the enter animation) —
   // otherwise the rows pop/settle in on first open.
@@ -853,116 +853,13 @@ export function ExerciseDetailScreen() {
         </div>
       )}
 
-      {/* FAB: add set / warmup — floats above the footer so it stays reachable with many sets */}
-      {exercise && (
-        <>
-          <AnimatePresence>
-            {fabOpen && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                onClick={() => setFabOpen(false)}
-                style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(17,30,22,0.35)" }}
-              />
-            )}
-          </AnimatePresence>
-          <div
-            style={{
-              position: "fixed",
-              right: 24,
-              bottom: `calc(${nextExercise ? 140 : 85}px + env(safe-area-inset-bottom, 0px))`,
-              zIndex: 50,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-end",
-              gap: 12,
-              pointerEvents: "none",
-            }}
-          >
-            <AnimatePresence>
-              {fabOpen && (
-                <>
-                  <motion.button
-                    key="add-serie"
-                    type="button"
-                    onClick={() => { addSet(); setFabOpen(false); }}
-                    initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.9 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 30, delay: 0.04 }}
-                    whileTap={{ scale: 0.95 }}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 8,
-                      padding: "11px 16px",
-                      borderRadius: "var(--r-md)",
-                      border: "1px solid rgba(245,240,232,0.16)",
-                      background: "#1C2C22",
-                      color: "var(--bone)",
-                      fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.08em",
-                      textTransform: "uppercase",
-                      cursor: "pointer", pointerEvents: "auto",
-                      boxShadow: "0 6px 20px rgba(0,0,0,0.35)",
-                    }}
-                  >
-                    <Ico.plus s={15} c="var(--moss)" />
-                    Serie
-                  </motion.button>
-                  <motion.button
-                    key="add-warmup"
-                    type="button"
-                    onClick={() => { addWarmup(); setFabOpen(false); }}
-                    initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.9 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                    whileTap={{ scale: 0.95 }}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 8,
-                      padding: "11px 16px",
-                      borderRadius: "var(--r-md)",
-                      border: "1px solid rgba(217,119,87,0.45)",
-                      background: "rgba(217,119,87,0.14)",
-                      color: "var(--clay)",
-                      fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.08em",
-                      textTransform: "uppercase",
-                      cursor: "pointer", pointerEvents: "auto",
-                      boxShadow: "0 6px 20px rgba(0,0,0,0.35)",
-                    }}
-                  >
-                    <Ico.plus s={15} c="var(--clay)" />
-                    Calentamiento
-                  </motion.button>
-                </>
-              )}
-            </AnimatePresence>
-            <motion.button
-              type="button"
-              aria-label={fabOpen ? "Cerrar" : "Agregar serie o calentamiento"}
-              aria-expanded={fabOpen}
-              onClick={() => setFabOpen(o => !o)}
-              whileTap={{ scale: 0.92 }}
-              transition={{ type: "spring", stiffness: 400, damping: 25 }}
-              style={{
-                width: 56, height: 56, borderRadius: 999,
-                border: "none", background: "var(--clay)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "pointer", pointerEvents: "auto",
-                boxShadow: "0 8px 24px rgba(217,119,87,0.45)",
-              }}
-            >
-              <motion.span
-                animate={{ rotate: fabOpen ? 45 : 0 }}
-                transition={{ type: "spring", stiffness: 400, damping: 22 }}
-                style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
-              >
-                <Ico.plus s={26} c="#111E16" />
-              </motion.span>
-            </motion.button>
-          </div>
-        </>
-      )}
+      {/* FAB: add set / warmup */}
+      <ExerciseFAB
+        onAddSet={addSet}
+        onAddWarmup={addWarmup}
+        hasNextExercise={!!nextExercise}
+        visible={!!exercise}
+      />
 
       {/* Video sheet */}
       {videoOpen && !!exercise?.video_url && (
