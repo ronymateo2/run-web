@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../auth/AuthContext";
-import { Plant, Leaf, Flower, Tree, CaretUpDown } from "@phosphor-icons/react";
+import { Plant, Leaf, Flower, Tree, CaretUpDown, CaretDown } from "@phosphor-icons/react";
 import { Ico } from "../components/icons";
 import { injuryRepository, exerciseRepository, effectiveFocusDays, type Injury, type Phase } from "../../data/repositories";
 
@@ -67,7 +67,65 @@ export function PhasesOverviewScreen() {
   const sel = data?.find(d => d.injury.id === (selectedId ?? data[0]?.injury.id)) ?? null;
 
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
   const selIndex = data && sel ? data.findIndex(d => d.injury.id === sel.injury.id) : -1;
+
+  // Refs to each phase row (keyed by phase id) so the rail nodes + auto-scroll
+  // can bring a phase into view; separate ref to the current card for the
+  // one-shot highlight.
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const currentCardRef = useRef<HTMLDivElement | null>(null);
+  const scrolledFor = useRef<string | null>(null);
+
+  // Smooth-scroll the screen so a phase row is centered. Hand-rolled with rAF
+  // because programmatic `behavior:"smooth"` is unreliable on this scroll
+  // container across engines — this animates everywhere.
+  const scrollToPhase = (id: string) => {
+    const el = rowRefs.current[id];
+    const sc = el?.closest(".screen") as HTMLElement | null;
+    if (!el || !sc) return;
+    const elTop = el.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop;
+    const target = Math.max(0, Math.min(
+      elTop - (sc.clientHeight - el.offsetHeight) / 2,
+      sc.scrollHeight - sc.clientHeight,
+    ));
+    const start = sc.scrollTop;
+    const dist = target - start;
+    if (Math.abs(dist) < 2) return;
+    const t0 = performance.now();
+    const step = (now: number) => {
+      const p = Math.min(1, (now - t0) / 500);
+      sc.scrollTop = start + dist * (1 - Math.pow(1 - p, 3)); // ease-out cubic
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+
+  // On entry (and when the active injury / current phase changes) land the user
+  // on the current phase and flash a ring so the eye catches it. Fires once per
+  // current-phase id — unrelated re-renders won't re-trigger it.
+  // Switching injury starts fresh: re-collapse the completed phases.
+  useEffect(() => { setShowCompleted(false); }, [selectedId]);
+
+  const currentId = sel?.current?.id ?? null;
+  useEffect(() => {
+    if (!currentId || scrolledFor.current === currentId) return;
+    scrolledFor.current = currentId;
+    // Refs are read inside the timeout: the current row/card mount in the same
+    // render that resolved currentId, so they're populated by the time it fires.
+    const t = setTimeout(() => {
+      scrollToPhase(currentId);
+      currentCardRef.current?.animate(
+        [
+          { boxShadow: "0 0 0 0 rgba(217,119,87,0)" },
+          { boxShadow: "0 0 0 5px rgba(217,119,87,0.35)" },
+          { boxShadow: "0 0 0 0 rgba(217,119,87,0)" },
+        ],
+        { duration: 1500, easing: "ease-out" }
+      );
+    }, 480); // let the stagger reveal settle first
+    return () => clearTimeout(t);
+  }, [currentId, sel?.injury.id]);
 
   // Row of week dots for a phase: one dot per week in its range,
   // filled (moss) when there was at least one session that week.
@@ -160,18 +218,117 @@ export function PhasesOverviewScreen() {
             Math.max(1, Math.floor((Date.now() - startedAt) / MS_PER_WEEK) + 1)
           );
 
+          // Resolve each phase's state once — shared by the rail and the list.
+          const states = phases.map((p, i) => ({
+            p, i,
+            isCurrent: p.id === current?.id,
+            isPast: current ? (p.phase_num ?? 0) < (current.phase_num ?? 0) : false,
+            isLocked: current ? (p.phase_num ?? 0) > (current.phase_num ?? 0) : i > 0,
+          }));
+          const pastCount = states.filter(s => s.isPast).length;
+
+          const goToPhase = (s: typeof states[number]) => {
+            if (s.isPast && !showCompleted) {
+              setShowCompleted(true);
+              setTimeout(() => scrollToPhase(s.p.id), 60);
+            } else {
+              scrollToPhase(s.p.id);
+            }
+          };
+
           return (
             <div key={injury.id} style={{ marginTop: 20 }}>
+              {/* Sticky mini-rail — the whole sendero at a glance, always in view */}
+              <div
+                style={{
+                  position: "sticky", top: 0, zIndex: 20, background: "var(--bg)",
+                  margin: "0 -22px", padding: "8px 22px 10px",
+                  borderBottom: "1px solid var(--line)",
+                }}
+              >
+                <div className="row between" style={{ marginBottom: 8 }}>
+                  <span className="eyebrow" style={{ fontSize: 10 }}>Mapa del sendero</span>
+                  <span className="eyebrow" style={{ fontSize: 10, color: "var(--clay-deep)" }}>
+                    Fase {currentNum} de {totalPhases}
+                  </span>
+                </div>
+                {/* Segmented track — one bar per phase: completed = moss, current
+                    = clay outline with its real % filled, locked = faint. */}
+                <div className="row" style={{ gap: 4 }}>
+                  {states.map((s) => {
+                    const fill = Math.min(100, Math.max(0, s.p.progressPct));
+                    return (
+                      <button
+                        key={s.p.id}
+                        onClick={() => goToPhase(s)}
+                        aria-label={`Fase ${s.p.phase_num}${s.isCurrent ? " (actual)" : s.isPast ? " (completada)" : " (bloqueada)"}`}
+                        style={{
+                          position: "relative", flex: 1, minWidth: 0,
+                          height: s.isCurrent ? 12 : 10, padding: 0, border: "none",
+                          cursor: "pointer", borderRadius: 999, overflow: "hidden",
+                          background: s.isPast ? "var(--moss)" : s.isCurrent ? "var(--clay-soft)" : "var(--line)",
+                          boxShadow: s.isCurrent ? "inset 0 0 0 1.5px var(--clay)" : "none",
+                          WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
+                        }}
+                      >
+                        {s.isCurrent && fill > 0 && (
+                          <span style={{
+                            position: "absolute", left: 0, top: 0, bottom: 0,
+                            width: `${fill}%`, background: "var(--clay)",
+                          }} />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Orientation line — static info, intentionally not chip-shaped */}
-              <div className="eyebrow" style={{ marginBottom: 18 }}>
+              <div className="eyebrow" style={{ margin: "16px 0 18px" }}>
                 Semana {weekNow} · Fase {currentNum} de {totalPhases}
               </div>
 
+              {/* Completed phases — collapsed into one summary row by default */}
+              {pastCount > 0 && (
+                <div style={{ display: "flex", gap: 14 }}>
+                  <div className="col" style={{ width: 48, alignItems: "center", flexShrink: 0 }}>
+                    <div style={{
+                      width: 38, height: 38, borderRadius: "50%", marginTop: 5,
+                      display: "flex", alignItems: "center", justifyContent: "center", background: "var(--moss)",
+                    }}>
+                      <Ico.check s={16} c="#fff" />
+                    </div>
+                    <div style={{ flex: 1, minHeight: 24, marginTop: 6, marginBottom: 6, width: 2, background: "var(--moss)" }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0, paddingBottom: 22 }}>
+                    <button
+                      onClick={() => setShowCompleted(v => !v)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 8, width: "100%",
+                        background: "none", border: "none", padding: "8px 0 0", cursor: "pointer",
+                        textAlign: "left", fontFamily: "inherit",
+                        WebkitTapHighlightColor: "transparent", touchAction: "manipulation",
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="eyebrow" style={{ fontSize: 11, color: "var(--moss)" }}>Completadas</div>
+                        <div className="serif" style={{ fontSize: 19, lineHeight: 1.15, marginTop: 2, color: "var(--ink)" }}>
+                          {pastCount} {pastCount === 1 ? "fase completada" : "fases completadas"}
+                        </div>
+                      </div>
+                      <CaretDown
+                        size={18}
+                        color="var(--muted)"
+                        style={{ flexShrink: 0, transform: showCompleted ? "rotate(180deg)" : "none", transition: "transform 0.2s ease" }}
+                      />
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Vertical sendero */}
-              {phases.map((p, i) => {
-                const isCurrent = p.id === current?.id;
-                const isPast = current ? (p.phase_num ?? 0) < (current.phase_num ?? 0) : false;
-                const isLocked = current ? (p.phase_num ?? 0) > (current.phase_num ?? 0) : i > 0;
+              {states.map(({ p, i, isCurrent, isPast, isLocked }) => {
+                if (isPast && !showCompleted) return null;
                 const isUnlocking = isCurrent && p.progressPct < p.threshold_pct;
                 const isLast = i === phases.length - 1;
 
@@ -183,10 +340,11 @@ export function PhasesOverviewScreen() {
                 return (
                   <motion.div
                     key={p.id}
+                    ref={(el) => { rowRefs.current[p.id] = el; }}
                     initial={{ opacity: 0, y: 14 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.35, delay: i * 0.07, ease: "easeOut" }}
-                    style={{ display: "flex", gap: 14 }}
+                    style={{ display: "flex", gap: 14, scrollMarginTop: 80 }}
                   >
                     {/* Rail: node + connector */}
                     <div className="col" style={{ width: 48, alignItems: "center", flexShrink: 0 }}>
@@ -230,6 +388,7 @@ export function PhasesOverviewScreen() {
                     <div style={{ flex: 1, minWidth: 0, paddingBottom: isLast ? 0 : 22 }}>
                       {isCurrent ? (
                         <div
+                          ref={currentCardRef}
                           className="card card-tap"
                           style={{ padding: 18, cursor: "pointer" }}
                           onClick={() => navigate(`/path/phase/${p.id}`)}
