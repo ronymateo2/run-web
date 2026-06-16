@@ -872,7 +872,7 @@ export function ExerciseDetailScreen() {
             style={{
               position: "fixed",
               right: 24,
-              bottom: `calc(${nextExercise ? 172 : 108}px + env(safe-area-inset-bottom, 0px))`,
+              bottom: `calc(${nextExercise ? 140 : 85}px + env(safe-area-inset-bottom, 0px))`,
               zIndex: 50,
               display: "flex",
               flexDirection: "column",
