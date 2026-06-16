@@ -7,10 +7,13 @@ const listVariants = {
   show: { transition: { staggerChildren: 0.045, delayChildren: 0.03 } },
 };
 
-/** Count sets logged per exercise (each log row = one set). */
+/** Count sets logged per exercise (each log row = one set). Warm-up sets don't count. */
 export function setsDoneMap(logs: ExerciseLog[]): Map<string, number> {
   const m = new Map<string, number>();
-  for (const l of logs) m.set(l.exercise_id, (m.get(l.exercise_id) ?? 0) + 1);
+  for (const l of logs) {
+    if (l.set_type === "warmup") continue;
+    m.set(l.exercise_id, (m.get(l.exercise_id) ?? 0) + 1);
+  }
   return m;
 }
 
