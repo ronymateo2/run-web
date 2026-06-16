@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS exercises (
   id TEXT PRIMARY KEY, phase_id TEXT NOT NULL, name TEXT NOT NULL,
   detail TEXT, sets INTEGER, reps INTEGER, duration_s INTEGER,
   exercise_type TEXT NOT NULL, sort_order INTEGER DEFAULT 0, video_url TEXT,
-  warmup_sets INTEGER NOT NULL DEFAULT 0, synced INTEGER DEFAULT 0
+  warmup_sets INTEGER NOT NULL DEFAULT 0, archived_at INTEGER, synced INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS pain_checkins (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, injury_id TEXT, date TEXT NOT NULL,
@@ -88,7 +88,10 @@ CREATE INDEX IF NOT EXISTS idx_phase_criteria_phase ON phase_criteria(phase_id);
 // empty; the next migration MUST start at id 15 — ids 1–14 stay retired so a rare
 // straggler that never reinstalled (already has 1–14 in _migrations) doesn't re-run
 // or collide with a reused id.
-const MIGRATIONS: Array<{ id: number; sql: string }> = [];
+const MIGRATIONS: Array<{ id: number; sql: string }> = [
+  // id 15: archive exercises (no delete). ids 1–14 retired by the squash.
+  { id: 15, sql: `ALTER TABLE exercises ADD COLUMN archived_at INTEGER` },
+];
 
 async function initSchema(proxy: DbWorkerApi): Promise<void> {
   await proxy.exec(SCHEMA_SQL);

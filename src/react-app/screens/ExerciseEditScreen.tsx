@@ -69,6 +69,7 @@ export function ExerciseEditScreen() {
       sort_order: exercise.sort_order ?? 0,
       video_url: videoUrl.trim() ? normalize(videoUrl.trim()) : null,
       warmup_sets: Number(warmup) || 0,
+      archived_at: exercise.archived_at,
     });
     push();
     navigate(-1);

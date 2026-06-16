@@ -11,6 +11,7 @@ import { CuerpoScreen } from "./screens/CuerpoScreen";
 import { PhasesOverviewScreen } from "./screens/PhasesOverviewScreen";
 import { PhaseJourneyScreen } from "./screens/PhaseJourneyScreen";
 import { PhaseExercisesScreen } from "./screens/PhaseExercisesScreen";
+import { PhaseExercisesEditScreen } from "./screens/PhaseExercisesEditScreen";
 import { InjuryEditScreen } from "./screens/InjuryEditScreen";
 import { PhaseEditScreen } from "./screens/PhaseEditScreen";
 import { LearnScreen } from "./screens/LearnScreen";
@@ -51,6 +52,7 @@ export const router = createBrowserRouter([
       { path: "/path/phase/:id/edit", element: <PhaseEditScreen /> },
       { path: "/path/phase/:id", element: <PhaseJourneyScreen /> },
       { path: "/path/phase/:id/exercises", element: <PhaseExercisesScreen /> },
+      { path: "/path/phase/:id/exercises/edit", element: <PhaseExercisesEditScreen /> },
       { path: "/path/progress", element: lazyScreen(<ProgressScreen />) },
       { path: "/path/prom/:instrumentId", element: lazyScreen(<PromDetailScreen />) },
       { path: "/learn", element: <LearnScreen /> },

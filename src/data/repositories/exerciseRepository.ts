@@ -14,6 +14,9 @@ export const exerciseRepository = {
   async getExercisesForPhase(phaseId: string): Promise<Exercise[]> {
     return q.getExercisesForPhase(await getDrizzle(), phaseId);
   },
+  async getArchivedExercisesForPhase(phaseId: string): Promise<Exercise[]> {
+    return q.getArchivedExercisesForPhase(await getDrizzle(), phaseId);
+  },
   async getExerciseById(id: string): Promise<Exercise | null> {
     return q.getExerciseById(await getDrizzle(), id);
   },
@@ -69,6 +72,36 @@ export const exerciseRepository = {
     await execBatch([
       ...q.saveExerciseStatements(ex),
       ...buildQueueStatements({ entity: "exercise", entityId: ex.id, operation: "upsert", payload: { ...ex } }),
+    ]);
+  },
+  // Archive (hide from plan) or restore. Snapshot the row, override archived_at so the
+  // pull-echo can't null it back (memory gotcha: every exercise column must be in the payload).
+  async setExerciseArchived(id: string, archived: boolean): Promise<void> {
+    const row = await readRowSnapshot("exercises", id);
+    if (!row) return;
+    const archivedAt = archived ? Date.now() : null;
+    await execBatch([
+      ...q.setExerciseArchivedStatements(id, archivedAt),
+      ...buildQueueStatements({
+        entity: "exercise", entityId: id, operation: "upsert",
+        payload: { ...row, archived_at: archivedAt },
+      }),
+    ]);
+  },
+  // Persist a new order. orderedIds = active exercises in their new sequence (index =
+  // sort_order). One atomic batch: all UPDATEs + one queue entry per exercise.
+  async reorderExercises(orderedIds: string[], rowsById: Map<string, Exercise>): Promise<void> {
+    await execBatch([
+      ...q.reorderExercisesStatements(orderedIds),
+      ...orderedIds.flatMap((id, i) => {
+        const row = rowsById.get(id);
+        return row
+          ? buildQueueStatements({
+              entity: "exercise", entityId: id, operation: "upsert",
+              payload: { ...row, sort_order: i },
+            })
+          : [];
+      }),
     ]);
   },
   async saveExerciseLog(log: NewExerciseLog): Promise<void> {

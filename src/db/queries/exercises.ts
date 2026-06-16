@@ -1,4 +1,4 @@
-import { eq, and, isNull, gt, lt, desc } from "drizzle-orm";
+import { eq, and, isNull, isNotNull, gt, lt, desc } from "drizzle-orm";
 import { exercises, exerciseLogs, phases, logDayCounts } from "../schema";
 import type { DrizzleDb } from "../drizzle";
 import type { SqlStatement } from "../client";
@@ -22,6 +22,7 @@ export type ExerciseInput = {
   sort_order: number | null;
   video_url: string | null;
   warmup_sets: number;
+  archived_at: number | null;
 };
 
 // Soft-deleted rows (deselected sets) are excluded from every read/count. Use this
@@ -30,7 +31,14 @@ const notDeleted = isNull(exerciseLogs.deleted_at);
 
 export async function getExercisesForPhase(db: DrizzleDb, phaseId: string): Promise<Exercise[]> {
   return db.select().from(exercises)
-    .where(eq(exercises.phase_id, phaseId))
+    .where(and(eq(exercises.phase_id, phaseId), isNull(exercises.archived_at)))
+    .orderBy(exercises.sort_order);
+}
+
+// Archived (hidden) exercises for the edit screen's "Archivados" section.
+export async function getArchivedExercisesForPhase(db: DrizzleDb, phaseId: string): Promise<Exercise[]> {
+  return db.select().from(exercises)
+    .where(and(eq(exercises.phase_id, phaseId), isNotNull(exercises.archived_at)))
     .orderBy(exercises.sort_order);
 }
 
@@ -98,7 +106,7 @@ export async function getPhaseExerciseProgress(
 ): Promise<number> {
   const allExercises = await db.select({ id: exercises.id, sets: exercises.sets })
     .from(exercises)
-    .where(eq(exercises.phase_id, phaseId));
+    .where(and(eq(exercises.phase_id, phaseId), isNull(exercises.archived_at)));
   if (allExercises.length === 0) return 0;
 
   // Per (exercise, day) set counts come pre-aggregated from the rollup, so this
@@ -109,7 +117,7 @@ export async function getPhaseExerciseProgress(
   })
     .from(logDayCounts)
     .innerJoin(exercises, eq(logDayCounts.exercise_id, exercises.id))
-    .where(and(eq(logDayCounts.user_id, userId), eq(exercises.phase_id, phaseId), gt(logDayCounts.sets, 0)));
+    .where(and(eq(logDayCounts.user_id, userId), eq(exercises.phase_id, phaseId), isNull(exercises.archived_at), gt(logDayCounts.sets, 0)));
 
   const required = new Map(allExercises.map(e => [e.id, e.sets ?? 1]));
   const done = new Set<string>();
@@ -138,7 +146,7 @@ export async function getPhaseProgress(
 ): Promise<number> {
   const phaseExercises = await db.select({ id: exercises.id, sets: exercises.sets })
     .from(exercises)
-    .where(eq(exercises.phase_id, phase.id));
+    .where(and(eq(exercises.phase_id, phase.id), isNull(exercises.archived_at)));
   if (phaseExercises.length === 0) return 0;
 
   const weeks = phase.week_end - phase.week_start + 1;
@@ -157,7 +165,7 @@ export async function getPhaseProgress(
   })
     .from(logDayCounts)
     .innerJoin(exercises, eq(logDayCounts.exercise_id, exercises.id))
-    .where(and(eq(logDayCounts.user_id, userId), eq(exercises.phase_id, phase.id), gt(logDayCounts.sets, 0)));
+    .where(and(eq(logDayCounts.user_id, userId), eq(exercises.phase_id, phase.id), isNull(exercises.archived_at), gt(logDayCounts.sets, 0)));
 
   let done = 0;
   for (const r of rows) {
@@ -261,16 +269,31 @@ export function softDeleteExerciseLogStatements(
 // Upsert an exercise edit locally; the repo enqueues it for push (queue-XOR-synced).
 export function saveExerciseStatements(ex: ExerciseInput): SqlStatement[] {
   return [{
-    sql: `INSERT INTO exercises (id, phase_id, name, detail, sets, reps, duration_s, exercise_type, sort_order, video_url, warmup_sets, synced)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    sql: `INSERT INTO exercises (id, phase_id, name, detail, sets, reps, duration_s, exercise_type, sort_order, video_url, warmup_sets, archived_at, synced)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
           ON CONFLICT(id) DO UPDATE SET
             phase_id = excluded.phase_id, name = excluded.name, detail = excluded.detail,
             sets = excluded.sets, reps = excluded.reps, duration_s = excluded.duration_s,
             exercise_type = excluded.exercise_type, sort_order = excluded.sort_order,
-            video_url = excluded.video_url, warmup_sets = excluded.warmup_sets, synced = 1`,
+            video_url = excluded.video_url, warmup_sets = excluded.warmup_sets,
+            archived_at = excluded.archived_at, synced = 1`,
     bind: [ex.id, ex.phase_id, ex.name, ex.detail, ex.sets, ex.reps, ex.duration_s,
-           ex.exercise_type, ex.sort_order, ex.video_url, ex.warmup_sets],
+           ex.exercise_type, ex.sort_order, ex.video_url, ex.warmup_sets, ex.archived_at],
   }];
+}
+
+// Archive (archivedAt = now) or restore (archivedAt = null) an exercise. The repo
+// enqueues the snapshot. Mirrors softDeleteExerciseLogStatements (no rollup refresh).
+export function setExerciseArchivedStatements(id: string, archivedAt: number | null): SqlStatement[] {
+  return [{ sql: `UPDATE exercises SET archived_at = ?, synced = 1 WHERE id = ?`, bind: [archivedAt, id] }];
+}
+
+// Reorder: array index = new sort_order. One UPDATE per id; the repo enqueues each.
+export function reorderExercisesStatements(orderedIds: string[]): SqlStatement[] {
+  return orderedIds.map((id, i) => ({
+    sql: `UPDATE exercises SET sort_order = ?, synced = 1 WHERE id = ?`,
+    bind: [i, id],
+  }));
 }
 
 // deleted_at: NULL on insert/update reactivates a previously soft-deleted set.

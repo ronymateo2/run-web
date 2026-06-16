@@ -213,6 +213,18 @@ export function PhaseEditScreen() {
           )}
         </div>
 
+        {/* Editar ejercicios — nueva página (reordenar + archivar) */}
+        {!isCreate && (
+          <button
+            className="card row between"
+            onClick={() => navigate(`/path/phase/${phaseId}/exercises/edit`)}
+            style={{ width: "100%", marginTop: 12, padding: 16, alignItems: "center", cursor: "pointer", border: "1px solid var(--line-2)", background: "var(--card)" }}
+          >
+            <span className="title-md" style={{ color: "var(--ink)" }}>Editar ejercicios</span>
+            <Ico.chevR s={18} c="var(--muted)" />
+          </button>
+        )}
+
         {/* Criteria — only once the phase exists (edit mode) */}
         {!isCreate && (
           <>
