@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { Ico } from "../components/icons";
@@ -57,6 +57,18 @@ export function ExerciseDetailScreen() {
     timer.stop();
     setTimingIndex(null);
   }
+
+  // This screen stays mounted across exercises (the :id param changes via replace-nav).
+  // Kill any running timer when the exercise changes so it can't release the wake lock
+  // late or complete a stale set index on the newly loaded exercise.
+  useEffect(() => {
+    return () => {
+      timer.stop();
+      setTimingIndex(null);
+    };
+    // timer.stop is stable (useCallback); only re-run when the exercise id changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   const equipmentType = exercise?.equipment_type ?? "none";
 

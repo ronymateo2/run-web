@@ -1,7 +1,10 @@
 // Beep alert via Web Audio, scheduled on the hardware audio clock so the tone fires at
 // an exact moment regardless of JS-thread jank or RAF throttling. unlockAudio() MUST run
 // inside a user gesture (a tap) or iOS keeps the context suspended and nothing sounds.
+// The context is suspended again shortly after the last scheduled tone so it doesn't keep
+// the audio render thread awake (battery) once no timer is active.
 let ctx: AudioContext | null = null;
+let suspendTimer: ReturnType<typeof setTimeout> | null = null;
 
 function getCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -11,9 +14,28 @@ function getCtx(): AudioContext | null {
   return ctx;
 }
 
+function clearSuspend(): void {
+  if (suspendTimer) { clearTimeout(suspendTimer); suspendTimer = null; }
+}
+
+// Suspend the context once the audio clock passes `atCtxTime` (the end of the last tone),
+// unless something resumed it in the meantime. Bounds "running" to the active window.
+function scheduleSuspend(atCtxTime: number): void {
+  const c = ctx;
+  if (!c) return;
+  clearSuspend();
+  const ms = Math.max(0, (atCtxTime - c.currentTime) * 1000) + 400;
+  suspendTimer = setTimeout(() => {
+    suspendTimer = null;
+    if (ctx && ctx.state === "running" && ctx.currentTime >= atCtxTime) void ctx.suspend();
+  }, ms);
+}
+
 export function unlockAudio(): void {
   const c = getCtx();
-  if (c && c.state === "suspended") void c.resume();
+  if (!c) return;
+  clearSuspend(); // a new timer is starting — keep the clock running
+  if (c.state === "suspended") void c.resume();
 }
 
 export type BeepHandle = { cancel: () => void };
@@ -30,6 +52,7 @@ export function scheduleBeep(inSeconds: number, opts?: { freq?: number; count?: 
   const gap = 0.1;
   const start = c.currentTime + Math.max(0, inSeconds);
   const oscs: OscillatorNode[] = [];
+  let lastEnd = start;
   for (let i = 0; i < count; i++) {
     const at = start + i * (toneDur + gap);
     const osc = c.createOscillator();
@@ -42,14 +65,20 @@ export function scheduleBeep(inSeconds: number, opts?: { freq?: number; count?: 
     gain.gain.exponentialRampToValueAtTime(0.0001, at + toneDur);
     osc.connect(gain).connect(c.destination);
     osc.start(at);
-    osc.stop(at + toneDur + 0.02);
+    lastEnd = at + toneDur + 0.02;
+    osc.stop(lastEnd);
+    // Free the node graph once it's done so oscillators don't pile up.
+    osc.onended = () => { try { osc.disconnect(); gain.disconnect(); } catch { /* noop */ } };
     oscs.push(osc);
   }
+  scheduleSuspend(lastEnd);
   return {
     cancel: () => {
       for (const osc of oscs) {
-        try { osc.stop(); osc.disconnect(); } catch { /* already stopped */ }
+        try { osc.onended = null; osc.stop(); osc.disconnect(); } catch { /* already stopped */ }
       }
+      // Nothing left to play — let the context idle down.
+      if (ctx) scheduleSuspend(ctx.currentTime);
     },
   };
 }
