@@ -4,10 +4,12 @@ import { useSync } from "../hooks/useSync";
 import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
-import { exerciseRepository, type Exercise } from "../../data/repositories";
+import { exerciseRepository, parseRepPhases, type Exercise } from "../../data/repositories";
 import { normalize } from "../components/VideoEmbed";
 
 type Measure = "reps" | "time";
+// One editable guided phase row (strings while editing; serialized on save).
+type PhaseDraft = { cue: string; seconds: string };
 
 const TYPE_OPTIONS: { value: Exercise["exercise_type"]; label: string }[] = [
   { value: "isometric", label: "Isométrico" },
@@ -37,6 +39,8 @@ export function ExerciseEditScreen() {
   const [equipment, setEquipment] = useState<Exercise["equipment_type"]>("none");
   const [targetRpe, setTargetRpe] = useState("6");
   const [restS, setRestS] = useState("");
+  // Guided per-rep phases (voice cue + seconds), in execution order.
+  const [phases, setPhases] = useState<PhaseDraft[]>([]);
   const [videoUrl, setVideoUrl] = useState("");
   const [detail, setDetail] = useState("");
   const [howTo, setHowTo] = useState("");
@@ -60,6 +64,7 @@ export function ExerciseEditScreen() {
     setEquipment(ex.equipment_type ?? "none");
     setTargetRpe(String(ex.target_rpe ?? 6));
     setRestS(ex.rest_s ? String(ex.rest_s) : "");
+    setPhases(parseRepPhases(ex.rep_phases).map(p => ({ cue: p.cue, seconds: String(p.seconds) })));
     setVideoUrl(ex.video_url ?? "");
     setDetail(ex.detail ?? "");
     setHowTo(ex.how_to ?? "");
@@ -73,6 +78,12 @@ export function ExerciseEditScreen() {
     setSaving(true);
     const n = Number(value) || 0;
     const dur = Number(durationOpt) || 0;
+    // Drop empty/invalid phase rows; only meaningful in reps mode.
+    const cleanPhases = measure === "reps"
+      ? phases
+          .map(p => ({ cue: p.cue.trim(), seconds: Number(p.seconds) }))
+          .filter(p => p.cue.length > 0 && p.seconds > 0)
+      : [];
     await exerciseRepository.saveExercise({
       id: exercise.id,
       phase_id: exercise.phase_id,
@@ -90,10 +101,23 @@ export function ExerciseEditScreen() {
       equipment_type: equipment,
       target_rpe: Number(targetRpe) || null,
       rest_s: measure === "time" ? (Number(restS) || null) : null,
+      rep_phases: cleanPhases.length ? JSON.stringify(cleanPhases) : null,
     });
     push();
     navigate(-1);
   }
+
+  const updatePhase = (i: number, field: keyof PhaseDraft, val: string) =>
+    setPhases(prev => prev.map((p, idx) => idx === i ? { ...p, [field]: val } : p));
+  const addPhase = () => setPhases(prev => [...prev, { cue: "", seconds: "" }]);
+  const removePhase = (i: number) => setPhases(prev => prev.filter((_, idx) => idx !== i));
+  const movePhase = (i: number, dir: -1 | 1) => setPhases(prev => {
+    const j = i + dir;
+    if (j < 0 || j >= prev.length) return prev;
+    const next = [...prev];
+    [next[i], next[j]] = [next[j], next[i]];
+    return next;
+  });
 
   if (!loaded) return (
     <div className="screen">
@@ -157,6 +181,69 @@ export function ExerciseEditScreen() {
             <input style={inputStyle} type="number" inputMode="numeric" min={0} value={warmup} onChange={e => setWarmup(e.target.value)} />
             <span className="body-sm" style={{ color: "var(--ink-3)" }}>Series de calentamiento al iniciar una sesión nueva.</span>
           </div>
+
+          {measure === "reps" && (
+            <div className="col gap-4">
+              <span className="eyebrow">Fases de la rep (guía por voz)</span>
+              {phases.map((p, i) => (
+                <div key={i} className="row gap-8" style={{ alignItems: "center" }}>
+                  <input
+                    style={{ ...inputStyle, flex: 1 }}
+                    type="text"
+                    value={p.cue}
+                    onChange={e => updatePhase(i, "cue", e.target.value)}
+                    placeholder="Palabra (ej. Sube)"
+                  />
+                  <input
+                    style={{ ...inputStyle, width: 72 }}
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    value={p.seconds}
+                    onChange={e => updatePhase(i, "seconds", e.target.value)}
+                    placeholder="s"
+                  />
+                  <div className="col" style={{ gap: 2 }}>
+                    <button
+                      onClick={() => movePhase(i, -1)}
+                      disabled={i === 0}
+                      aria-label="Subir fase"
+                      style={{ background: "none", border: "none", cursor: i === 0 ? "default" : "pointer", padding: 2, opacity: i === 0 ? 0.3 : 1 }}
+                    >
+                      <Ico.chevU s={16} c="var(--ink)" />
+                    </button>
+                    <button
+                      onClick={() => movePhase(i, 1)}
+                      disabled={i === phases.length - 1}
+                      aria-label="Bajar fase"
+                      style={{ background: "none", border: "none", cursor: i === phases.length - 1 ? "default" : "pointer", padding: 2, opacity: i === phases.length - 1 ? 0.3 : 1 }}
+                    >
+                      <Ico.chevD s={16} c="var(--ink)" />
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => removePhase(i)}
+                    aria-label="Eliminar fase"
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}
+                  >
+                    <Ico.close s={18} c="var(--clay)" />
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={addPhase}
+                style={{
+                  ...segBtn(false), flex: "none", alignSelf: "flex-start",
+                  padding: "8px 14px", display: "inline-flex", alignItems: "center", gap: 6,
+                }}
+              >
+                <Ico.plus s={15} c="var(--ink)" /> Agregar fase
+              </button>
+              <span className="body-sm" style={{ color: "var(--ink-3)" }}>
+                La voz dice cada palabra y el timer cuenta sus segundos, fase por fase, en cada rep. Vacío = sin guía.
+              </span>
+            </div>
+          )}
 
           {measure === "time" && (
             <div className="col gap-4">

@@ -150,7 +150,7 @@ export function useExerciseSession(id: string | undefined) {
       exercise_type: exercise.exercise_type, sort_order: exercise.sort_order,
       video_url: exercise.video_url, how_to: exercise.how_to, warmup_sets: exercise.warmup_sets,
       archived_at: exercise.archived_at, equipment_type: exercise.equipment_type, target_rpe: val,
-      rest_s: exercise.rest_s,
+      rest_s: exercise.rest_s, rep_phases: exercise.rep_phases,
     });
     push();
   }

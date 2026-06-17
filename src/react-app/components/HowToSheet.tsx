@@ -3,66 +3,12 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Ico } from "./icons";
 import { BottomSheet } from "./BottomSheet";
+import { numberToWords } from "../utils/speech";
 
 interface Props {
   content: string;
   onClose: () => void;
   title?: string;
-}
-
-const UNITS = [
-  "cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve",
-  "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete",
-  "dieciocho", "diecinueve",
-];
-
-const TWENTIES = [
-  "veinte", "veintiuno", "veintidós", "veintitrés", "veinticuatro", "veinticinco",
-  "veintiséis", "veintisiete", "veintiocho", "veintinueve",
-];
-
-const TEN_NAMES = [
-  "", "diez", "veinte", "treinta", "cuarenta", "cincuenta",
-  "sesenta", "setenta", "ochenta", "noventa",
-];
-
-const HUNDRED_NAMES = [
-  "", "ciento", "doscientos", "trescientos", "cuatrocientos", "quinientos",
-  "seiscientos", "setecientos", "ochocientos", "novecientos",
-];
-
-function numberToWords(n: number): string {
-  if (n < 20) return UNITS[n];
-  if (n < 30) return TWENTIES[n - 20];
-  if (n < 100) {
-    const ten = Math.floor(n / 10);
-    const unit = n % 10;
-    if (unit === 0) return TEN_NAMES[ten];
-    return `${TEN_NAMES[ten]} y ${UNITS[unit]}`;
-  }
-  if (n < 200) {
-    const rest = n - 100;
-    if (rest === 0) return "cien";
-    return `ciento ${numberToWords(rest)}`;
-  }
-  if (n < 1000) {
-    const hundred = Math.floor(n / 100);
-    const rest = n % 100;
-    if (rest === 0) return HUNDRED_NAMES[hundred];
-    return `${HUNDRED_NAMES[hundred]} ${numberToWords(rest)}`;
-  }
-  if (n < 2000) {
-    const rest = n - 1000;
-    if (rest === 0) return "mil";
-    return `mil ${numberToWords(rest)}`;
-  }
-  if (n < 10000) {
-    const thousand = Math.floor(n / 1000);
-    const rest = n % 1000;
-    if (rest === 0) return `${numberToWords(thousand)} mil`;
-    return `${numberToWords(thousand)} mil ${numberToWords(rest)}`;
-  }
-  return String(n);
 }
 
 function cleanMarkdown(md: string): string {

@@ -27,7 +27,26 @@ export type ExerciseInput = {
   equipment_type: Exercise["equipment_type"];
   target_rpe: number | null;
   rest_s: number | null;
+  rep_phases: string | null;
 };
+
+// A single voice-guided phase within a rep: a spoken cue + how many seconds it lasts.
+export type RepPhase = { cue: string; seconds: number };
+
+// Parse the rep_phases JSON column into clean phases. Malformed JSON or bad entries are
+// dropped (try/catch, same tolerance as focus_days). Empty result = no guided mode.
+export function parseRepPhases(json: string | null | undefined): RepPhase[] {
+  if (!json) return [];
+  try {
+    const arr = JSON.parse(json);
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .map((p) => ({ cue: String(p?.cue ?? "").trim(), seconds: Number(p?.seconds) }))
+      .filter((p) => p.cue.length > 0 && p.seconds > 0);
+  } catch {
+    return [];
+  }
+}
 
 // Soft-deleted rows (deselected sets) are excluded from every read/count. Use this
 // predicate everywhere so the filter can't be forgotten.
@@ -273,17 +292,17 @@ export function softDeleteExerciseLogStatements(
 // Upsert an exercise edit locally; the repo enqueues it for push (queue-XOR-synced).
 export function saveExerciseStatements(ex: ExerciseInput): SqlStatement[] {
   return [{
-    sql: `INSERT INTO exercises (id, phase_id, name, detail, sets, reps, duration_s, exercise_type, sort_order, video_url, how_to, warmup_sets, archived_at, equipment_type, target_rpe, rest_s, synced)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    sql: `INSERT INTO exercises (id, phase_id, name, detail, sets, reps, duration_s, exercise_type, sort_order, video_url, how_to, warmup_sets, archived_at, equipment_type, target_rpe, rest_s, rep_phases, synced)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
           ON CONFLICT(id) DO UPDATE SET
             phase_id = excluded.phase_id, name = excluded.name, detail = excluded.detail,
             sets = excluded.sets, reps = excluded.reps, duration_s = excluded.duration_s,
             exercise_type = excluded.exercise_type, sort_order = excluded.sort_order,
             video_url = excluded.video_url, how_to = excluded.how_to, warmup_sets = excluded.warmup_sets,
-            archived_at = excluded.archived_at, equipment_type = excluded.equipment_type, target_rpe = excluded.target_rpe, rest_s = excluded.rest_s, synced = 1`,
+            archived_at = excluded.archived_at, equipment_type = excluded.equipment_type, target_rpe = excluded.target_rpe, rest_s = excluded.rest_s, rep_phases = excluded.rep_phases, synced = 1`,
     bind: [ex.id, ex.phase_id, ex.name, ex.detail, ex.sets, ex.reps, ex.duration_s,
            ex.exercise_type, ex.sort_order, ex.video_url, ex.how_to, ex.warmup_sets, ex.archived_at,
-           ex.equipment_type, ex.target_rpe, ex.rest_s],
+           ex.equipment_type, ex.target_rpe, ex.rest_s, ex.rep_phases],
   }];
 }
 

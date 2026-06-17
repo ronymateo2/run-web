@@ -14,6 +14,7 @@ import { EditableNum } from "../components/EditableNum";
 import { HowToSheet } from "../components/HowToSheet";
 import { useExerciseSession } from "../features/useExerciseSession";
 import { useCountdown } from "../features/useCountdown";
+import { parseRepPhases } from "../../data/repositories";
 
 export function ExerciseDetailScreen() {
   const { id } = useParams<{ id: string }>();
@@ -343,10 +344,15 @@ export function ExerciseDetailScreen() {
         </div>
       )}
 
-      {/* FAB: add set / warmup */}
+      {/* FAB: add set / warmup / guided mode (when the exercise has voice phases) */}
       <ExerciseFAB
         onAddSet={addSet}
         onAddWarmup={addWarmup}
+        onGuided={
+          exercise && parseRepPhases(exercise.rep_phases).length > 0
+            ? () => navigate(`/today/exercise/${id}/guided`)
+            : undefined
+        }
         hasNextExercise={!!nextExercise}
         visible={!!exercise}
       />

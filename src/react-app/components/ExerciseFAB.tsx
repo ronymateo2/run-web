@@ -5,6 +5,7 @@ import { Ico } from "./icons";
 interface ExerciseFABProps {
   onAddSet: () => void;
   onAddWarmup: () => void;
+  onGuided?: () => void;
   hasNextExercise: boolean;
   visible: boolean;
 }
@@ -20,7 +21,7 @@ const itemBase: React.CSSProperties = {
 };
 
 function FABItem({
-  label, onClick, color, border, bg, delay,
+  label, onClick, color, border, bg, delay, icon = "plus",
 }: {
   label: string;
   onClick: () => void;
@@ -28,7 +29,9 @@ function FABItem({
   border: string;
   bg: string;
   delay?: number;
+  icon?: "plus" | "play";
 }) {
+  const Icon = icon === "play" ? Ico.play : Ico.plus;
   return (
     <motion.button
       type="button"
@@ -40,14 +43,14 @@ function FABItem({
       whileTap={{ scale: 0.95 }}
       style={{ ...itemBase, border, background: bg, color }}
     >
-      <Ico.plus s={15} c={color} />
+      <Icon s={15} c={color} />
       {label}
     </motion.button>
   );
 }
 
 export function ExerciseFAB({
-  onAddSet, onAddWarmup, hasNextExercise, visible,
+  onAddSet, onAddWarmup, onGuided, hasNextExercise, visible,
 }: ExerciseFABProps) {
   const [fabOpen, setFabOpen] = useState(false);
   if (!visible) return null;
@@ -77,6 +80,18 @@ export function ExerciseFAB({
         <AnimatePresence>
           {fabOpen && (
             <>
+              {onGuided && (
+                <FABItem
+                  key="guided"
+                  label="Modo guiado"
+                  icon="play"
+                  onClick={() => { onGuided(); close(); }}
+                  color="var(--bone)"
+                  border="1px solid rgba(245,240,232,0.30)"
+                  bg="rgba(31,58,46,0.92)"
+                  delay={0.08}
+                />
+              )}
               <FABItem
                 key="add-serie"
                 label="Serie"

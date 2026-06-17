@@ -74,6 +74,8 @@ export const exercises = sqliteTable("exercises", {
   target_rpe: integer("target_rpe"),
   // Auto-rest between sets (seconds) for time-based exercises. null/0 = manual (no chaining).
   rest_s: integer("rest_s"),
+  // Voice-guided per-rep phases: JSON array of {cue, seconds}. null/[] = no guided mode.
+  rep_phases: text("rep_phases"),
   synced: integer("synced").default(0),
 });
 

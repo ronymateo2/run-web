@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS exercises (
   detail TEXT, sets INTEGER, reps INTEGER, duration_s INTEGER,
   exercise_type TEXT NOT NULL, sort_order INTEGER DEFAULT 0, video_url TEXT, how_to TEXT,
   warmup_sets INTEGER NOT NULL DEFAULT 0, archived_at INTEGER,
-  equipment_type TEXT NOT NULL DEFAULT 'none', target_rpe INTEGER, rest_s INTEGER, synced INTEGER DEFAULT 0
+  equipment_type TEXT NOT NULL DEFAULT 'none', target_rpe INTEGER, rest_s INTEGER, rep_phases TEXT, synced INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS pain_checkins (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, injury_id TEXT, date TEXT NOT NULL,
@@ -102,6 +102,8 @@ const MIGRATIONS: Array<{ id: number; sql: string }> = [
   { id: 20, sql: `ALTER TABLE exercise_logs ADD COLUMN band TEXT` },
   // id 21: auto-rest between sets (seconds) for time-based exercises.
   { id: 21, sql: `ALTER TABLE exercises ADD COLUMN rest_s INTEGER` },
+  // id 22: per-rep guided phases (JSON array of {cue, seconds}) for voice-guided mode.
+  { id: 22, sql: `ALTER TABLE exercises ADD COLUMN rep_phases TEXT` },
 ];
 
 async function initSchema(proxy: DbWorkerApi): Promise<void> {

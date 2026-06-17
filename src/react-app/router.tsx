@@ -5,6 +5,7 @@ import { HomeScreen } from "./screens/HomeScreen";
 import { PainCheckinScreen } from "./screens/PainCheckinScreen";
 import { ExerciseDetailScreen } from "./screens/ExerciseDetailScreen";
 import { ExerciseEditScreen } from "./screens/ExerciseEditScreen";
+import { GuidedExerciseScreen } from "./screens/GuidedExerciseScreen";
 import { SqueezeTestScreen } from "./screens/SqueezeTestScreen";
 import { PromScreen } from "./screens/PromScreen";
 import { CuerpoScreen } from "./screens/CuerpoScreen";
@@ -43,6 +44,7 @@ export const router = createBrowserRouter([
       { path: "/today/checkin", element: <PainCheckinScreen /> },
       { path: "/today/exercise/:id", element: <ExerciseDetailScreen /> },
       { path: "/today/exercise/:id/edit", element: <ExerciseEditScreen /> },
+      { path: "/today/exercise/:id/guided", element: <GuidedExerciseScreen /> },
       { path: "/today/sst", element: <SqueezeTestScreen /> },
       { path: "/today/prom/:instrumentId", element: <PromScreen /> },
       { path: "/body", element: <CuerpoScreen /> },

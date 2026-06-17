@@ -1,6 +1,6 @@
 import {
   Flame, Drop, Leaf, Sparkle, Play, Check, ArrowRight,
-  CaretRight, CaretLeft, X, Hand, Bell, Book, ChartBar,
+  CaretRight, CaretLeft, CaretUp, CaretDown, X, Hand, Bell, Book, ChartBar,
   House, Person, Path, Lock, ArrowCounterClockwise,
   User, Globe, SignOut, Plus, TrashSimple, PencilSimple, Video, Timer,
   DotsSixVertical, Archive, Presentation, SpeakerHigh, Stop,
@@ -22,6 +22,8 @@ export const Ico = {
   arrow:   (p?: IcoProps) => <ArrowRight size={sz(p, 16)} color={cl(p)} weight="regular" />,
   chevR:   (p?: IcoProps) => <CaretRight size={sz(p, 16)} color={cl(p)} weight="regular" />,
   chevL:   (p?: IcoProps) => <CaretLeft  size={sz(p, 16)} color={cl(p)} weight="regular" />,
+  chevU:   (p?: IcoProps) => <CaretUp    size={sz(p, 16)} color={cl(p)} weight="regular" />,
+  chevD:   (p?: IcoProps) => <CaretDown  size={sz(p, 16)} color={cl(p)} weight="regular" />,
   close:   (p?: IcoProps) => <X       size={sz(p)}     color={cl(p)} weight="regular" />,
   hand:    (p?: IcoProps) => <Hand    size={sz(p, 22)} color={cl(p)} weight="regular" />,
   bell:    (p?: IcoProps) => <Bell    size={sz(p)}     color={cl(p)} weight="regular" />,
