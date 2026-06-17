@@ -36,6 +36,7 @@ export function ExerciseEditScreen() {
   const [type, setType] = useState<Exercise["exercise_type"]>("mobility");
   const [equipment, setEquipment] = useState<Exercise["equipment_type"]>("none");
   const [targetRpe, setTargetRpe] = useState("6");
+  const [restS, setRestS] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [detail, setDetail] = useState("");
   const [howTo, setHowTo] = useState("");
@@ -58,6 +59,7 @@ export function ExerciseEditScreen() {
     setType(ex.exercise_type);
     setEquipment(ex.equipment_type ?? "none");
     setTargetRpe(String(ex.target_rpe ?? 6));
+    setRestS(ex.rest_s ? String(ex.rest_s) : "");
     setVideoUrl(ex.video_url ?? "");
     setDetail(ex.detail ?? "");
     setHowTo(ex.how_to ?? "");
@@ -87,6 +89,7 @@ export function ExerciseEditScreen() {
       archived_at: exercise.archived_at,
       equipment_type: equipment,
       target_rpe: Number(targetRpe) || null,
+      rest_s: measure === "time" ? (Number(restS) || null) : null,
     });
     push();
     navigate(-1);
@@ -154,6 +157,14 @@ export function ExerciseEditScreen() {
             <input style={inputStyle} type="number" inputMode="numeric" min={0} value={warmup} onChange={e => setWarmup(e.target.value)} />
             <span className="body-sm" style={{ color: "var(--ink-3)" }}>Series de calentamiento al iniciar una sesión nueva.</span>
           </div>
+
+          {measure === "time" && (
+            <div className="col gap-4">
+              <span className="eyebrow">Descanso (s)</span>
+              <input style={inputStyle} type="number" inputMode="numeric" min={0} value={restS} onChange={e => setRestS(e.target.value)} placeholder="—" />
+              <span className="body-sm" style={{ color: "var(--ink-3)" }}>Descanso automático entre series; al terminar arranca sola la siguiente. Vacío = manual (una a una).</span>
+            </div>
+          )}
 
           <div className="col gap-4">
             <span className="eyebrow">Tipo</span>

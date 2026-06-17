@@ -26,6 +26,7 @@ export type ExerciseInput = {
   archived_at: number | null;
   equipment_type: Exercise["equipment_type"];
   target_rpe: number | null;
+  rest_s: number | null;
 };
 
 // Soft-deleted rows (deselected sets) are excluded from every read/count. Use this
@@ -272,17 +273,17 @@ export function softDeleteExerciseLogStatements(
 // Upsert an exercise edit locally; the repo enqueues it for push (queue-XOR-synced).
 export function saveExerciseStatements(ex: ExerciseInput): SqlStatement[] {
   return [{
-    sql: `INSERT INTO exercises (id, phase_id, name, detail, sets, reps, duration_s, exercise_type, sort_order, video_url, how_to, warmup_sets, archived_at, equipment_type, target_rpe, synced)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    sql: `INSERT INTO exercises (id, phase_id, name, detail, sets, reps, duration_s, exercise_type, sort_order, video_url, how_to, warmup_sets, archived_at, equipment_type, target_rpe, rest_s, synced)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
           ON CONFLICT(id) DO UPDATE SET
             phase_id = excluded.phase_id, name = excluded.name, detail = excluded.detail,
             sets = excluded.sets, reps = excluded.reps, duration_s = excluded.duration_s,
             exercise_type = excluded.exercise_type, sort_order = excluded.sort_order,
             video_url = excluded.video_url, how_to = excluded.how_to, warmup_sets = excluded.warmup_sets,
-            archived_at = excluded.archived_at, equipment_type = excluded.equipment_type, target_rpe = excluded.target_rpe, synced = 1`,
+            archived_at = excluded.archived_at, equipment_type = excluded.equipment_type, target_rpe = excluded.target_rpe, rest_s = excluded.rest_s, synced = 1`,
     bind: [ex.id, ex.phase_id, ex.name, ex.detail, ex.sets, ex.reps, ex.duration_s,
            ex.exercise_type, ex.sort_order, ex.video_url, ex.how_to, ex.warmup_sets, ex.archived_at,
-           ex.equipment_type, ex.target_rpe],
+           ex.equipment_type, ex.target_rpe, ex.rest_s],
   }];
 }
 

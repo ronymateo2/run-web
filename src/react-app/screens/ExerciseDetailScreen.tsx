@@ -36,14 +36,45 @@ export function ExerciseDetailScreen() {
   const [rpeOpen, setRpeOpen] = useState(false);
   // For time-based sets: which row's countdown is running (null = none). Only one at a time.
   const [timingIndex, setTimingIndex] = useState<number | null>(null);
+  // When the exercise has rest_s, the index of the set that auto-starts once the rest
+  // countdown finishes (null = not resting). Drives the "Descanso" pill on that card.
+  const [restingIndex, setRestingIndex] = useState<number | null>(null);
+
+  // Next pending (uncompleted) set after `from`, skipping `from` itself (its completion
+  // hasn't flushed to `sets` yet inside onComplete). null = nothing left to chain.
+  function nextPendingIndex(from: number): number | null {
+    for (let j = from + 1; j < sets.length; j++) {
+      if (!sets[j]?.completed) return j;
+    }
+    return null;
+  }
 
   const timer = useCountdown({
     // Only the integer seconds are shown (no ring), so skip 60fps progress updates —
     // the screen re-renders ~1Hz instead of every frame.
     smooth: false,
     onComplete: () => {
-      if (timingIndex != null && !sets[timingIndex]?.completed) toggleCompleted(timingIndex);
+      // A rest just ended → auto-start the next set (default beep on its completion).
+      if (restingIndex != null) {
+        const next = restingIndex;
+        setRestingIndex(null);
+        startTimer(next);
+        return;
+      }
+      // A set just ended → mark it done, then chain into a rest if configured.
+      const justFinished = timingIndex;
+      if (justFinished != null && !sets[justFinished]?.completed) toggleCompleted(justFinished);
       setTimingIndex(null);
+      const rest = exercise?.rest_s ?? 0;
+      if (isTimeBased && rest > 0 && justFinished != null) {
+        const next = nextPendingIndex(justFinished);
+        if (next != null) {
+          setRestingIndex(next);
+          // Distinct higher "go" tone so the end of rest is audibly different from a set.
+          timer.start(rest, { freq: 1320, count: 3 });
+          return;
+        }
+      }
     },
   });
 
@@ -56,6 +87,7 @@ export function ExerciseDetailScreen() {
   function stopTimer() {
     timer.stop();
     setTimingIndex(null);
+    setRestingIndex(null);
   }
 
   // This screen stays mounted across exercises (the :id param changes via replace-nav).
@@ -65,6 +97,7 @@ export function ExerciseDetailScreen() {
     return () => {
       timer.stop();
       setTimingIndex(null);
+      setRestingIndex(null);
     };
     // timer.stop is stable (useCallback); only re-run when the exercise id changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -221,6 +254,7 @@ export function ExerciseDetailScreen() {
                 prevForRow={prev.get(i)}
                 equipmentType={equipmentType}
                 timing={timingIndex === i}
+                resting={restingIndex === i}
                 timerSecondsLeft={timer.secondsLeft}
                 onStartTimer={startTimer}
                 onStopTimer={stopTimer}

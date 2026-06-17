@@ -72,6 +72,8 @@ export const exercises = sqliteTable("exercises", {
   equipment_type: text("equipment_type", { enum: ["none", "weight", "band"] }).notNull().default("none"),
   // Target RPE for the whole exercise (prescription). Written into each log on save.
   target_rpe: integer("target_rpe"),
+  // Auto-rest between sets (seconds) for time-based exercises. null/0 = manual (no chaining).
+  rest_s: integer("rest_s"),
   synced: integer("synced").default(0),
 });
 

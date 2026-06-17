@@ -63,13 +63,15 @@ export function useCountdown(
     void releaseWakeLock();
   }, []);
 
-  const start = useCallback((durationSec: number) => {
+  // `beep` lets the caller distinguish the completion tone (e.g. a higher "go" beep at the
+  // end of a rest vs the default tone at the end of a set). Passed straight to scheduleBeep.
+  const start = useCallback((durationSec: number, beep?: { freq?: number; count?: number }) => {
     cancelRaf();
     beepRef.current?.cancel();
     unlockAudio();
     durMsRef.current = durationSec * 1000;
     endAtRef.current = performance.now() + durMsRef.current;
-    beepRef.current = scheduleBeep(durationSec);
+    beepRef.current = scheduleBeep(durationSec, beep);
     void requestWakeLock();
     setRunning(true);
     lastSecRef.current = durationSec;

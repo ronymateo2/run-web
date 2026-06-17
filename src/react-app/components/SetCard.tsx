@@ -12,7 +12,7 @@ export type EquipmentType = "none" | "weight" | "band";
 
 export function SetCard({
   row, i, workingNum, isTimeBased, isLast, prevForRow, equipmentType, swiped,
-  timing = false, timerSecondsLeft,
+  timing = false, resting = false, timerSecondsLeft,
   onSwipe, onDragStart, onToggleCompleted, onToggleExpand, onUpdate, onOpenBand, onCopyPrev, onCopyFollowing, onRemove,
   onStartTimer, onStopTimer,
 }: {
@@ -25,6 +25,7 @@ export function SetCard({
   equipmentType: EquipmentType;
   swiped: boolean;
   timing?: boolean;
+  resting?: boolean;
   timerSecondsLeft?: number;
   onSwipe: (uid: string | null) => void;
   onDragStart: () => void;
@@ -191,9 +192,24 @@ export function SetCard({
 
             {/* Metrics — fixed-width columns so numbers line up across every set */}
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              {/* Auto-rest before this set starts: countdown pill instead of the play button. */}
+              {isTimeBased && resting && !row.completed && (
+                <span
+                  aria-label={`Descanso ${timerSecondsLeft ?? 0} segundos`}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
+                    height: 38, padding: "0 12px", borderRadius: 999,
+                    background: "rgba(217,119,87,0.16)", border: "1px solid rgba(217,119,87,0.40)",
+                    fontFamily: "var(--font-mono)", fontSize: 12, letterSpacing: "0.06em", color: "var(--clay)",
+                  }}
+                >
+                  <Ico.timer s={14} c="var(--clay)" />
+                  Descanso {timerSecondsLeft ?? 0}s
+                </span>
+              )}
               {/* Time-based sets get a play/stop button that runs the precise countdown
                   (beep + wake lock); on finish the set auto-completes. */}
-              {isTimeBased && !row.completed && (
+              {isTimeBased && !resting && !row.completed && (
                 <motion.button
                   onClick={() => (timing ? onStopTimer?.() : onStartTimer?.(i))}
                   whileTap={{ scale: 0.9 }}
