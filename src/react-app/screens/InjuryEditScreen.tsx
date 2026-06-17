@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
 import { useSync } from "../hooks/useSync";
 import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
@@ -16,7 +15,6 @@ const WEEKDAYS: { key: string; label: string }[] = [
 
 export function InjuryEditScreen() {
   const { id } = useParams<{ id: string }>();
-  const { lastSyncAt } = useAuth();
   const push = useSync();
   const navigate = useNavigate();
 
@@ -39,7 +37,10 @@ export function InjuryEditScreen() {
     catch { setFocusDays([]); }
   }, [id]);
 
-  useEffect(() => { loadData(); }, [loadData, lastSyncAt]);
+  // Load once. Don't re-run on lastSyncAt: a background sync completing while the
+  // user is editing would clobber their unsaved edits with DB values (then Guardar
+  // would persist the reverted value silently).
+  useEffect(() => { loadData(); }, [loadData]);
 
   function toggleDay(key: string) {
     setFocusDays(prev => prev.includes(key) ? prev.filter(d => d !== key) : [...prev, key]);
