@@ -9,11 +9,13 @@ const NO_TABBAR_PREFIXES = ["/today/exercise", "/today/checkin", "/today/sst"];
 // Native push/pop: forward nav slides in from the right, back from the left,
 // replace cross-fades. `custom` carries the direction to the exiting screen too.
 const screenVariants = {
-  // Slide (dir != 0): screen moves in fully opaque — no fade, so a dark screen
-  // never lets the lighter background flash through. Tab switch (dir 0): cross-fade.
-  initial: (dir: number) => (dir === 0 ? { opacity: 0, x: 0 } : { opacity: 1, x: dir * 26 }),
+  // Slide (dir != 0): screens move in/out over the full viewport width so the
+  // previous screen never peeks through behind the entering one. Keeping opacity
+  // at 1 avoids a light-background flash when leaving a dark screen.
+  // Tab switch (dir 0): cross-fade.
+  initial: (dir: number) => (dir === 0 ? { opacity: 0, x: 0 } : { opacity: 1, x: `${dir * 100}%` }),
   animate: { opacity: 1, x: 0 },
-  exit: (dir: number) => (dir === 0 ? { opacity: 0, x: 0 } : { opacity: 1, x: dir * -26 }),
+  exit: (dir: number) => (dir === 0 ? { opacity: 0, x: 0 } : { opacity: 1, x: `${dir * -100}%` }),
 };
 
 export function ProtectedRoute() {
@@ -49,8 +51,9 @@ export function ProtectedRoute() {
   return (
     <>
       {/* Clip layer: contains the sliding screens so the x-offset never
-          leaks into a horizontal scroll on the body. */}
-      <div style={{ position: "fixed", inset: 0, overflow: "hidden" }}>
+          leaks into a horizontal scroll on the body. The solid background
+          covers any sub-pixel gap between the entering and exiting screens. */}
+      <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "var(--bg)" }}>
         <AnimatePresence custom={dir}>
           <motion.div
             key={location.pathname}
