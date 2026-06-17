@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
+import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { localToday } from "../utils/timezone";
 import { useSync } from "../hooks/useSync";
+import { useCountdown } from "../features/useCountdown";
 import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
@@ -20,42 +22,33 @@ export function SqueezeTestScreen() {
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>("intro");
   const [currentSet, setCurrentSet] = useState(1);
-  const [elapsed, setElapsed] = useState(0);
   const [painScore, setPainScore] = useState(0);
   const [strengthScore, setStrengthScore] = useState(5);
   const [showResult, setShowResult] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Bumped on every phase transition to retrigger the screen flash.
+  const [flashKey, setFlashKey] = useState(0);
 
-  const duration = phase === "active" ? SQUEEZE_DURATION : REST_DURATION;
+  const { secondsLeft, progress, start } = useCountdown({ onComplete: handlePhaseComplete });
 
-  useEffect(() => {
-    if (phase === "active" || phase === "rest") {
-      intervalRef.current = setInterval(() => {
-        setElapsed(e => {
-          if (e + 1 >= duration) {
-            clearInterval(intervalRef.current!);
-            if (phase === "active") {
-              if (currentSet >= TOTAL_SETS) {
-                setPhase("done");
-              } else {
-                setPhase("rest");
-                setElapsed(0);
-              }
-            } else {
-              setCurrentSet(s => s + 1);
-              setPhase("active");
-              setElapsed(0);
-            }
-            return 0;
-          }
-          return e + 1;
-        });
-      }, 1000);
+  // Drive the squeeze/rest/done state machine off the timer's completion. Replicates the
+  // original transitions; the countdown handles timing (drift-free) + the end beep.
+  function handlePhaseComplete() {
+    setFlashKey(k => k + 1);
+    if (phase === "active") {
+      if (currentSet >= TOTAL_SETS) {
+        setPhase("done");
+      } else {
+        setPhase("rest");
+        start(REST_DURATION);
+      }
+    } else {
+      setCurrentSet(s => s + 1);
+      setPhase("active");
+      start(SQUEEZE_DURATION);
     }
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [phase, currentSet, duration]);
+  }
 
   async function handleSave() {
     if (!user) {
@@ -89,12 +82,21 @@ export function SqueezeTestScreen() {
     }
   }
 
-  const progress = elapsed / duration;
   const circumference = 2 * Math.PI * 72;
   const strokeDash = circumference * (1 - progress);
 
   return (
     <div className="screen screen-dark">
+      {/* Visual cue on each phase transition (third signal alongside beep + ring). */}
+      {flashKey > 0 && (
+        <motion.div
+          key={flashKey}
+          initial={{ opacity: 0.45 }}
+          animate={{ opacity: 0 }}
+          transition={{ duration: 0.45, ease: "easeOut" }}
+          style={{ position: "fixed", inset: 0, background: "var(--bone)", pointerEvents: "none", zIndex: 5 }}
+        />
+      )}
       <ScreenNav back={<BackButton fallbackPath="/today" color="var(--bone)" />}>
         <span className="eyebrow" style={{ color: "rgba(237,230,214,0.55)" }}>
           5-Second Squeeze Test
@@ -114,7 +116,7 @@ export function SqueezeTestScreen() {
               Haremos 5 repeticiones con 3 segundos de descanso.
             </div>
             <button className="btn-pill alt" style={{ width: "100%", maxWidth: 280 }}
-              onClick={() => { setPhase("active"); setElapsed(0); }}>
+              onClick={() => { setPhase("active"); start(SQUEEZE_DURATION); }}>
               Comenzar <Ico.play s={16} c="#fff" />
             </button>
           </div>
@@ -150,7 +152,7 @@ export function SqueezeTestScreen() {
                 alignItems: "center", justifyContent: "center",
               }}>
                 <div className="num" style={{ fontSize: 52, color: "var(--bone)", lineHeight: 1 }}>
-                  {duration - elapsed}
+                  {secondsLeft}
                 </div>
                 <div className="eyebrow" style={{ color: "rgba(237,230,214,0.55)", marginTop: 4 }}>
                   {phase === "active" ? "APRIETA" : "DESCANSA"}

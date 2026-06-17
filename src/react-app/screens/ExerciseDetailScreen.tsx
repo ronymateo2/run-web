@@ -13,6 +13,7 @@ import { BandPicker } from "../components/BandPicker";
 import { EditableNum } from "../components/EditableNum";
 import { HowToSheet } from "../components/HowToSheet";
 import { useExerciseSession } from "../features/useExerciseSession";
+import { useCountdown } from "../features/useCountdown";
 
 export function ExerciseDetailScreen() {
   const { id } = useParams<{ id: string }>();
@@ -33,6 +34,26 @@ export function ExerciseDetailScreen() {
   const [bandPickerIdx, setBandPickerIdx] = useState<number | null>(null);
   // Inline editor for the per-exercise target RPE (tap the chip).
   const [rpeOpen, setRpeOpen] = useState(false);
+  // For time-based sets: which row's countdown is running (null = none). Only one at a time.
+  const [timingIndex, setTimingIndex] = useState<number | null>(null);
+
+  const timer = useCountdown({
+    onComplete: () => {
+      if (timingIndex != null && !sets[timingIndex]?.completed) toggleCompleted(timingIndex);
+      setTimingIndex(null);
+    },
+  });
+
+  function startTimer(i: number) {
+    const dur = sets[i]?.value ?? exercise?.duration_s ?? 0;
+    if (dur <= 0) return;
+    setTimingIndex(i);
+    timer.start(dur);
+  }
+  function stopTimer() {
+    timer.stop();
+    setTimingIndex(null);
+  }
 
   const equipmentType = exercise?.equipment_type ?? "none";
 
@@ -184,6 +205,10 @@ export function ExerciseDetailScreen() {
                 isLast={i === sets.length - 1}
                 prevForRow={prev.get(i)}
                 equipmentType={equipmentType}
+                timing={timingIndex === i}
+                timerSecondsLeft={timer.secondsLeft}
+                onStartTimer={startTimer}
+                onStopTimer={stopTimer}
                 swiped={swipedSet === row.uid}
                 onSwipe={setSwipedSet}
                 onDragStart={() => {

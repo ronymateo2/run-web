@@ -12,7 +12,9 @@ export type EquipmentType = "none" | "weight" | "band";
 
 export function SetCard({
   row, i, workingNum, isTimeBased, isLast, prevForRow, equipmentType, swiped,
+  timing = false, timerSecondsLeft,
   onSwipe, onDragStart, onToggleCompleted, onToggleExpand, onUpdate, onOpenBand, onCopyPrev, onCopyFollowing, onRemove,
+  onStartTimer, onStopTimer,
 }: {
   row: SetRow;
   i: number;
@@ -22,6 +24,8 @@ export function SetCard({
   prevForRow: PrevValue | undefined;
   equipmentType: EquipmentType;
   swiped: boolean;
+  timing?: boolean;
+  timerSecondsLeft?: number;
   onSwipe: (uid: string | null) => void;
   onDragStart: () => void;
   onToggleCompleted: (i: number) => void;
@@ -31,6 +35,8 @@ export function SetCard({
   onCopyPrev: (i: number, prev: PrevValue) => void;
   onCopyFollowing: (i: number) => void;
   onRemove: (i: number) => void;
+  onStartTimer?: (i: number) => void;
+  onStopTimer?: () => void;
 }) {
   const isWarmup = row.type === "warmup";
   const accent = isWarmup ? "217,119,87" : "138,168,140"; // clay : moss
@@ -185,16 +191,41 @@ export function SetCard({
 
             {/* Metrics — fixed-width columns so numbers line up across every set */}
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              {/* Time-based sets get a play/stop button that runs the precise countdown
+                  (beep + wake lock); on finish the set auto-completes. */}
+              {isTimeBased && !row.completed && (
+                <motion.button
+                  onClick={() => (timing ? onStopTimer?.() : onStartTimer?.(i))}
+                  whileTap={{ scale: 0.9 }}
+                  aria-label={timing ? "Detener temporizador" : "Iniciar temporizador"}
+                  style={{
+                    width: 38, height: 38, borderRadius: 999, flexShrink: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+                    background: timing ? "var(--clay)" : "rgba(138,168,140,0.18)",
+                    border: timing ? "none" : "1px solid rgba(138,168,140,0.45)",
+                  }}
+                >
+                  {timing
+                    ? <Ico.stop s={15} c="#fff" />
+                    : <Ico.play s={15} c="var(--moss)" />}
+                </motion.button>
+              )}
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, minWidth: 46 }}>
-                <EditableNum
-                  value={row.value}
-                  min={1}
-                  max={isTimeBased ? 300 : 200}
-                  completed={row.completed}
-                  onChange={v => onUpdate(i, "value", v)}
-                  suffix={isTimeBased ? "s" : "×"}
-                  size={26}
-                />
+                {isTimeBased && timing ? (
+                  <span className="num" style={{ fontSize: 26, lineHeight: 1, color: "var(--clay)" }}>
+                    {timerSecondsLeft ?? row.value}s
+                  </span>
+                ) : (
+                  <EditableNum
+                    value={row.value}
+                    min={1}
+                    max={isTimeBased ? 300 : 200}
+                    completed={row.completed}
+                    onChange={v => onUpdate(i, "value", v)}
+                    suffix={isTimeBased ? "s" : "×"}
+                    size={26}
+                  />
+                )}
                 <span style={{
                   fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.12em",
                   color: "rgba(245,240,232,0.40)",
