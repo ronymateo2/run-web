@@ -23,6 +23,7 @@ export function useCountdown(
   const durMsRef = useRef(0);
   const lastSecRef = useRef(-1); // last integer second pushed to state — gate re-renders
   const rafRef = useRef<number | null>(null);
+  const firedRef = useRef(false); // guards finish() to one onComplete per run (RAF vs visibilitychange race)
   const beepRef = useRef<BeepHandle | null>(null);
   // Keep the latest callback without re-subscribing effects or re-creating start/stop.
   const onCompleteRef = useRef(onComplete);
@@ -34,6 +35,8 @@ export function useCountdown(
   };
 
   const finish = useCallback(() => {
+    if (firedRef.current) return; // already finished this run — ignore the second caller
+    firedRef.current = true;
     cancelRaf();
     beepRef.current = null; // already scheduled on the audio clock — let it ring
     setRunning(false);
@@ -68,6 +71,7 @@ export function useCountdown(
   const start = useCallback((durationSec: number, beep?: { freq?: number; count?: number }) => {
     cancelRaf();
     beepRef.current?.cancel();
+    firedRef.current = false; // arm finish() for this run
     unlockAudio();
     durMsRef.current = durationSec * 1000;
     endAtRef.current = performance.now() + durMsRef.current;
