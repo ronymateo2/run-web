@@ -37,6 +37,7 @@ export function ExerciseEditScreen() {
   const [equipment, setEquipment] = useState<Exercise["equipment_type"]>("none");
   const [targetRpe, setTargetRpe] = useState("6");
   const [videoUrl, setVideoUrl] = useState("");
+  const [detail, setDetail] = useState("");
   const [howTo, setHowTo] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -58,6 +59,7 @@ export function ExerciseEditScreen() {
     setEquipment(ex.equipment_type ?? "none");
     setTargetRpe(String(ex.target_rpe ?? 6));
     setVideoUrl(ex.video_url ?? "");
+    setDetail(ex.detail ?? "");
     setHowTo(ex.how_to ?? "");
     setLoaded(true);
   }, [id]);
@@ -73,7 +75,7 @@ export function ExerciseEditScreen() {
       id: exercise.id,
       phase_id: exercise.phase_id,
       name: exercise.name,
-      detail: exercise.detail,
+      detail: detail.trim() || null,
       sets: Number(sets) || null,
       reps: measure === "reps" ? n : null,
       duration_s: measure === "time" ? n : (dur || null),
@@ -176,6 +178,16 @@ export function ExerciseEditScreen() {
           <div className="col gap-4">
             <span className="eyebrow">Video (URL YouTube)</span>
             <input style={inputStyle} type="url" inputMode="url" value={videoUrl} onChange={e => setVideoUrl(e.target.value)} placeholder="https://youtu.be/…" />
+          </div>
+
+          <div className="col gap-4">
+            <span className="eyebrow">Detalle</span>
+            <textarea
+              style={{ ...inputStyle, minHeight: 80, resize: "vertical" }}
+              value={detail}
+              onChange={e => setDetail(e.target.value)}
+              placeholder="Descripción breve del ejercicio…"
+            />
           </div>
 
           <div className="col gap-4">
