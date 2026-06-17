@@ -8,13 +8,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { unlockAudio, scheduleBeep, type BeepHandle } from "../utils/sound";
 import { requestWakeLock, releaseWakeLock } from "../utils/wakeLock";
 
-export function useCountdown({ onComplete }: { onComplete?: () => void } = {}) {
+// `smooth` (default): update `progress` every frame for a fluid ring. Pass smooth=false
+// when only the integer `secondsLeft` is shown (e.g. a list of set rows) — then state
+// only changes once per second, so the consuming component re-renders ~1Hz instead of
+// 60fps. `progress` is only meaningful when smooth.
+export function useCountdown(
+  { onComplete, smooth = true }: { onComplete?: () => void; smooth?: boolean } = {},
+) {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [progress, setProgress] = useState(0); // 0..1 elapsed fraction
   const [running, setRunning] = useState(false);
 
   const endAtRef = useRef(0);
   const durMsRef = useRef(0);
+  const lastSecRef = useRef(-1); // last integer second pushed to state — gate re-renders
   const rafRef = useRef<number | null>(null);
   const beepRef = useRef<BeepHandle | null>(null);
   // Keep the latest callback without re-subscribing effects or re-creating start/stop.
@@ -39,10 +46,14 @@ export function useCountdown({ onComplete }: { onComplete?: () => void } = {}) {
   const tick = useCallback(() => {
     const remaining = endAtRef.current - performance.now();
     if (remaining <= 0) { finish(); return; }
-    setSecondsLeft(Math.ceil(remaining / 1000));
-    setProgress(durMsRef.current > 0 ? 1 - remaining / durMsRef.current : 0);
+    const secs = Math.ceil(remaining / 1000);
+    if (secs !== lastSecRef.current) {
+      lastSecRef.current = secs;
+      setSecondsLeft(secs);
+    }
+    if (smooth) setProgress(durMsRef.current > 0 ? 1 - remaining / durMsRef.current : 0);
     rafRef.current = requestAnimationFrame(tick);
-  }, [finish]);
+  }, [finish, smooth]);
 
   const stop = useCallback(() => {
     cancelRaf();
@@ -61,6 +72,7 @@ export function useCountdown({ onComplete }: { onComplete?: () => void } = {}) {
     beepRef.current = scheduleBeep(durationSec);
     void requestWakeLock();
     setRunning(true);
+    lastSecRef.current = durationSec;
     setSecondsLeft(durationSec);
     setProgress(0);
     rafRef.current = requestAnimationFrame(tick);

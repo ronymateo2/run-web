@@ -38,6 +38,9 @@ export function ExerciseDetailScreen() {
   const [timingIndex, setTimingIndex] = useState<number | null>(null);
 
   const timer = useCountdown({
+    // Only the integer seconds are shown (no ring), so skip 60fps progress updates —
+    // the screen re-renders ~1Hz instead of every frame.
+    smooth: false,
     onComplete: () => {
       if (timingIndex != null && !sets[timingIndex]?.completed) toggleCompleted(timingIndex);
       setTimingIndex(null);
