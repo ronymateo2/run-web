@@ -553,6 +553,13 @@ body {
   to { transform: scaleY(1); }
 }
 
+/* Horizontal progress fill grow (replaces motion.div width animate). scaleX on
+   the compositor instead of animating width (which triggers layout per frame). */
+@keyframes barGrowX {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
 /* Native-style screen transitions (CSS-only, compositor/GPU — no JS per frame).
    Replaces the motion/AnimatePresence spring in ProtectedRoute: the entering
    screen animates, the leaving one unmounts instantly. `key`-ing on pathname

@@ -112,27 +112,28 @@ export function ExerciseFAB({
             </>
           )}
         </AnimatePresence>
-        <motion.button
+        <button
           type="button"
+          className="press"
           aria-label={fabOpen ? "Cerrar" : "Agregar serie o calentamiento"}
           aria-expanded={fabOpen}
           onClick={() => setFabOpen((o) => !o)}
-          whileTap={{ scale: 0.92 }}
-          transition={{ type: "spring", stiffness: 400, damping: 25 }}
           style={{
             width: 56, height: 56, borderRadius: 999, border: "none",
             background: "var(--clay)", display: "flex", alignItems: "center", justifyContent: "center",
             cursor: "pointer", pointerEvents: "auto", boxShadow: "0 8px 24px rgba(217,119,87,0.45)",
           }}
         >
-          <motion.span
-            animate={{ rotate: fabOpen ? 45 : 0 }}
-            transition={{ type: "spring", stiffness: 400, damping: 22 }}
-            style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+          <span
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transform: fabOpen ? "rotate(45deg)" : "rotate(0deg)",
+              transition: "transform 0.3s var(--ease-bounce)",
+            }}
           >
             <Ico.plus s={26} c="#111E16" />
-          </motion.span>
-        </motion.button>
+          </span>
+        </button>
       </div>
     </>
   );

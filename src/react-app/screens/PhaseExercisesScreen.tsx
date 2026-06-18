@@ -28,15 +28,17 @@ function SessionRing({ done, total, color }: { done: number; total: number; colo
   return (
     <svg width={84} height={84} viewBox="0 0 84 84" style={{ flexShrink: 0 }}>
       <circle cx={42} cy={42} r={R} fill="none" stroke="var(--line)" strokeWidth={5} />
-      <motion.circle
+      <circle
         cx={42} cy={42} r={R} fill="none"
         stroke={allDone ? "var(--moss)" : color}
         strokeWidth={5} strokeLinecap="round"
         strokeDasharray={C}
-        initial={{ strokeDashoffset: C }}
-        animate={{ strokeDashoffset: C * (1 - frac) }}
-        transition={{ type: "spring", stiffness: 60, damping: 18 }}
+        strokeDashoffset={C * (1 - frac)}
         transform="rotate(-90 42 42)"
+        style={{
+          "--ring-from": C, "--ring-to": C * (1 - frac),
+          animation: "ringDraw 0.7s var(--ease-spring) both",
+        } as React.CSSProperties}
       />
       {allDone ? (
         <g transform="translate(42 42)">
@@ -271,14 +273,13 @@ function ProgressPill({ visible, done, total, remaining, remainingMins }: PillPr
           <div style={{ position: "relative", width: 26, height: 26, flexShrink: 0 }}>
             <svg width={26} height={26} viewBox="0 0 26 26" style={{ transform: "rotate(-90deg)" }}>
               <circle cx={13} cy={13} r={R} fill="none" stroke="rgba(31,58,46,0.12)" strokeWidth={2.5} />
-              <motion.circle
+              <circle
                 cx={13} cy={13} r={R} fill="none"
                 stroke={allDone ? "var(--ink)" : "var(--clay)"}
                 strokeWidth={2.5} strokeLinecap="round"
                 strokeDasharray={C}
-                initial={false}
-                animate={{ strokeDashoffset: C * (1 - frac) }}
-                transition={{ type: "spring", stiffness: 200, damping: 26 }}
+                strokeDashoffset={C * (1 - frac)}
+                style={{ transition: "stroke-dashoffset 0.5s var(--ease-spring)" }}
               />
             </svg>
             {allDone && (

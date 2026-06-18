@@ -338,13 +338,11 @@ export function PhasesOverviewScreen() {
                 const iconColor = isCurrent || isPast ? "#fff" : "var(--muted)";
 
                 return (
-                  <motion.div
+                  <div
                     key={p.id}
                     ref={(el) => { rowRefs.current[p.id] = el; }}
-                    initial={{ opacity: 0, y: 14 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.35, delay: i * 0.07, ease: "easeOut" }}
-                    style={{ display: "flex", gap: 14, scrollMarginTop: 80 }}
+                    className="rise"
+                    style={{ display: "flex", gap: 14, scrollMarginTop: 80, animationDelay: `${i * 0.07}s` }}
                   >
                     {/* Rail: node + connector */}
                     <div className="col" style={{ width: 48, alignItems: "center", flexShrink: 0 }}>
@@ -413,11 +411,13 @@ export function PhasesOverviewScreen() {
                               </span>
                             </div>
                             <div style={{ position: "relative", height: 6, borderRadius: 999, background: "var(--line)", overflow: "visible" }}>
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${p.progressPct}%` }}
-                                transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
-                                style={{ height: "100%", background: "var(--ink)", borderRadius: 999 }}
+                              <div
+                                style={{
+                                  height: "100%", width: `${p.progressPct}%`,
+                                  background: "var(--ink)", borderRadius: 999,
+                                  transformOrigin: "left",
+                                  animation: "barGrowX 0.6s ease-out 0.3s both",
+                                }}
                               />
                               {/* Threshold marker */}
                               <div style={{
@@ -448,7 +448,7 @@ export function PhasesOverviewScreen() {
                         </div>
                       )}
                     </div>
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>
