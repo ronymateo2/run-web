@@ -2,6 +2,7 @@
 // previous-session ghost chip (tap to copy value+RPE), reps/RPE metric cells, and the
 // expandable pain panel with copy-to-following. Purely presentational — all state
 // lives in useExerciseSession and is passed down by index.
+import { memo, useSyncExternalStore } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowLineDown, ClockCounterClockwise, Palette, Trash } from "@phosphor-icons/react";
 import { Ico } from "./icons";
@@ -10,9 +11,18 @@ import { PAIN_LABELS, bandBySlug, type SetRow, type PrevValue } from "../feature
 
 export type EquipmentType = "none" | "weight" | "band";
 
-export function SetCard({
+// Leaf that subscribes to the countdown's remaining seconds. Only this node re-renders
+// on each 1Hz tick — the SetCard around it (and every other row) stays put.
+function TimerSeconds({ subscribe, getSeconds }: {
+  subscribe: (cb: () => void) => () => void;
+  getSeconds: () => number;
+}) {
+  return <>{useSyncExternalStore(subscribe, getSeconds)}</>;
+}
+
+export const SetCard = memo(function SetCard({
   row, i, workingNum, isTimeBased, isLast, prevForRow, equipmentType, swiped,
-  timing = false, resting = false, timerSecondsLeft,
+  timing = false, resting = false, timerSubscribe, timerGetSeconds,
   onSwipe, onDragStart, onToggleCompleted, onToggleExpand, onUpdate, onOpenBand, onCopyPrev, onCopyFollowing, onRemove,
   onStartTimer, onStopTimer,
 }: {
@@ -26,9 +36,10 @@ export function SetCard({
   swiped: boolean;
   timing?: boolean;
   resting?: boolean;
-  timerSecondsLeft?: number;
+  timerSubscribe: (cb: () => void) => () => void;
+  timerGetSeconds: () => number;
   onSwipe: (uid: string | null) => void;
-  onDragStart: () => void;
+  onDragStart: (uid: string) => void;
   onToggleCompleted: (i: number) => void;
   onToggleExpand: (i: number) => void;
   onUpdate: (i: number, field: "value" | "load" | "painDuring", val: number) => void;
@@ -86,7 +97,7 @@ export function SetCard({
         dragElastic={0.2}
         animate={swiped ? { x: -90 } : { x: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        onDragStart={onDragStart}
+        onDragStart={() => onDragStart(row.uid)}
         onDragEnd={(_e, info) => {
           onSwipe(info.offset.x < -60 ? row.uid : null);
         }}
@@ -195,7 +206,7 @@ export function SetCard({
               {/* Auto-rest before this set starts: countdown pill instead of the play button. */}
               {isTimeBased && resting && !row.completed && (
                 <span
-                  aria-label={`Descanso ${timerSecondsLeft ?? 0} segundos`}
+                  aria-label="Descanso"
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
                     height: 38, padding: "0 12px", borderRadius: 999,
@@ -204,7 +215,7 @@ export function SetCard({
                   }}
                 >
                   <Ico.timer s={14} c="var(--clay)" />
-                  Descanso {timerSecondsLeft ?? 0}s
+                  Descanso <TimerSeconds subscribe={timerSubscribe} getSeconds={timerGetSeconds} />s
                 </span>
               )}
               {/* Time-based sets get a play/stop button that runs the precise countdown
@@ -229,7 +240,7 @@ export function SetCard({
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, minWidth: 46 }}>
                 {isTimeBased && timing ? (
                   <span className="num" style={{ fontSize: 26, lineHeight: 1, color: "var(--clay)" }}>
-                    {timerSecondsLeft ?? row.value}s
+                    <TimerSeconds subscribe={timerSubscribe} getSeconds={timerGetSeconds} />s
                   </span>
                 ) : (
                   <EditableNum
@@ -412,4 +423,4 @@ export function SetCard({
       </motion.div>
     </motion.div>
   );
-}
+});

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { localToday } from "../utils/timezone";
 import { useSync } from "../hooks/useSync";
-import { useCountdown } from "../features/useCountdown";
+import { useCountdown, useCountdownSeconds } from "../features/useCountdown";
 import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
@@ -29,7 +29,9 @@ export function SqueezeTestScreen() {
   // Bumped on every phase transition to retrigger the screen flash.
   const [flashKey, setFlashKey] = useState(0);
 
-  const { secondsLeft, progress, start } = useCountdown({ onComplete: handlePhaseComplete });
+  const timer = useCountdown({ onComplete: handlePhaseComplete });
+  const { progress, start } = timer;
+  const secondsLeft = useCountdownSeconds(timer);
 
   // Drive the squeeze/rest/done state machine off the timer's completion. Replicates the
   // original transitions; the countdown handles timing (drift-free) + the end beep.

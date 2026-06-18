@@ -4,24 +4,41 @@
 // Web Audio clock at start, so it fires precisely even if RAF gets throttled in the
 // background; the visual just catches up on the next visible frame. Wake Lock keeps the
 // screen on to avoid the OS backgrounding the page mid-timer.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { unlockAudio, scheduleBeep, type BeepHandle } from "../utils/sound";
 import { requestWakeLock, releaseWakeLock } from "../utils/wakeLock";
 
 // `smooth` (default): update `progress` every frame for a fluid ring. Pass smooth=false
-// when only the integer `secondsLeft` is shown (e.g. a list of set rows) — then state
-// only changes once per second, so the consuming component re-renders ~1Hz instead of
-// 60fps. `progress` is only meaningful when smooth.
+// when only the integer seconds are shown — then `progress` only changes on start/finish.
+//
+// The remaining seconds are NOT React state: they live in a ref + a pub/sub (`subscribe`
+// / `getSeconds`). The component that *calls* this hook therefore never re-renders on a
+// tick — only the leaf that reads the value via `useCountdownSeconds` does. That keeps a
+// 1Hz timer from re-rendering an entire list of rows once per second.
 export function useCountdown(
   { onComplete, smooth = true }: { onComplete?: () => void; smooth?: boolean } = {},
 ) {
-  const [secondsLeft, setSecondsLeft] = useState(0);
   const [progress, setProgress] = useState(0); // 0..1 elapsed fraction
   const [running, setRunning] = useState(false);
 
+  // Remaining seconds as an external store: a ref + a set of subscribers. Bumping it
+  // notifies only the leaf components reading it, never the hook's owner component.
+  const secondsRef = useRef(0);
+  const listenersRef = useRef(new Set<() => void>());
+  const subscribe = useCallback((cb: () => void) => {
+    listenersRef.current.add(cb);
+    return () => { listenersRef.current.delete(cb); };
+  }, []);
+  const getSeconds = useCallback(() => secondsRef.current, []);
+  const setSeconds = useCallback((v: number) => {
+    if (secondsRef.current === v) return;
+    secondsRef.current = v;
+    listenersRef.current.forEach(cb => cb());
+  }, []);
+
   const endAtRef = useRef(0);
   const durMsRef = useRef(0);
-  const lastSecRef = useRef(-1); // last integer second pushed to state — gate re-renders
+  const lastSecRef = useRef(-1); // last integer second pushed — gate notifications
   const rafRef = useRef<number | null>(null);
   const firedRef = useRef(false); // guards finish() to one onComplete per run (RAF vs visibilitychange race)
   const beepRef = useRef<BeepHandle | null>(null);
@@ -40,11 +57,11 @@ export function useCountdown(
     cancelRaf();
     beepRef.current = null; // already scheduled on the audio clock — let it ring
     setRunning(false);
-    setSecondsLeft(0);
+    setSeconds(0);
     setProgress(1);
     void releaseWakeLock();
     onCompleteRef.current?.();
-  }, []);
+  }, [setSeconds]);
 
   const tick = useCallback(() => {
     const remaining = endAtRef.current - performance.now();
@@ -52,11 +69,11 @@ export function useCountdown(
     const secs = Math.ceil(remaining / 1000);
     if (secs !== lastSecRef.current) {
       lastSecRef.current = secs;
-      setSecondsLeft(secs);
+      setSeconds(secs);
     }
     if (smooth) setProgress(durMsRef.current > 0 ? 1 - remaining / durMsRef.current : 0);
     rafRef.current = requestAnimationFrame(tick);
-  }, [finish, smooth]);
+  }, [finish, smooth, setSeconds]);
 
   const stop = useCallback(() => {
     cancelRaf();
@@ -79,10 +96,10 @@ export function useCountdown(
     void requestWakeLock();
     setRunning(true);
     lastSecRef.current = durationSec;
-    setSecondsLeft(durationSec);
+    setSeconds(durationSec);
     setProgress(0);
     rafRef.current = requestAnimationFrame(tick);
-  }, [tick]);
+  }, [tick, setSeconds]);
 
   // Background safety net: RAF pauses while hidden. On return, re-acquire the wake lock
   // and either fire completion (if the end time already passed) or resume the visual.
@@ -101,5 +118,11 @@ export function useCountdown(
   // Cleanup on unmount: stop the loop, cancel the scheduled beep, release the lock.
   useEffect(() => stop, [stop]);
 
-  return { secondsLeft, progress, running, start, stop };
+  return { progress, running, start, stop, subscribe, getSeconds };
+}
+
+// Subscribe a leaf component to a countdown's remaining seconds. Only this component
+// re-renders on each tick — not whichever component owns the `useCountdown` instance.
+export function useCountdownSeconds(timer: Pick<ReturnType<typeof useCountdown>, "subscribe" | "getSeconds">) {
+  return useSyncExternalStore(timer.subscribe, timer.getSeconds);
 }

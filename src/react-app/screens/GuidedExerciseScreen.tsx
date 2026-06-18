@@ -7,7 +7,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { localToday } from "../utils/timezone";
 import { useSync } from "../hooks/useSync";
-import { useCountdown } from "../features/useCountdown";
+import { useCountdown, useCountdownSeconds } from "../features/useCountdown";
 import { DEFAULT_RPE } from "../features/exerciseSets";
 import { unlockAudio } from "../utils/sound";
 import { speak, cancelSpeech, numberToWords } from "../utils/speech";
@@ -170,6 +170,8 @@ export function GuidedExerciseScreen() {
     },
   });
 
+  const secondsLeft = useCountdownSeconds(timer);
+
   // Stop the timer + voice on unmount (no stray wake lock or speech after leaving).
   useEffect(() => {
     return () => { timer.stop(); cancelSpeech(); };
@@ -264,7 +266,7 @@ export function GuidedExerciseScreen() {
               </svg>
               <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                 <div className="num" style={{ fontSize: 52, color: "var(--bone)", lineHeight: 1 }}>
-                  {timer.secondsLeft}
+                  {secondsLeft}
                 </div>
                 <div className="eyebrow" style={{ color: "rgba(237,230,214,0.55)", marginTop: 4 }}>
                   {eyebrow}

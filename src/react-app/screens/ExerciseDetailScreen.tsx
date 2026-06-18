@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { Ico } from "../components/icons";
@@ -13,6 +13,7 @@ import { BandPicker } from "../components/BandPicker";
 import { EditableNum } from "../components/EditableNum";
 import { HowToSheet } from "../components/HowToSheet";
 import { useExerciseSession } from "../features/useExerciseSession";
+import type { PrevValue } from "../features/exerciseSets";
 import { useCountdown } from "../features/useCountdown";
 import { speak, cancelSpeech } from "../utils/speech";
 import { guidedPhases } from "../../data/repositories";
@@ -83,19 +84,35 @@ export function ExerciseDetailScreen() {
     },
   });
 
-  function startTimer(i: number) {
+  const equipmentType = exercise?.equipment_type ?? "none";
+
+  // Stable refs so the memoized SetCard rows don't re-render on every 1Hz timer tick.
+  const startTimer = useCallback((i: number) => {
     const dur = sets[i]?.value ?? exercise?.duration_s ?? 0;
     if (dur <= 0) return;
     setTimingIndex(i);
     speak("Comienza");
     timer.start(dur, { count: 0 });
-  }
-  function stopTimer() {
+  }, [sets, exercise, timer.start]);
+  const stopTimer = useCallback(() => {
     timer.stop();
     cancelSpeech();
     setTimingIndex(null);
     setRestingIndex(null);
-  }
+  }, [timer.stop]);
+
+  // Close any other row that's swiped open when a new drag starts (functional setState
+  // keeps this ref stable for the memoized rows).
+  const handleDragStart = useCallback((uid: string) => {
+    setSwipedSet(prev => (prev && prev !== uid ? null : prev));
+  }, []);
+
+  // Copy the previous session's value (+ load/band) into this row.
+  const handleCopyPrev = useCallback((idx: number, p: PrevValue) => {
+    updateSet(idx, "value", p.value);
+    if (equipmentType === "weight" && p.load != null) updateSet(idx, "load", p.load);
+    if (equipmentType === "band" && p.band) updateBand(idx, p.band);
+  }, [updateSet, updateBand, equipmentType]);
 
   // This screen stays mounted across exercises (the :id param changes via replace-nav).
   // Kill any running timer when the exercise changes so it can't release the wake lock
@@ -111,8 +128,7 @@ export function ExerciseDetailScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const equipmentType = exercise?.equipment_type ?? "none";
-
+  console.log("render")
   return (
     <div className="screen screen-dark" style={{ position: "relative" }}>
       <ScreenNav back={<BackButton fallbackPath="/today" color="var(--bone)" />}>
@@ -263,23 +279,20 @@ export function ExerciseDetailScreen() {
                 equipmentType={equipmentType}
                 timing={timingIndex === i}
                 resting={restingIndex === i}
-                timerSecondsLeft={timer.secondsLeft}
+                // Stable subscribe/getSeconds refs: the active row's number subscribes to
+                // the tick via a leaf, so the screen and the other rows never re-render at 1Hz.
+                timerSubscribe={timer.subscribe}
+                timerGetSeconds={timer.getSeconds}
                 onStartTimer={startTimer}
                 onStopTimer={stopTimer}
                 swiped={swipedSet === row.uid}
                 onSwipe={setSwipedSet}
-                onDragStart={() => {
-                  if (swipedSet && swipedSet !== row.uid) setSwipedSet(null);
-                }}
+                onDragStart={handleDragStart}
                 onToggleCompleted={toggleCompleted}
                 onToggleExpand={toggleExpand}
                 onUpdate={updateSet}
                 onOpenBand={setBandPickerIdx}
-                onCopyPrev={(idx, p) => {
-                  updateSet(idx, "value", p.value);
-                  if (equipmentType === "weight" && p.load != null) updateSet(idx, "load", p.load);
-                  if (equipmentType === "band" && p.band) updateBand(idx, p.band);
-                }}
+                onCopyPrev={handleCopyPrev}
                 onCopyFollowing={copyToFollowing}
                 onRemove={removeSet}
               />

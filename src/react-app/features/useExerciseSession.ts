@@ -2,7 +2,7 @@
 // state machine (load today's logs / last-session template, edit, complete, add,
 // remove, save), keeping the screen render-only. Save soft-deletes removed indices
 // and persists uncompleted warmups as structural placeholders.
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useSync } from "../hooks/useSync";
@@ -103,28 +103,30 @@ export function useExerciseSession(id: string | undefined) {
     });
   }, [user, exercise]);
 
-  function updateSet(i: number, field: "value" | "load" | "painDuring", val: number) {
+  // These are passed to memoized SetCard rows. Stable refs ([] deps, functional setState)
+  // so a 1Hz timer tick re-rendering the screen doesn't bust the memo on every row.
+  const updateSet = useCallback((i: number, field: "value" | "load" | "painDuring", val: number) => {
     setSets(prev => prev.map((s, idx) => idx === i ? { ...s, [field]: val } : s));
-  }
+  }, []);
 
   // Set this row's band and autofill any other row that has no band yet (bands rarely
   // differ across a session's sets) — one tap fills them all; the user can still
   // override a row individually afterwards.
-  function updateBand(i: number, slug: string) {
+  const updateBand = useCallback((i: number, slug: string) => {
     setSets(prev => prev.map((s, idx) => (idx === i || !s.band) ? { ...s, band: slug } : s));
-  }
+  }, []);
 
-  function toggleCompleted(i: number) {
+  const toggleCompleted = useCallback((i: number) => {
     setSets(prev => prev.map((s, idx) => idx === i ? { ...s, completed: !s.completed } : s));
-  }
+  }, []);
 
-  function toggleExpand(i: number) {
+  const toggleExpand = useCallback((i: number) => {
     setSets(prev => prev.map((s, idx) => idx === i ? { ...s, expanded: !s.expanded } : s));
-  }
+  }, []);
 
   // Copy this set's value/RPE/pain to every LATER set and mark them completed; past sets stay untouched.
   // The source set gets selected too (no-op if already selected).
-  function copyToFollowing(i: number) {
+  const copyToFollowing = useCallback((i: number) => {
     setSets(prev => prev.map((s, idx) =>
       idx > i
         ? { ...s, value: prev[i].value, load: prev[i].load, band: prev[i].band, painDuring: prev[i].painDuring, completed: true }
@@ -132,7 +134,7 @@ export function useExerciseSession(id: string | undefined) {
         ? { ...s, completed: true }
         : s,
     ));
-  }
+  }, []);
 
   // Working sets append at the end; warmups go to the top (rendered before working sets).
   function addSet() {
@@ -141,9 +143,9 @@ export function useExerciseSession(id: string | undefined) {
   function addWarmup() {
     setSets(prev => [newRow("warmup", defaultValue), ...prev]);
   }
-  function removeSet(i: number) {
+  const removeSet = useCallback((i: number) => {
     setSets(prev => prev.filter((_, idx) => idx !== i));
-  }
+  }, []);
 
   // Band exercises: a completed working set must have a color chosen before saving.
   const missingBand = exercise?.equipment_type === "band"
