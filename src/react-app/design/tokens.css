@@ -497,6 +497,27 @@ body {
   animation-delay: 0.24s;
 }
 
+/* Battery / accessibility: when the OS asks for reduced motion (battery-saver
+   often flips this), kill the continuous loops (.pulse, .drift) that keep the
+   GPU compositor awake, and collapse all keyframe + transition work to a single
+   instant frame instead of running every frame. */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .pulse,
+  .drift {
+    animation: none !important;
+  }
+}
+
 /* Dark screen variant (exercise detail, SST) */
 .screen-dark {
   background: #111E16;
