@@ -49,6 +49,19 @@ export function parseRepPhases(json: string | null | undefined): RepPhase[] {
   }
 }
 
+// Default spoken cue for an auto-derived single hold (time-based exercises with no phases).
+export const DEFAULT_HOLD_CUE = "Aguanta";
+
+// Effective phases for the guided player, unifying every exercise type: configured rep_phases
+// win; otherwise a time-based hold (duration_s) becomes a single auto phase. Empty = the
+// exercise has nothing to time (pure reps with no hold) → guided mode isn't offered.
+export function guidedPhases(ex: { rep_phases: string | null; duration_s: number | null }): RepPhase[] {
+  const configured = parseRepPhases(ex.rep_phases);
+  if (configured.length) return configured;
+  if (ex.duration_s && ex.duration_s > 0) return [{ cue: DEFAULT_HOLD_CUE, seconds: ex.duration_s }];
+  return [];
+}
+
 // Soft-deleted rows (deselected sets) are excluded from every read/count. Use this
 // predicate everywhere so the filter can't be forgotten.
 const notDeleted = isNull(exerciseLogs.deleted_at);

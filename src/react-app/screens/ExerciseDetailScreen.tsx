@@ -14,7 +14,7 @@ import { EditableNum } from "../components/EditableNum";
 import { HowToSheet } from "../components/HowToSheet";
 import { useExerciseSession } from "../features/useExerciseSession";
 import { useCountdown } from "../features/useCountdown";
-import { parseRepPhases } from "../../data/repositories";
+import { guidedPhases } from "../../data/repositories";
 
 export function ExerciseDetailScreen() {
   const { id } = useParams<{ id: string }>();
@@ -349,7 +349,7 @@ export function ExerciseDetailScreen() {
         onAddSet={addSet}
         onAddWarmup={addWarmup}
         onGuided={
-          exercise && parseRepPhases(exercise.rep_phases).length > 0
+          exercise && guidedPhases(exercise).length > 0
             ? () => navigate(`/today/exercise/${id}/guided`)
             : undefined
         }

@@ -10,8 +10,9 @@ export type NewExerciseLog = q.NewExerciseLog;
 export type ExerciseInput = q.ExerciseInput;
 export type DaySession = q.DaySession;
 export type RepPhase = q.RepPhase;
-// Pure helper (no DB) re-exported so the UI parses rep_phases without reaching into db/queries.
+// Pure helpers (no DB) re-exported so the UI derives guided phases without reaching into db/queries.
 export const parseRepPhases = q.parseRepPhases;
+export const guidedPhases = q.guidedPhases;
 
 export const exerciseRepository = {
   async getExercisesForPhase(phaseId: string): Promise<Exercise[]> {

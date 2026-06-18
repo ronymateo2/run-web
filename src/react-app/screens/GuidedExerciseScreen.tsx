@@ -15,7 +15,7 @@ import { speak, cancelSpeech, numberToWords } from "../utils/speech";
 import { Ico } from "../components/icons";
 import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
-import { exerciseRepository, parseRepPhases, type Exercise } from "../../data/repositories";
+import { exerciseRepository, guidedPhases, type Exercise } from "../../data/repositories";
 
 type Screen = "intro" | "ready" | "run" | "represt" | "done";
 
@@ -42,7 +42,7 @@ export function GuidedExerciseScreen() {
     exerciseRepository.getExerciseById(id).then(setExercise);
   }, [id]);
 
-  const phases = useMemo(() => parseRepPhases(exercise?.rep_phases), [exercise]);
+  const phases = useMemo(() => exercise ? guidedPhases(exercise) : [], [exercise]);
   const reps = exercise?.reps ?? 1;
   const sets = exercise?.sets ?? 1;
   // Prep countdown before every series (incl. the first) so the start isn't abrupt and there's
@@ -196,7 +196,7 @@ export function GuidedExerciseScreen() {
               {exercise.name}
             </div>
             <div className="body-sm" style={{ color: "rgba(237,230,214,0.65)", maxWidth: 300, lineHeight: 1.6 }}>
-              {sets} {sets === 1 ? "serie" : "series"} × {reps} {reps === 1 ? "rep" : "reps"}. La voz te guía en cada fase: {phases.map(p => p.cue).join(" · ")}.
+              {sets} {sets === 1 ? "serie" : "series"}{reps > 1 ? ` × ${reps} reps` : ""}. La voz te guía: {phases.map(p => p.cue).join(" · ")}.
             </div>
             <button className="btn-pill alt" style={{ width: "100%", maxWidth: 280 }} onClick={begin}>
               Comenzar <Ico.play s={16} c="#fff" />
