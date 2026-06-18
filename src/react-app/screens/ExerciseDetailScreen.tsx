@@ -14,6 +14,7 @@ import { EditableNum } from "../components/EditableNum";
 import { HowToSheet } from "../components/HowToSheet";
 import { useExerciseSession } from "../features/useExerciseSession";
 import { useCountdown } from "../features/useCountdown";
+import { speak, cancelSpeech } from "../utils/speech";
 import { guidedPhases } from "../../data/repositories";
 
 export function ExerciseDetailScreen() {
@@ -71,11 +72,14 @@ export function ExerciseDetailScreen() {
         const next = nextPendingIndex(justFinished);
         if (next != null) {
           setRestingIndex(next);
-          // Distinct higher "go" tone so the end of rest is audibly different from a set.
-          timer.start(rest, { freq: 1320, count: 3 });
+          // Spoken cue instead of a beep; beep suppressed via count:0.
+          speak("Descanso");
+          timer.start(rest, { count: 0 });
           return;
         }
       }
+      // No rest chaining left → say "done" only when no pending sets remain.
+      if (justFinished != null && nextPendingIndex(justFinished) == null) speak("Completado");
     },
   });
 
@@ -83,10 +87,12 @@ export function ExerciseDetailScreen() {
     const dur = sets[i]?.value ?? exercise?.duration_s ?? 0;
     if (dur <= 0) return;
     setTimingIndex(i);
-    timer.start(dur);
+    speak("Comienza");
+    timer.start(dur, { count: 0 });
   }
   function stopTimer() {
     timer.stop();
+    cancelSpeech();
     setTimingIndex(null);
     setRestingIndex(null);
   }
@@ -97,6 +103,7 @@ export function ExerciseDetailScreen() {
   useEffect(() => {
     return () => {
       timer.stop();
+      cancelSpeech();
       setTimingIndex(null);
       setRestingIndex(null);
     };
