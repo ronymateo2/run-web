@@ -68,11 +68,21 @@ function resolveEsVoice(): SpeechSynthesisVoice | undefined {
     ?? voices[0];
 }
 
+// Pending deferred-voice work from a speak() that's waiting on the async voice list. Cleared
+// by cancelSpeech() so a late voiceschanged/timeout can't speak after the screen is gone.
+let pendingVoiceTimer: number | null = null;
+
+function clearPendingVoiceWork(): void {
+  if (pendingVoiceTimer != null) { window.clearTimeout(pendingVoiceTimer); pendingVoiceTimer = null; }
+  if (speechSupported()) window.speechSynthesis.onvoiceschanged = null;
+}
+
 // Speak `text` once, cancelling anything already speaking. Handles the async voice list
 // (Chrome/Safari load voices lazily) by retrying on `onvoiceschanged` + a short timeout.
 export function speak(text: string): void {
   if (!speechSupported() || !text) return;
   const synth = window.speechSynthesis;
+  clearPendingVoiceWork();
   synth.cancel();
 
   const utter = () => {
@@ -86,10 +96,10 @@ export function speak(text: string): void {
   };
 
   if (synth.getVoices().length === 0 && "onvoiceschanged" in synth) {
-    const handler = () => { synth.onvoiceschanged = null; utter(); };
-    synth.onvoiceschanged = handler;
-    window.setTimeout(() => {
-      if (synth.getVoices().length > 0) { synth.onvoiceschanged = null; utter(); }
+    synth.onvoiceschanged = () => { clearPendingVoiceWork(); utter(); };
+    pendingVoiceTimer = window.setTimeout(() => {
+      pendingVoiceTimer = null;
+      if (synth.getVoices().length > 0) { clearPendingVoiceWork(); utter(); }
     }, 300);
     return;
   }
@@ -97,5 +107,6 @@ export function speak(text: string): void {
 }
 
 export function cancelSpeech(): void {
+  clearPendingVoiceWork();
   if (speechSupported()) window.speechSynthesis.cancel();
 }

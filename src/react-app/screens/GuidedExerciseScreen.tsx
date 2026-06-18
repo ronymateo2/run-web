@@ -34,6 +34,10 @@ export function GuidedExerciseScreen() {
   const [rep, setRep] = useState(1);
   const [phaseIdx, setPhaseIdx] = useState(0);
   const [flashKey, setFlashKey] = useState(0);
+  // Drive the ring via a CSS animation per segment (not 60fps React state): segTotal = the
+  // running countdown's duration, segKey remounts the circle so the sweep restarts each one.
+  const [segTotal, setSegTotal] = useState(0);
+  const [segKey, setSegKey] = useState(0);
   // Guard so the completion logging runs exactly once.
   const savedRef = useRef(false);
 
@@ -51,6 +55,13 @@ export function GuidedExerciseScreen() {
   // Auto-pause between reps (0/null = no pause, reps run back-to-back).
   const repRestS = exercise?.rep_rest_s ?? 0;
 
+  // Start a countdown + arm the ring sweep for it (new segment = remounted circle).
+  function run(dur: number, beep?: { freq?: number; count?: number }) {
+    setSegTotal(dur);
+    setSegKey(k => k + 1);
+    timer.start(dur, beep);
+  }
+
   // Announce the phase cue and start its timer. The series itself is announced during the
   // "ready" prep, so here we only prefix the rep number (from rep 2 on) to stay natural.
   function speakAndStart(r: number, p: number) {
@@ -58,14 +69,14 @@ export function GuidedExerciseScreen() {
     if (!phase) return;
     const prefix = p === 0 && r > 1 && reps > 1 ? `${numberToWords(r)}. ` : "";
     speak(prefix + phase.cue);
-    timer.start(phase.seconds);
+    run(phase.seconds);
   }
 
   // Begin a series with a "Prepárate" prep countdown; the first phase starts when it ends.
   function startSeries(s: number) {
     setSet(s); setRep(1); setPhaseIdx(0); setScreen("ready");
     speak(`Serie ${numberToWords(s)}. Prepárate.`);
-    timer.start(prepS, { freq: 1320, count: 3 });
+    run(prepS, { freq: 1320, count: 3 });
   }
 
   async function finishSession() {
@@ -94,6 +105,9 @@ export function GuidedExerciseScreen() {
   }
 
   const timer = useCountdown({
+    // The ring sweep is a per-segment CSS animation, so we don't need 60fps progress here —
+    // only the integer secondsLeft (1Hz). Big win over a multi-minute guided session.
+    smooth: false,
     onComplete: () => {
       setFlashKey(k => k + 1);
       // The prep countdown ended → run the series' first rep.
@@ -120,7 +134,7 @@ export function GuidedExerciseScreen() {
       if (rep < reps) {
         if (repRestS > 0) {
           setScreen("represt");
-          timer.start(repRestS);
+          run(repRestS);
         } else {
           const r = rep + 1;
           setRep(r); setPhaseIdx(0);
@@ -156,7 +170,6 @@ export function GuidedExerciseScreen() {
   }
 
   const circumference = 2 * Math.PI * 72;
-  const strokeDash = circumference * (1 - timer.progress);
   const eyebrow = screen === "ready" ? "PREPÁRATE"
     : screen === "represt" ? "DESCANSA"
     : (phases[phaseIdx]?.cue.toUpperCase() ?? "");
@@ -219,14 +232,16 @@ export function GuidedExerciseScreen() {
             {/* Ring timer */}
             <div style={{ position: "relative", width: 180, height: 180 }}>
               <svg width={180} height={180} style={{ position: "absolute", transform: "rotate(-90deg)" }}>
+                <style>{`@keyframes guidedRingSweep { from { stroke-dashoffset: ${circumference}px; } to { stroke-dashoffset: 0; } }`}</style>
                 <circle cx={90} cy={90} r={72} fill="none" stroke="rgba(237,230,214,0.1)" strokeWidth={6} />
                 <circle
+                  key={segKey}
                   cx={90} cy={90} r={72} fill="none"
                   stroke={screen === "ready" || screen === "represt" ? "var(--moss)" : "var(--clay)"}
                   strokeWidth={6} strokeLinecap="round"
                   strokeDasharray={circumference}
-                  strokeDashoffset={strokeDash}
-                  style={{ transition: "stroke-dashoffset 0.1s linear" }}
+                  strokeDashoffset={circumference}
+                  style={{ animation: segTotal > 0 ? `guidedRingSweep ${segTotal}s linear forwards` : "none" }}
                 />
               </svg>
               <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
