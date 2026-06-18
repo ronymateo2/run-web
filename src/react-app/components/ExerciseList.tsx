@@ -46,7 +46,6 @@ export function ExerciseList({ exercises, setsDone }: Props) {
             setsDone={sd}
             setsTotal={total}
             done={sd >= total}
-            exerciseIds={exercises.map(ex => ex.id)}
             index={i}
           />
         );

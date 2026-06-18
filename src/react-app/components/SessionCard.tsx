@@ -64,7 +64,7 @@ export function SessionCard({ title, phase, exercises, setsDone }: Props) {
 
   const openExercise = (id: string) => {
     sessionStorage.setItem("lastExerciseId", id);
-    navigate(`/today/exercise/${id}`, { state: { exerciseIds: exercises.map(e => e.id) } });
+    navigate(`/today/exercise/${id}`);
   };
 
   return (

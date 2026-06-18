@@ -2,8 +2,8 @@
 // state machine (load today's logs / last-session template, edit, complete, add,
 // remove, save), keeping the screen render-only. Save soft-deletes removed indices
 // and persists uncompleted warmups as structural placeholders.
-import { useState, useEffect, useMemo } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useSync } from "../hooks/useSync";
 import { localToday } from "../utils/timezone";
@@ -22,13 +22,14 @@ import {
 export function useExerciseSession(id: string | undefined) {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const push = useSync();
-  // Stable identity — a fresh [] fallback per render would refire the effects below forever.
-  const exerciseIds: string[] = useMemo(() => location.state?.exerciseIds ?? [], [location.state]);
 
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [nextExercise, setNextExercise] = useState<Exercise | null>(null);
+  // The session's exercise list, derived from the current exercise's phase (active,
+  // sort_order) — same query that builds today's session. No reliance on navigation
+  // state or storage, so editing/reloading can't strand "registrar" on the same page.
+  const [exerciseIds, setExerciseIds] = useState<string[]>([]);
   const [sets, setSets] = useState<SetRow[]>([]);
   const [prev, setPrev] = useState<Map<number, PrevValue>>(new Map());
   const [hadLogs, setHadLogs] = useState(false);
@@ -53,15 +54,26 @@ export function useExerciseSession(id: string | undefined) {
 
   useEffect(() => {
     if (!id) return;
-    exerciseRepository.getExerciseById(id).then(e => setExercise(e));
-    const currentIndex = exerciseIds.indexOf(id);
-    const nextId = exerciseIds[currentIndex + 1];
-    if (nextId) {
-      exerciseRepository.getExerciseById(nextId).then(e => setNextExercise(e));
-    } else {
-      setNextExercise(null);
-    }
-  }, [id, exerciseIds]);
+    let cancelled = false;
+    (async () => {
+      const e = await exerciseRepository.getExerciseById(id);
+      if (cancelled) return;
+      setExercise(e);
+      if (!e) {
+        setExerciseIds([]);
+        setNextExercise(null);
+        return;
+      }
+      // Whole phase, in order — the next exercise is simply the one after this id,
+      // and "no next" means the session is done.
+      const phaseExercises = await exerciseRepository.getExercisesForPhase(e.phase_id);
+      if (cancelled) return;
+      setExerciseIds(phaseExercises.map(x => x.id));
+      const idx = phaseExercises.findIndex(x => x.id === id);
+      setNextExercise(idx >= 0 ? (phaseExercises[idx + 1] ?? null) : null);
+    })();
+    return () => { cancelled = true; };
+  }, [id]);
 
   useEffect(() => {
     if (!user || !exercise) return;
@@ -209,7 +221,7 @@ export function useExerciseSession(id: string | undefined) {
     const currentIndex = exerciseIds.indexOf(id!);
     const nextId = exerciseIds[currentIndex + 1];
     if (nextId) {
-      navigate(`/today/exercise/${nextId}`, { state: { exerciseIds }, replace: true });
+      navigate(`/today/exercise/${nextId}`, { replace: true });
     } else {
       navigate(-1);
     }
@@ -219,7 +231,7 @@ export function useExerciseSession(id: string | undefined) {
     const currentIndex = exerciseIds.indexOf(id!);
     const nextId = exerciseIds[currentIndex + 1];
     if (nextId) {
-      navigate(`/today/exercise/${nextId}`, { state: { exerciseIds }, replace: true });
+      navigate(`/today/exercise/${nextId}`, { replace: true });
     }
   }
 
