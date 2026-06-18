@@ -39,6 +39,7 @@ export function ExerciseEditScreen() {
   const [equipment, setEquipment] = useState<Exercise["equipment_type"]>("none");
   const [targetRpe, setTargetRpe] = useState("6");
   const [restS, setRestS] = useState("");
+  const [repRestS, setRepRestS] = useState("");
   // Guided per-rep phases (voice cue + seconds), in execution order.
   const [phases, setPhases] = useState<PhaseDraft[]>([]);
   const [videoUrl, setVideoUrl] = useState("");
@@ -64,6 +65,7 @@ export function ExerciseEditScreen() {
     setEquipment(ex.equipment_type ?? "none");
     setTargetRpe(String(ex.target_rpe ?? 6));
     setRestS(ex.rest_s ? String(ex.rest_s) : "");
+    setRepRestS(ex.rep_rest_s ? String(ex.rep_rest_s) : "");
     setPhases(parseRepPhases(ex.rep_phases).map(p => ({ cue: p.cue, seconds: String(p.seconds) })));
     setVideoUrl(ex.video_url ?? "");
     setDetail(ex.detail ?? "");
@@ -100,8 +102,9 @@ export function ExerciseEditScreen() {
       archived_at: exercise.archived_at,
       equipment_type: equipment,
       target_rpe: Number(targetRpe) || null,
-      rest_s: measure === "time" ? (Number(restS) || null) : null,
+      rest_s: Number(restS) || null,
       rep_phases: cleanPhases.length ? JSON.stringify(cleanPhases) : null,
+      rep_rest_s: measure === "reps" ? (Number(repRestS) || null) : null,
     });
     push();
     navigate(-1);
@@ -242,6 +245,19 @@ export function ExerciseEditScreen() {
               <span className="body-sm" style={{ color: "var(--ink-3)" }}>
                 La voz dice cada palabra y el timer cuenta sus segundos, fase por fase, en cada rep. Vacío = sin guía.
               </span>
+              <div className="col gap-4" style={{ marginTop: 4 }}>
+                <span className="eyebrow">Descanso entre reps (s)</span>
+                <input style={inputStyle} type="number" inputMode="numeric" min={0} value={repRestS} onChange={e => setRepRestS(e.target.value)} placeholder="—" />
+                <span className="body-sm" style={{ color: "var(--ink-3)" }}>Pausa automática entre cada rep en el modo guiado. Vacío = sin pausa.</span>
+              </div>
+            </div>
+          )}
+
+          {measure === "reps" && (
+            <div className="col gap-4">
+              <span className="eyebrow">Preparación entre series (s)</span>
+              <input style={inputStyle} type="number" inputMode="numeric" min={0} value={restS} onChange={e => setRestS(e.target.value)} placeholder="5" />
+              <span className="body-sm" style={{ color: "var(--ink-3)" }}>Cuenta regresiva "Prepárate" antes de cada serie en el modo guiado (incluida la primera). Vacío = 5s.</span>
             </div>
           )}
 

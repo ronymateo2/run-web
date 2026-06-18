@@ -17,7 +17,10 @@ import { BackButton } from "../components/BackButton";
 import { ScreenNav } from "../components/ScreenNav";
 import { exerciseRepository, parseRepPhases, type Exercise } from "../../data/repositories";
 
-type Screen = "intro" | "run" | "rest" | "done";
+type Screen = "intro" | "ready" | "run" | "represt" | "done";
+
+// Prep countdown before each series when the exercise has no rest_s configured.
+const PREP_DEFAULT_S = 5;
 
 export function GuidedExerciseScreen() {
   const { id } = useParams<{ id: string }>();
@@ -42,18 +45,27 @@ export function GuidedExerciseScreen() {
   const phases = useMemo(() => parseRepPhases(exercise?.rep_phases), [exercise]);
   const reps = exercise?.reps ?? 1;
   const sets = exercise?.sets ?? 1;
-  const restS = exercise?.rest_s ?? 0;
+  // Prep countdown before every series (incl. the first) so the start isn't abrupt and there's
+  // a breather between series. Uses rest_s if set, otherwise a sensible default.
+  const prepS = (exercise?.rest_s ?? 0) > 0 ? (exercise!.rest_s as number) : PREP_DEFAULT_S;
+  // Auto-pause between reps (0/null = no pause, reps run back-to-back).
+  const repRestS = exercise?.rep_rest_s ?? 0;
 
-  // Announce the phase (with a "Serie N / Repetición N" prefix at rep/set boundaries) and
-  // start its timer. The default end beep marks the phase change audibly alongside the voice.
-  function speakAndStart(s: number, r: number, p: number) {
+  // Announce the phase cue and start its timer. The series itself is announced during the
+  // "ready" prep, so here we only prefix the rep number (from rep 2 on) to stay natural.
+  function speakAndStart(r: number, p: number) {
     const phase = phases[p];
     if (!phase) return;
-    const prefix = p === 0
-      ? `${r === 1 ? `Serie ${numberToWords(s)}. ` : ""}${reps > 1 ? `${numberToWords(r)}. ` : ""}`
-      : "";
+    const prefix = p === 0 && r > 1 && reps > 1 ? `${numberToWords(r)}. ` : "";
     speak(prefix + phase.cue);
     timer.start(phase.seconds);
+  }
+
+  // Begin a series with a "Prepárate" prep countdown; the first phase starts when it ends.
+  function startSeries(s: number) {
+    setSet(s); setRep(1); setPhaseIdx(0); setScreen("ready");
+    speak(`Serie ${numberToWords(s)}. Prepárate.`);
+    timer.start(prepS, { freq: 1320, count: 3 });
   }
 
   async function finishSession() {
@@ -84,38 +96,41 @@ export function GuidedExerciseScreen() {
   const timer = useCountdown({
     onComplete: () => {
       setFlashKey(k => k + 1);
-      // A rest just ended → start the next set.
-      if (screen === "rest") {
-        const s = set + 1;
-        setSet(s); setRep(1); setPhaseIdx(0); setScreen("run");
-        speakAndStart(s, 1, 0);
+      // The prep countdown ended → run the series' first rep.
+      if (screen === "ready") {
+        setScreen("run");
+        speakAndStart(1, 0);
+        return;
+      }
+      // The between-reps pause ended → start the next rep.
+      if (screen === "represt") {
+        const r = rep + 1;
+        setRep(r); setPhaseIdx(0); setScreen("run");
+        speakAndStart(r, 0);
         return;
       }
       // A phase ended → next phase within the rep.
       if (phaseIdx < phases.length - 1) {
         const p = phaseIdx + 1;
         setPhaseIdx(p);
-        speakAndStart(set, rep, p);
+        speakAndStart(rep, p);
         return;
       }
-      // Last phase of the rep → next rep.
+      // Last phase of the rep → pause between reps (or straight to the next rep).
       if (rep < reps) {
-        const r = rep + 1;
-        setRep(r); setPhaseIdx(0);
-        speakAndStart(set, r, 0);
+        if (repRestS > 0) {
+          setScreen("represt");
+          timer.start(repRestS);
+        } else {
+          const r = rep + 1;
+          setRep(r); setPhaseIdx(0);
+          speakAndStart(r, 0);
+        }
         return;
       }
-      // Last rep of the set → rest, then next set (or finish).
+      // Last rep of the set → prep + next series (or finish).
       if (set < sets) {
-        if (restS > 0) {
-          setScreen("rest");
-          speak(`Descansa. Prepárate para la serie ${numberToWords(set + 1)}.`);
-          timer.start(restS, { freq: 1320, count: 3 });
-        } else {
-          const s = set + 1;
-          setSet(s); setRep(1); setPhaseIdx(0);
-          speakAndStart(s, 1, 0);
-        }
+        startSeries(set + 1);
         return;
       }
       void finishSession();
@@ -130,9 +145,8 @@ export function GuidedExerciseScreen() {
 
   function begin() {
     unlockAudio(); // gesture unlocks the audio context (iOS) for the scheduled beeps
-    setSet(1); setRep(1); setPhaseIdx(0); setScreen("run");
     savedRef.current = false;
-    speakAndStart(1, 1, 0);
+    startSeries(1);
   }
 
   function stopAndExit() {
@@ -143,7 +157,9 @@ export function GuidedExerciseScreen() {
 
   const circumference = 2 * Math.PI * 72;
   const strokeDash = circumference * (1 - timer.progress);
-  const eyebrow = screen === "rest" ? "DESCANSA" : (phases[phaseIdx]?.cue.toUpperCase() ?? "");
+  const eyebrow = screen === "ready" ? "PREPÁRATE"
+    : screen === "represt" ? "DESCANSA"
+    : (phases[phaseIdx]?.cue.toUpperCase() ?? "");
   const noGuide = !!exercise && phases.length === 0;
 
   return (
@@ -188,7 +204,7 @@ export function GuidedExerciseScreen() {
           </div>
         )}
 
-        {!noGuide && (screen === "run" || screen === "rest") && (
+        {!noGuide && (screen === "run" || screen === "ready" || screen === "represt") && (
           <div className="col" style={{ flex: 1, justifyContent: "center", alignItems: "center", gap: 20 }}>
             {/* Per-set pips */}
             <div className="row gap-6">
@@ -206,7 +222,7 @@ export function GuidedExerciseScreen() {
                 <circle cx={90} cy={90} r={72} fill="none" stroke="rgba(237,230,214,0.1)" strokeWidth={6} />
                 <circle
                   cx={90} cy={90} r={72} fill="none"
-                  stroke={screen === "rest" ? "var(--moss)" : "var(--clay)"}
+                  stroke={screen === "ready" || screen === "represt" ? "var(--moss)" : "var(--clay)"}
                   strokeWidth={6} strokeLinecap="round"
                   strokeDasharray={circumference}
                   strokeDashoffset={strokeDash}

@@ -170,12 +170,12 @@ const BUILDERS: Record<string, RowBuilder> = {
            row.week_start, row.week_end, row.threshold_pct, row.focus_days ?? null, row.deleted_at ?? null],
   }),
   exercises: (row) => ({
-    sql: `INSERT OR REPLACE INTO exercises (id, phase_id, name, detail, sets, reps, duration_s, exercise_type, sort_order, video_url, how_to, warmup_sets, archived_at, equipment_type, target_rpe, rest_s, rep_phases, synced)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+    sql: `INSERT OR REPLACE INTO exercises (id, phase_id, name, detail, sets, reps, duration_s, exercise_type, sort_order, video_url, how_to, warmup_sets, archived_at, equipment_type, target_rpe, rest_s, rep_phases, rep_rest_s, synced)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
     bind: [row.id, row.phase_id, row.name, row.detail ?? null, row.sets ?? null,
            row.reps ?? null, row.duration_s ?? null, row.exercise_type, row.sort_order ?? 0, row.video_url ?? null,
            row.how_to ?? null, row.warmup_sets ?? 0, row.archived_at ?? null,
-           row.equipment_type ?? "none", row.target_rpe ?? null, row.rest_s ?? null, row.rep_phases ?? null],
+           row.equipment_type ?? "none", row.target_rpe ?? null, row.rest_s ?? null, row.rep_phases ?? null, row.rep_rest_s ?? null],
   }),
   phase_criteria: (row) => ({
     sql: `INSERT INTO phase_criteria (id, phase_id, description, done, deleted_at, synced)

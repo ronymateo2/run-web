@@ -76,6 +76,8 @@ export const exercises = sqliteTable("exercises", {
   rest_s: integer("rest_s"),
   // Voice-guided per-rep phases: JSON array of {cue, seconds}. null/[] = no guided mode.
   rep_phases: text("rep_phases"),
+  // Auto-rest between reps (seconds) in guided mode. null/0 = no pause between reps.
+  rep_rest_s: integer("rep_rest_s"),
   synced: integer("synced").default(0),
 });
 
