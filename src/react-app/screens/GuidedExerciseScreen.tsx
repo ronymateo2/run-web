@@ -57,8 +57,8 @@ export function GuidedExerciseScreen() {
   const phases = useMemo(() => exercise ? guidedPhases(exercise) : [], [exercise]);
   const reps = exercise?.reps ?? 1;
   const sets = exercise?.sets ?? 1;
-  // Prep countdown before every series (incl. the first) so the start isn't abrupt and there's
-  // a breather between series. Uses rest_s if set, otherwise a sensible default.
+  // Prep countdown between series (not the first) so there's a breather before each new series.
+  // Uses rest_s if set, otherwise a sensible default.
   const prepS = (exercise?.rest_s ?? 0) > 0 ? (exercise!.rest_s as number) : PREP_DEFAULT_S;
   // Auto-pause between reps (0/null = no pause, reps run back-to-back).
   const repRestS = exercise?.rep_rest_s ?? 0;
@@ -81,10 +81,21 @@ export function GuidedExerciseScreen() {
   }
 
   // Begin a series with a "Prepárate" prep countdown; the first phase starts when it ends.
+  // The prep is the gap *between* series, so the very first series skips it and runs at once.
   function startSeries(s: number) {
     setSet(s); setRep(1); setPhaseIdx(0); setScreen("ready");
     speak(`Serie ${numberToWords(s)}. Prepárate.`);
     run(prepS, { freq: 1320, count: 3 });
+  }
+
+  // Start a series immediately (no prep) — used for the first series so the exercise
+  // doesn't open on a "Prepárate" countdown. Announces the series before the first cue.
+  function startSeriesNow(s: number) {
+    setSet(s); setRep(1); setPhaseIdx(0); setScreen("run");
+    const phase = phases[0];
+    if (!phase) return;
+    speak(`Serie ${numberToWords(s)}. ${phase.cue}`);
+    run(phase.seconds);
   }
 
   async function finishSession() {
@@ -168,7 +179,7 @@ export function GuidedExerciseScreen() {
   function begin() {
     unlockAudio(); // gesture unlocks the audio context (iOS) for the scheduled beeps
     savedRef.current = false;
-    startSeries(1);
+    startSeriesNow(1);
   }
 
   function stopAndExit() {
