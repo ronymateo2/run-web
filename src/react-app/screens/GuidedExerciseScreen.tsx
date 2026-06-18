@@ -4,7 +4,6 @@
 // with a rest between sets — no tapping. On finish it logs the session as completed.
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { motion } from "motion/react";
 import { useAuth } from "../auth/AuthContext";
 import { localToday } from "../utils/timezone";
 import { useSync } from "../hooks/useSync";
@@ -21,6 +20,15 @@ type Screen = "intro" | "ready" | "run" | "represt" | "done";
 
 // Prep countdown before each series when the exercise has no rest_s configured.
 const PREP_DEFAULT_S = 5;
+
+const RING_RADIUS = 72;
+const CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+// Static keyframes injected once: the ring sweep (offset full→0) and the transition flash.
+// Both are GPU/compositor-driven, so neither costs a React render while running.
+const KEYFRAMES = `
+@keyframes guidedRingSweep { from { stroke-dashoffset: ${CIRCUMFERENCE}px; } to { stroke-dashoffset: 0; } }
+@keyframes guidedFlash { from { opacity: 0.45; } to { opacity: 0; } }
+`;
 
 export function GuidedExerciseScreen() {
   const { id } = useParams<{ id: string }>();
@@ -169,7 +177,6 @@ export function GuidedExerciseScreen() {
     navigate(`/today/exercise/${id}`, { replace: true });
   }
 
-  const circumference = 2 * Math.PI * 72;
   const eyebrow = screen === "ready" ? "PREPÁRATE"
     : screen === "represt" ? "DESCANSA"
     : (phases[phaseIdx]?.cue.toUpperCase() ?? "");
@@ -177,13 +184,14 @@ export function GuidedExerciseScreen() {
 
   return (
     <div className="screen screen-dark">
+      <style>{KEYFRAMES}</style>
       {flashKey > 0 && (
-        <motion.div
+        <div
           key={flashKey}
-          initial={{ opacity: 0.45 }}
-          animate={{ opacity: 0 }}
-          transition={{ duration: 0.45, ease: "easeOut" }}
-          style={{ position: "fixed", inset: 0, background: "var(--bone)", pointerEvents: "none", zIndex: 5 }}
+          style={{
+            position: "fixed", inset: 0, background: "var(--bone)", pointerEvents: "none", zIndex: 5,
+            opacity: 0, animation: "guidedFlash 0.45s ease-out forwards",
+          }}
         />
       )}
       <ScreenNav back={<BackButton fallbackPath={`/today/exercise/${id}`} color="var(--bone)" />}>
@@ -232,15 +240,14 @@ export function GuidedExerciseScreen() {
             {/* Ring timer */}
             <div style={{ position: "relative", width: 180, height: 180 }}>
               <svg width={180} height={180} style={{ position: "absolute", transform: "rotate(-90deg)" }}>
-                <style>{`@keyframes guidedRingSweep { from { stroke-dashoffset: ${circumference}px; } to { stroke-dashoffset: 0; } }`}</style>
-                <circle cx={90} cy={90} r={72} fill="none" stroke="rgba(237,230,214,0.1)" strokeWidth={6} />
+                <circle cx={90} cy={90} r={RING_RADIUS} fill="none" stroke="rgba(237,230,214,0.1)" strokeWidth={6} />
                 <circle
                   key={segKey}
-                  cx={90} cy={90} r={72} fill="none"
+                  cx={90} cy={90} r={RING_RADIUS} fill="none"
                   stroke={screen === "ready" || screen === "represt" ? "var(--moss)" : "var(--clay)"}
                   strokeWidth={6} strokeLinecap="round"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={circumference}
+                  strokeDasharray={CIRCUMFERENCE}
+                  strokeDashoffset={CIRCUMFERENCE}
                   style={{ animation: segTotal > 0 ? `guidedRingSweep ${segTotal}s linear forwards` : "none" }}
                 />
               </svg>
