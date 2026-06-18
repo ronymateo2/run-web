@@ -183,6 +183,7 @@ body {
   isolation: isolate;
   transform-origin: center bottom;
   will-change: transform;
+  transition: transform 0.12s var(--ease-spring);
   background:
     linear-gradient(
       180deg,
@@ -201,6 +202,10 @@ body {
     inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
     /* inner bottom refraction — soft shade */
     inset 0 -1px 1px 0 rgba(31, 58, 46, 0.06);
+}
+
+.tab-bar:active {
+  transform: scale(1.05);
 }
 
 .tab-bar::before {
