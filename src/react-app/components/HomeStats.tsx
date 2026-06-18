@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import { motion } from "motion/react";
 import { Ico } from "./icons";
 import type { HomeStats as Stats } from "../features/useTodayData";
 
@@ -70,12 +69,8 @@ export function HomeStats({ stats }: { stats: Stats }) {
   const improving = (painDelta ?? 0) < 0;
 
   return (
-    <motion.div
-      className="card-flat mt-16"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-      whileTap={{ scale: 0.985 }}
+    <div
+      className="card-flat mt-16 rise press"
       onClick={() => navigate("/path/progress")}
       style={{ padding: "12px 14px", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
     >
@@ -126,6 +121,6 @@ export function HomeStats({ stats }: { stats: Stats }) {
           </span>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

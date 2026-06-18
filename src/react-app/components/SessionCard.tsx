@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import { motion } from "motion/react";
 import { Ico } from "./icons";
 import { countDone } from "./ExerciseList";
 import type { Exercise, Phase } from "../../data/repositories";
@@ -21,14 +20,16 @@ function ProgressRing({ done, total }: { done: number; total: number }) {
     <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line)" strokeWidth={stroke} />
-        <motion.circle
+        <circle
           cx={size / 2} cy={size / 2} r={r} fill="none"
           stroke={complete ? "var(--moss)" : "var(--ink)"}
           strokeWidth={stroke} strokeLinecap="round"
           strokeDasharray={c}
-          initial={{ strokeDashoffset: c }}
-          animate={{ strokeDashoffset: c * (1 - frac) }}
-          transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94], delay: 0.15 }}
+          strokeDashoffset={c * (1 - frac)}
+          style={{
+            "--ring-from": c, "--ring-to": c * (1 - frac),
+            animation: "ringDraw 0.7s var(--ease-spring) 0.15s both",
+          } as React.CSSProperties}
         />
       </svg>
       <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -67,11 +68,8 @@ export function SessionCard({ title, phase, exercises, setsDone }: Props) {
   };
 
   return (
-    <motion.div
-      className="card mt-16"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94], delay: 0.05 }}
+    <div
+      className="card mt-16 rise"
       style={{ padding: "16px 16px 14px" }}
     >
       <div className="row gap-16" style={{ alignItems: "center" }}>
@@ -112,6 +110,6 @@ export function SessionCard({ title, phase, exercises, setsDone }: Props) {
           Ver los {total} ejercicios <Ico.arrow s={13} c="var(--ink-3)" />
         </button>
       )}
-    </motion.div>
+    </div>
   );
 }

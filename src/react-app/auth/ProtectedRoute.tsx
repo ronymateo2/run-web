@@ -1,22 +1,9 @@
 import { Navigate, Outlet, useLocation, useNavigationType } from "react-router-dom";
-import { AnimatePresence, motion } from "motion/react";
 import { useAuth } from "./AuthContext";
 import { TabBar } from "../components/TabBar";
 
 const TABBAR_ROOTS = ["/today", "/body", "/path", "/learn", "/profile"];
 const NO_TABBAR_PREFIXES = ["/today/exercise", "/today/checkin", "/today/sst"];
-
-// Native push/pop: forward nav slides in from the right, back from the left,
-// replace cross-fades. `custom` carries the direction to the exiting screen too.
-const screenVariants = {
-  // Slide (dir != 0): screens move in/out over the full viewport width so the
-  // previous screen never peeks through behind the entering one. Keeping opacity
-  // at 1 avoids a light-background flash when leaving a dark screen.
-  // Tab switch (dir 0): cross-fade.
-  initial: (dir: number) => (dir === 0 ? { opacity: 0, x: 0 } : { opacity: 1, x: `${dir * 100}%` }),
-  animate: { opacity: 1, x: 0 },
-  exit: (dir: number) => (dir === 0 ? { opacity: 0, x: 0 } : { opacity: 1, x: `${dir * -100}%` }),
-};
 
 export function ProtectedRoute() {
   const { user, loading } = useAuth();
@@ -44,30 +31,26 @@ export function ProtectedRoute() {
   const showTabBar = TABBAR_ROOTS.some((root) => location.pathname.startsWith(root))
     && !NO_TABBAR_PREFIXES.some((prefix) => location.pathname.startsWith(prefix));
 
-  // Tab switches cross-fade (dir 0); drill-downs push in; back pops out.
+  // Tab switches cross-fade; drill-downs push in from the right; back pops in
+  // from the left. CSS-only: the entering screen animates, the previous one
+  // unmounts instantly (no JS spring running per frame — saves battery).
   const isTabRoot = TABBAR_ROOTS.includes(location.pathname);
-  const dir = navType === "POP" ? -1 : navType === "REPLACE" || isTabRoot ? 0 : 1;
+  const animClass =
+    navType === "POP" ? "screen-pop" : navType === "REPLACE" || isTabRoot ? "screen-fade" : "screen-push";
 
   return (
     <>
-      {/* Clip layer: contains the sliding screens so the x-offset never
-          leaks into a horizontal scroll on the body. The solid background
-          covers any sub-pixel gap between the entering and exiting screens. */}
+      {/* Clip layer: contains the sliding screen so the x-offset never leaks
+          into a horizontal scroll on the body. The solid background covers the
+          viewport while the entering screen slides over it. */}
       <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "var(--bg)" }}>
-        <AnimatePresence custom={dir}>
-          <motion.div
-            key={location.pathname}
-            custom={dir}
-            variants={screenVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            transition={{ type: "spring", stiffness: 360, damping: 34, mass: 0.85, opacity: { duration: 0.18 } }}
-            style={{ position: "absolute", inset: 0 }}
-          >
-            <Outlet />
-          </motion.div>
-        </AnimatePresence>
+        <div
+          key={location.pathname}
+          className={`screen-anim ${animClass}`}
+          style={{ position: "absolute", inset: 0, background: "var(--bg)" }}
+        >
+          <Outlet />
+        </div>
       </div>
       {showTabBar && <TabBar />}
     </>

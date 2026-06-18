@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { motion } from "motion/react";
 import { BottomSheet } from "../components/BottomSheet";
 import { Ico } from "../components/icons";
 import { exerciseRepository, type Exercise, type ExerciseLog } from "../../data/repositories";
@@ -76,14 +75,13 @@ function MiniBars({
             }}>
               {f(d.value)}
             </span>
-            <motion.div
-              initial={{ height: 0 }}
-              animate={{ height: barH }}
-              transition={{ type: "spring", stiffness: 200, damping: 26, delay: i * 0.04 }}
+            <div
               style={{
-                width: "100%", maxWidth: 26,
+                width: "100%", maxWidth: 26, height: barH,
                 borderRadius: "6px 6px 3px 3px",
                 background: color,
+                transformOrigin: "bottom",
+                animation: `barGrow 0.5s var(--ease-bounce) ${i * 0.04}s both`,
               }}
             />
             <span style={{

@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import { motion } from "motion/react";
 import { Ico } from "./icons";
 
 /** "2 series x 10 reps | 30s" — omits absent parts. */
@@ -27,20 +26,18 @@ interface Props {
   setsDone?: number;
   setsTotal?: number;
   exerciseIds?: string[];
+  index?: number;
 }
 
-export function ExerciseRow({ id, name, sets, reps, duration_s, mins, done, setsDone = 0, setsTotal = 0, exerciseIds }: Props) {
+export function ExerciseRow({ id, name, sets, reps, duration_s, mins, done, setsDone = 0, setsTotal = 0, exerciseIds, index = 0 }: Props) {
   const navigate = useNavigate();
   const partial = !done && setsDone > 0 && setsDone < setsTotal;
   const remaining = setsTotal - setsDone;
   return (
-    <motion.div
-      className="card"
+    <div
+      className="card rise press"
       data-exercise-id={id}
-      variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
-      whileTap={{ scale: 0.975 }}
-      transition={{ type: "spring", stiffness: 400, damping: 25 }}
-      style={{ padding: 14, display: "flex", alignItems: "flex-start", gap: 14, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
+      style={{ padding: 14, display: "flex", alignItems: "flex-start", gap: 14, cursor: "pointer", WebkitTapHighlightColor: "transparent", animationDelay: `${0.03 + index * 0.045}s` }}
       onClick={() => {
         sessionStorage.setItem("lastExerciseId", id);
         navigate(`/today/exercise/${id}`, { state: { exerciseIds } });
@@ -88,6 +85,6 @@ export function ExerciseRow({ id, name, sets, reps, duration_s, mins, done, sets
           </span>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }

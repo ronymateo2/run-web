@@ -280,7 +280,19 @@ body {
 
 .tab-indicator {
   position: absolute;
-  inset: 7px 5px;
+  top: 7px;
+  bottom: 7px;
+  left: 0;
+  width: 20%;
+  /* Transparent side borders + padding-box clip keep the original 5px gap while
+     the box stays exactly one grid cell wide, so translateX(n * 100%) lands the
+     pill dead-center on tab n. */
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  background-clip: padding-box;
+  transform: translateX(calc(var(--tab-index, 2) * 100%));
+  transition: transform 0.42s var(--ease-bounce);
+  z-index: 1;
   border-radius: 999px;
   background:
     linear-gradient(
@@ -296,7 +308,6 @@ body {
     inset 0 -1px 1px 0 rgba(31, 58, 46, 0.05),
     0 1px 4px -1px rgba(31, 58, 46, 0.08);
   pointer-events: none;
-  z-index: -1;
 }
 
 /* Layout helpers */
@@ -516,6 +527,68 @@ body {
   .drift {
     animation: none !important;
   }
+}
+
+/* Tap feedback: replaces motion's whileTap={{scale}} with a compositor-only
+   :active transform — no JS spring runs per tap. */
+.press {
+  transition: transform 0.12s var(--ease-spring);
+}
+
+.press:active {
+  transform: scale(0.97);
+}
+
+/* Mount-draw for SVG progress rings (replaces motion.circle strokeDashoffset).
+   Caller sets --ring-from / --ring-to inline. */
+@keyframes ringDraw {
+  from { stroke-dashoffset: var(--ring-from); }
+  to { stroke-dashoffset: var(--ring-to); }
+}
+
+/* Bar chart grow (replaces motion.div height animate). scaleY on the compositor
+   instead of animating height (which triggers layout each frame). */
+@keyframes barGrow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+/* Native-style screen transitions (CSS-only, compositor/GPU — no JS per frame).
+   Replaces the motion/AnimatePresence spring in ProtectedRoute: the entering
+   screen animates, the leaving one unmounts instantly. `key`-ing on pathname
+   re-triggers the keyframe on each navigation. */
+@keyframes screenInFromRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes screenInFromLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes screenFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.screen-anim {
+  will-change: transform, opacity;
+}
+
+/* PUSH: drill-down slides in from the right. */
+.screen-push {
+  animation: screenInFromRight 0.32s var(--ease-bounce) both;
+}
+
+/* POP: back slides in from the left. */
+.screen-pop {
+  animation: screenInFromLeft 0.32s var(--ease-bounce) both;
+}
+
+/* Tab switch / replace: cross-fade. */
+.screen-fade {
+  animation: screenFade 0.18s ease both;
 }
 
 /* Dark screen variant (exercise detail, SST) */

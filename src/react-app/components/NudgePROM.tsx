@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import { motion } from "motion/react";
 import { Ico } from "./icons";
 import type { PromInstrument } from "../../data/repositories";
 
@@ -58,10 +57,9 @@ export function NudgePROM({ instruments }: Props) {
           const accent = accentFor(inst);
           const { code, label } = splitName(inst.name);
           return (
-            <motion.button
+            <button
               key={inst.id}
-              whileTap={{ scale: 0.985 }}
-              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              className="press"
               onClick={() => navigate(`/today/prom/${inst.id}`)}
               style={{
                 display: "flex", alignItems: "center", gap: 12, width: "100%",
@@ -77,7 +75,7 @@ export function NudgePROM({ instruments }: Props) {
                 <span className="body-sm" style={{ color: "var(--ink-3)" }}>{inst.questions.length} preguntas</span>
               </div>
               <Ico.arrow s={16} c="var(--ink-3)" />
-            </motion.button>
+            </button>
           );
         })}
       </div>

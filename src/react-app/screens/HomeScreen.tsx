@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import { motion } from "motion/react";
 import { useAuth } from "../auth/AuthContext";
 import { localDayName } from "../utils/timezone";
 import { useTodayData } from "../features/useTodayData";
@@ -68,10 +67,8 @@ export function HomeScreen() {
         <HomeStats stats={stats} />
 
         {/* Pain check-in hero card */}
-        <motion.div
-          className="card mt-20 is-hero"
-          whileTap={{ scale: 0.985 }}
-          transition={{ type: "spring", stiffness: 400, damping: 25 }}
+        <div
+          className="card mt-20 is-hero press"
           style={{ padding: "14px 14px 16px", position: "relative", overflow: "hidden", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
           onClick={() => navigate("/today/checkin")}
         >
@@ -111,7 +108,7 @@ export function HomeScreen() {
               Registrar dolor <Ico.arrow s={14} />
             </button>
           )}
-        </motion.div>
+        </div>
 
         {/* Weekly quick tasks — surfaced above the (long) exercise list so they stay visible */}
         {/* 5SST nudge */}
