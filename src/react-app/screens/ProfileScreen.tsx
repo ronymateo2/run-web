@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import { Ico } from "../components/icons";
 import { COMMON_TIMEZONES, detectTimezone } from "../utils/timezone";
 import { resetLocalCache } from "../../data/maintenance";
+import { checkForUpdate } from "../pwa";
 import {
   getSyncQueueStatus, retryFailedMutations, discardFailedMutations, pushDelta,
   type SyncQueueStatus,
@@ -86,6 +87,24 @@ export function ProfileScreen() {
     } finally {
       setResetting(false);
       refreshQueueStatus();
+    }
+  };
+
+  // Manual update check (replaces the old 60s auto-poll). "updating" → autoUpdate
+  // reloads the page shortly; "current" → already latest.
+  const [updating, setUpdating] = useState(false);
+  const [updateMsg, setUpdateMsg] = useState<"current" | "unsupported" | null>(null);
+
+  const handleCheckUpdate = async () => {
+    if (updating) return;
+    setUpdating(true);
+    setUpdateMsg(null);
+    try {
+      const result = await checkForUpdate();
+      if (result === "updating") return; // page reloads itself
+      setUpdateMsg(result);
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -274,6 +293,49 @@ export function ProfileScreen() {
             {resetError && (
               <div className="body-sm" style={{ padding: "0 14px 12px", color: "var(--clay)", lineHeight: 1.5 }}>
                 No se pudo sincronizar. Revisa tu conexión e intenta de nuevo.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* App / updates */}
+        <div style={{ marginTop: 28 }}>
+          <div className="row gap-6" style={{ marginBottom: 10, alignItems: "center" }}>
+            <span className="eyebrow">Aplicación</span>
+          </div>
+          <div className="card" style={{ padding: "6px 4px" }}>
+            <button
+              onClick={handleCheckUpdate}
+              disabled={updating}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "14px 14px",
+                background: "none",
+                border: "none",
+                cursor: updating ? "default" : "pointer",
+                color: "var(--ink)",
+                fontFamily: "var(--font-sans)",
+                fontSize: 15,
+                fontWeight: 600,
+                borderRadius: "var(--r-sm)",
+                opacity: updating ? 0.5 : 1,
+              }}
+            >
+              <Ico.refresh s={18} c="var(--ink)" />
+              {updating ? "Buscando…" : "Buscar actualización"}
+            </button>
+            {updateMsg === "current" && (
+              <div className="row gap-6" style={{ padding: "0 14px 12px", color: "var(--moss)" }}>
+                <Ico.check s={14} c="var(--moss)" />
+                <span className="body-sm" style={{ color: "var(--moss)" }}>Ya tienes la última versión</span>
+              </div>
+            )}
+            {updateMsg === "unsupported" && (
+              <div className="body-sm" style={{ padding: "0 14px 12px", color: "var(--muted)", lineHeight: 1.5 }}>
+                Actualizaciones no disponibles en este entorno.
               </div>
             )}
           </div>
