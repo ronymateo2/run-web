@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { localToday } from "../utils/timezone";
@@ -89,12 +88,12 @@ export function SqueezeTestScreen() {
     <div className="screen screen-dark">
       {/* Visual cue on each phase transition (third signal alongside beep + ring). */}
       {flashKey > 0 && (
-        <motion.div
+        <div
           key={flashKey}
-          initial={{ opacity: 0.45 }}
-          animate={{ opacity: 0 }}
-          transition={{ duration: 0.45, ease: "easeOut" }}
-          style={{ position: "fixed", inset: 0, background: "var(--bone)", pointerEvents: "none", zIndex: 5 }}
+          style={{
+            position: "fixed", inset: 0, background: "var(--bone)", pointerEvents: "none", zIndex: 5,
+            animation: "flashFade 0.45s ease-out both",
+          }}
         />
       )}
       <ScreenNav back={<BackButton fallbackPath="/today" color="var(--bone)" />}>
