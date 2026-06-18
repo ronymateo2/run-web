@@ -128,7 +128,6 @@ export function ExerciseDetailScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  console.log("render")
   return (
     <div className="screen screen-dark" style={{ position: "relative" }}>
       <ScreenNav back={<BackButton fallbackPath="/today" color="var(--bone)" />}>
