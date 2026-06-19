@@ -60,6 +60,19 @@ export function speechSupported(): boolean {
   return typeof window !== "undefined" && "speechSynthesis" in window;
 }
 
+// Kick the lazy voice list so it's loaded before the first tap. Browsers load voices
+// async; if the first speak() fires with an empty list it defers utterance past the user
+// gesture, which iOS/Safari then blocks silently. Call this on mount of any screen that
+// speaks so the first speak() runs synchronously inside the tap. Safe to call repeatedly.
+export function primeSpeech(): void {
+  if (!speechSupported()) return;
+  const synth = window.speechSynthesis;
+  if (synth.getVoices().length > 0) return;
+  // Touch the list to trigger loading; re-touch when the browser reports voices ready.
+  synth.getVoices();
+  synth.addEventListener("voiceschanged", () => { synth.getVoices(); }, { once: true });
+}
+
 // Prefer es-MX, then any Spanish voice, then the first available.
 function resolveEsVoice(): SpeechSynthesisVoice | undefined {
   const voices = window.speechSynthesis.getVoices();

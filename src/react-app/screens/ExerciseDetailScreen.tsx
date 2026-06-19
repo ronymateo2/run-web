@@ -15,7 +15,7 @@ import { HowToSheet } from "../components/HowToSheet";
 import { useExerciseSession } from "../features/useExerciseSession";
 import type { PrevValue } from "../features/exerciseSets";
 import { useCountdown } from "../features/useCountdown";
-import { speak, cancelSpeech } from "../utils/speech";
+import { speak, cancelSpeech, primeSpeech } from "../utils/speech";
 import { guidedPhases } from "../../data/repositories";
 
 export function ExerciseDetailScreen() {
@@ -118,6 +118,9 @@ export function ExerciseDetailScreen() {
   // Kill any running timer when the exercise changes so it can't release the wake lock
   // late or complete a stale set index on the newly loaded exercise.
   useEffect(() => {
+    // Warm the voice list so the first play's speak() runs synchronously inside the tap
+    // (deferred utterance loses the gesture → blocked silently on iOS/Safari).
+    primeSpeech();
     return () => {
       timer.stop();
       cancelSpeech();
