@@ -1,4 +1,4 @@
-import type { SetRow } from "../features/exerciseSets";
+import type { SetRow } from "../hooks/exerciseSets";
 
 // Per-set progress strip: one segment per set, tinted by completion (clay = warmup,
 // moss = working set). Hidden for single-set exercises.

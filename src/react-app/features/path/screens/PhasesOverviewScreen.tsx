@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from "@features/auth/AuthContext";
 import { Plant, Leaf, Flower, Tree, CaretUpDown, CaretDown } from "@phosphor-icons/react";
-import { Ico } from "../components/icons";
-import { injuryRepository, exerciseRepository, effectiveFocusDays, type Injury, type Phase } from "../../data/repositories";
+import { Ico } from "@shared/components/icons";
+import { injuryRepository, exerciseRepository, effectiveFocusDays, type Injury, type Phase } from "@data/repositories";
 
 const PHASE_ICONS = [
   (s?: number, c?: string) => <Plant  size={s ?? 18} weight="regular" color={c} />,

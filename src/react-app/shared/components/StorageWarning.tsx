@@ -2,7 +2,7 @@
 // unavailable — e.g. private browsing). Without this the user writes data that
 // silently dies on reload. Sync still works, so pushed rows do survive.
 import { useEffect, useState } from "react";
-import { isStoragePersistent } from "../../db/client";
+import { isStoragePersistent } from "@db/client";
 
 export function StorageWarning() {
   const [degraded, setDegraded] = useState(false);

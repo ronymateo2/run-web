@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Ico } from "./icons";
+import { Ico } from "@shared/components/icons";
 
 /** "2 series x 10 reps | 30s" — omits absent parts. */
 function formatSetsReps(sets?: number, reps?: number, duration_s?: number): string {

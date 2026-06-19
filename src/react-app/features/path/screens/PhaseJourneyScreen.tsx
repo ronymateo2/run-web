@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
-import { usePhaseJourney } from "../features/usePhaseJourney";
-import { Ico } from "../components/icons";
-import { BackButton } from "../components/BackButton";
-import { ScreenNav } from "../components/ScreenNav";
+import { useAuth } from "@features/auth/AuthContext";
+import { usePhaseJourney } from "../hooks/usePhaseJourney";
+import { Ico } from "@shared/components/icons";
+import { BackButton } from "@shared/components/BackButton";
+import { ScreenNav } from "@shared/components/ScreenNav";
 import { MonthCalendar } from "../components/MonthCalendar";
 import { DaySummarySheet } from "../components/DaySummarySheet";
 

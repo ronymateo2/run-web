@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { Ico } from "./icons";
-import type { PromInstrument } from "../../data/repositories";
+import { Ico } from "@shared/components/icons";
+import type { PromInstrument } from "@data/repositories";
 
 interface Props {
   instruments: PromInstrument[];

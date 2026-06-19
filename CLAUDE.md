@@ -10,6 +10,21 @@ PWA React + Vite + TypeScript. Offline-first via SQLite WASM (OPFS). Syncs with 
 - `react-router-dom` v6 — client-side routing
 - `@tanstack/react-query` — server state
 
+## App structure (`src/react-app/`)
+Feature-based. Path aliases (tsconfig.app.json + vite.config.ts), per-feature `index.ts` barrels.
+
+```
+app/        App.tsx, main.tsx, router.tsx, pwa.ts   (entry: index.html → app/main.tsx)
+design/     tokens.css
+shared/     components/ hooks/ utils/ + index.ts     (cross-feature only)
+features/   auth · today · path · body · learn · profile
+            each: screens/ components/ hooks/ + index.ts
+```
+
+- **Aliases**: `@app @features @shared @design @data @db @api`. Intra-feature → relative imports; cross-feature/shared/data → alias. Cross-feature imports go through the feature's `index.ts` barrel (`import { HomeScreen } from "@features/today"`).
+- **shared/components**: used by 2+ features OR app-global — `BackButton`, `ScreenNav`, `BottomSheet`, `icons`, `TabBar`, `ErrorBoundary`, `RouteErrorFallback`, `StorageWarning`, `BodyFigure`, `ExerciseList`/`ExerciseRow`, `NudgeSST`. Everything else lives in its owning feature.
+- **Barrels exclude lazy screens**: `ProgressScreen`, `PromDetailScreen` (path), `LearnArticleScreen` (learn) are NOT re-exported — the router lazy-imports them by concrete path (`@features/path/screens/ProgressScreen`) to keep recharts/markdown in their own chunks. Adding them to a barrel pulls those heavy deps into eager consumers.
+
 ## Key conventions
 - **Code**: English (vars, functions, routes, DB columns)
 - **UI strings**: Spanish neutro
@@ -23,10 +38,10 @@ Screens and components NEVER touch SQLite/Drizzle directly. They go through the 
 
 - **`src/data/repositories/*`** — `injuryRepository`, `exerciseRepository`, `checkinRepository`, `sstRepository`, `userRepository` (+ barrel `index.ts`). Each method resolves the Drizzle instance internally (`getDrizzle()`) and delegates to `src/db/queries/*`. Import repos + types from `../../data/repositories`.
 - **`src/data/maintenance.ts`** — `resetLocalCache()` (wipes synced tables + re-pulls; was raw `exec` in ProfileScreen).
-- **`src/react-app/features/*`** — feature hooks/view-models per flow: `useTodayData()`, `usePhaseJourney(phaseId)`. Return UI-ready data + `reload`/mutations. Screens render only.
+- **`src/react-app/features/<feature>/hooks/*`** — feature hooks/view-models per flow: `useTodayData()` (`features/today/hooks/`), `usePhaseJourney(phaseId)` (`features/path/hooks/`). Return UI-ready data + `reload`/mutations. Screens render only.
 - **`src/db/queries/{injuries,exercises,checkins,sst,users}.ts`** — internal impl of the repos (still take `db` as first arg). Do NOT import these from the UI; import the repo instead.
 - The `useDb()` hook was removed. No screen/component/provider imports `db/client`, `db/queries`, `getDrizzle`, or `DrizzleDb`.
-- `AuthContext.tsx` session persistence (restore, upsert profile, clear jwt, set timezone) goes through `userRepository` — it no longer runs raw `exec`/SQL. All its API calls go through `src/api/client.ts`; on session restore it calls `syncNow()` (push pending, then pull).
+- `features/auth/AuthContext.tsx` session persistence (restore, upsert profile, clear jwt, set timezone) goes through `userRepository` — it no longer runs raw `exec`/SQL. All its API calls go through `src/api/client.ts`; on session restore it calls `syncNow()` (push pending, then pull).
 - `useSync()` (`pushDelta`) is still imported directly by screens that mutate; feature hooks that mutate call it internally.
 
 ## Sync (Fase 0 + Fase 2 + hardening — done, ALL entities on the outbox)

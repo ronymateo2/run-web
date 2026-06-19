@@ -9,6 +9,17 @@
 
 		/* Bundler mode */
 		"moduleResolution": "bundler",
+		"baseUrl": ".",
+		"paths": {
+			"@app/*": ["src/react-app/app/*"],
+			"@features/*": ["src/react-app/features/*"],
+			"@shared": ["src/react-app/shared/index.ts"],
+			"@shared/*": ["src/react-app/shared/*"],
+			"@design/*": ["src/react-app/design/*"],
+			"@data/*": ["src/data/*"],
+			"@db/*": ["src/db/*"],
+			"@api/*": ["src/api/*"]
+		},
 		"allowImportingTsExtensions": true,
 		"isolatedModules": true,
 		"moduleDetection": "force",

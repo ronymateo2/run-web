@@ -2,11 +2,11 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { learnQueryOne } from "../../db/learn-client";
-import { type Article } from "../../db/learn-sync";
-import { Ico } from "../components/icons";
-import { BackButton } from "../components/BackButton";
-import { ScreenNav } from "../components/ScreenNav";
+import { learnQueryOne } from "@db/learn-client";
+import { type Article } from "@db/learn-sync";
+import { Ico } from "@shared/components/icons";
+import { BackButton } from "@shared/components/BackButton";
+import { ScreenNav } from "@shared/components/ScreenNav";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("es", { year: "numeric", month: "long", day: "numeric" });

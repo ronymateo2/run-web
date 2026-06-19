@@ -6,9 +6,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useCountdown } from "./useCountdown";
 import type { SetRow } from "./exerciseSets";
-import type { Exercise } from "../../data/repositories";
-import { cancelSpeech, primeSpeech } from "../utils/speech";
-import { cue, preloadCues, unlockCues, releaseCues } from "../utils/cue";
+import type { Exercise } from "@data/repositories";
+import { cancelSpeech, primeSpeech } from "@shared/utils/speech";
+import { cue, preloadCues, unlockCues, releaseCues } from "@shared/utils/cue";
 
 export function useExerciseTimer({
   id, sets, exercise, isTimeBased, toggleCompleted,

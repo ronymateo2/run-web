@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { useSync } from "../hooks/useSync";
-import { Ico } from "../components/icons";
-import { BackButton } from "../components/BackButton";
-import { ScreenNav } from "../components/ScreenNav";
-import { injuryRepository, type PhaseCriteria } from "../../data/repositories";
+import { useSync } from "@shared/hooks/useSync";
+import { Ico } from "@shared/components/icons";
+import { BackButton } from "@shared/components/BackButton";
+import { ScreenNav } from "@shared/components/ScreenNav";
+import { injuryRepository, type PhaseCriteria } from "@data/repositories";
 
 const WEEKDAYS: { key: string; label: string }[] = [
   { key: "mon", label: "L" }, { key: "tue", label: "M" }, { key: "wed", label: "X" },

@@ -1,5 +1,5 @@
-import { Ico } from "./icons";
-import type { Exercise } from "../../data/repositories";
+import { Ico } from "@shared/components/icons";
+import type { Exercise } from "@data/repositories";
 
 // Title block for the exercise-detail screen: session position eyebrow, name with
 // optional video / how-to buttons, and the detail paragraph.

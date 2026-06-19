@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
-import { Ico } from "../components/icons";
-import { COMMON_TIMEZONES, detectTimezone } from "../utils/timezone";
-import { resetLocalCache } from "../../data/maintenance";
-import { checkForUpdate } from "../pwa";
+import { useAuth } from "@features/auth/AuthContext";
+import { Ico } from "@shared/components/icons";
+import { COMMON_TIMEZONES, detectTimezone } from "@shared/utils/timezone";
+import { resetLocalCache } from "@data/maintenance";
+import { checkForUpdate } from "@app/pwa";
 import {
   getSyncQueueStatus, retryFailedMutations, discardFailedMutations, pushDelta,
   type SyncQueueStatus,
-} from "../../data/sync";
+} from "@data/sync";
 
 export function ProfileScreen() {
   const { user, token, signOut, setTimezone } = useAuth();

@@ -1,9 +1,23 @@
 import { defineConfig } from "vite";
+import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import { VitePWA } from "vite-plugin-pwa";
 
+const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
+
 export default defineConfig({
+	resolve: {
+		alias: {
+			"@app": r("./src/react-app/app"),
+			"@features": r("./src/react-app/features"),
+			"@shared": r("./src/react-app/shared"),
+			"@design": r("./src/react-app/design"),
+			"@data": r("./src/data"),
+			"@db": r("./src/db"),
+			"@api": r("./src/api"),
+		},
+	},
 	plugins: [
 		react(),
 		cloudflare(),

@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
-import { Ico } from "./icons";
-import type { Exercise } from "../../data/repositories";
+import { Ico } from "@shared/components/icons";
+import type { Exercise } from "@data/repositories";
 
 // Fixed footer for the exercise-detail screen: optional "next exercise" shortcut above
 // the primary save button.

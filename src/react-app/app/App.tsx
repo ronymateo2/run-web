@@ -1,10 +1,9 @@
 import { MotionConfig } from "motion/react";
 import { RouterProvider } from "react-router-dom";
-import { AuthProvider } from "./auth/AuthContext";
+import { AuthProvider } from "@features/auth";
 import { router } from "./router";
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import { StorageWarning } from "./components/StorageWarning";
-import "./design/tokens.css";
+import { ErrorBoundary, StorageWarning } from "@shared";
+import "@design/tokens.css";
 
 export default function App() {
   return (

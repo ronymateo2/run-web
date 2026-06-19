@@ -1,15 +1,15 @@
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
-import { localDayName } from "../utils/timezone";
-import { useTodayData } from "../features/useTodayData";
+import { useAuth } from "@features/auth/AuthContext";
+import { localDayName } from "@shared/utils/timezone";
+import { useTodayData } from "../hooks/useTodayData";
 
 import { HomeStats } from "../components/HomeStats";
 import { SessionCard } from "../components/SessionCard";
-import { NudgeSST } from "../components/NudgeSST";
+import { NudgeSST } from "@shared/components/NudgeSST";
 import { NudgePROM } from "../components/NudgePROM";
-import { BodyFigure } from "../components/BodyFigure";
+import { BodyFigure } from "@shared/components/BodyFigure";
 import { ZoneRow } from "../components/ZoneRow";
-import { Ico } from "../components/icons";
+import { Ico } from "@shared/components/icons";
 
 export function HomeScreen() {
   const { user } = useAuth();

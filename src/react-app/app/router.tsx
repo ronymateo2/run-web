@@ -1,34 +1,37 @@
 import { lazy, Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
-import { LoginScreen } from "./screens/LoginScreen";
-import { HomeScreen } from "./screens/HomeScreen";
-import { PainCheckinScreen } from "./screens/PainCheckinScreen";
-import { ExerciseDetailScreen } from "./screens/ExerciseDetailScreen";
-import { ExerciseEditScreen } from "./screens/ExerciseEditScreen";
-import { GuidedExerciseScreen } from "./screens/GuidedExerciseScreen";
-import { SqueezeTestScreen } from "./screens/SqueezeTestScreen";
-import { PromScreen } from "./screens/PromScreen";
-import { CuerpoScreen } from "./screens/CuerpoScreen";
-import { PhasesOverviewScreen } from "./screens/PhasesOverviewScreen";
-import { PhaseJourneyScreen } from "./screens/PhaseJourneyScreen";
-import { PhaseExercisesScreen } from "./screens/PhaseExercisesScreen";
-import { PhaseExercisesEditScreen } from "./screens/PhaseExercisesEditScreen";
-import { InjuryEditScreen } from "./screens/InjuryEditScreen";
-import { PhaseEditScreen } from "./screens/PhaseEditScreen";
-import { LearnScreen } from "./screens/LearnScreen";
-import { ProfileScreen } from "./screens/ProfileScreen";
-import { ProtectedRoute } from "./auth/ProtectedRoute";
-import { RouteErrorFallback } from "./components/RouteErrorFallback";
+import { LoginScreen, ProtectedRoute } from "@features/auth";
+import {
+  HomeScreen,
+  PainCheckinScreen,
+  ExerciseDetailScreen,
+  ExerciseEditScreen,
+  GuidedExerciseScreen,
+  SqueezeTestScreen,
+  PromScreen,
+} from "@features/today";
+import { CuerpoScreen } from "@features/body";
+import {
+  PhasesOverviewScreen,
+  PhaseJourneyScreen,
+  PhaseExercisesScreen,
+  PhaseExercisesEditScreen,
+  InjuryEditScreen,
+  PhaseEditScreen,
+} from "@features/path";
+import { LearnScreen } from "@features/learn";
+import { ProfileScreen } from "@features/profile";
+import { RouteErrorFallback } from "@shared";
 
 // Lazy-loaded: pull in heavy deps (recharts, react-markdown) only when visited.
 const ProgressScreen = lazy(() =>
-  import("./screens/ProgressScreen").then((m) => ({ default: m.ProgressScreen })),
+  import("@features/path/screens/ProgressScreen").then((m) => ({ default: m.ProgressScreen })),
 );
 const PromDetailScreen = lazy(() =>
-  import("./screens/PromDetailScreen").then((m) => ({ default: m.PromDetailScreen })),
+  import("@features/path/screens/PromDetailScreen").then((m) => ({ default: m.PromDetailScreen })),
 );
 const LearnArticleScreen = lazy(() =>
-  import("./screens/LearnArticleScreen").then((m) => ({ default: m.LearnArticleScreen })),
+  import("@features/learn/screens/LearnArticleScreen").then((m) => ({ default: m.LearnArticleScreen })),
 );
 
 const lazyScreen = (el: React.ReactNode) => <Suspense fallback={null}>{el}</Suspense>;

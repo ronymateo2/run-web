@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useSync } from "../hooks/useSync";
-import { Ico } from "../components/icons";
-import { BackButton } from "../components/BackButton";
-import { ScreenNav } from "../components/ScreenNav";
-import { exerciseRepository, parseRepPhases, type Exercise } from "../../data/repositories";
+import { useSync } from "@shared/hooks/useSync";
+import { Ico } from "@shared/components/icons";
+import { BackButton } from "@shared/components/BackButton";
+import { ScreenNav } from "@shared/components/ScreenNav";
+import { exerciseRepository, parseRepPhases, type Exercise } from "@data/repositories";
 import { normalize } from "../components/VideoEmbed";
 
 type Measure = "reps" | "time";

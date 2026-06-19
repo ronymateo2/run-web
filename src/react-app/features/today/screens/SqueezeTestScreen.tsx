@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
-import { localToday } from "../utils/timezone";
-import { useSync } from "../hooks/useSync";
-import { useCountdown, useCountdownSeconds } from "../features/useCountdown";
-import { Ico } from "../components/icons";
-import { BackButton } from "../components/BackButton";
-import { ScreenNav } from "../components/ScreenNav";
-import { injuryRepository, sstRepository } from "../../data/repositories";
+import { useAuth } from "@features/auth/AuthContext";
+import { localToday } from "@shared/utils/timezone";
+import { useSync } from "@shared/hooks/useSync";
+import { useCountdown, useCountdownSeconds } from "../hooks/useCountdown";
+import { Ico } from "@shared/components/icons";
+import { BackButton } from "@shared/components/BackButton";
+import { ScreenNav } from "@shared/components/ScreenNav";
+import { injuryRepository, sstRepository } from "@data/repositories";
 
 type Phase = "intro" | "active" | "rest" | "done";
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Ico } from "./icons";
+import { Ico } from "@shared/components/icons";
 
 interface ExerciseFABProps {
   onAddSet: () => void;

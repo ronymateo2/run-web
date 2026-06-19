@@ -1,5 +1,5 @@
 import { ExerciseRow } from "./ExerciseRow";
-import type { Exercise, ExerciseLog } from "../../data/repositories";
+import type { Exercise, ExerciseLog } from "@data/repositories";
 
 /** Count sets logged per exercise (each log row = one set). Warm-up sets don't count. */
 export function setsDoneMap(logs: ExerciseLog[]): Map<string, number> {

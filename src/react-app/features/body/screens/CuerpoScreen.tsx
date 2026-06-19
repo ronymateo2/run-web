@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
-import { localToday } from "../utils/timezone";
-import { BodyFigure, type HeatMap } from "../components/BodyFigure";
-import { NudgeSST } from "../components/NudgeSST";
-import { Ico } from "../components/icons";
+import { useAuth } from "@features/auth/AuthContext";
+import { localToday } from "@shared/utils/timezone";
+import { BodyFigure, type HeatMap } from "@shared/components/BodyFigure";
+import { NudgeSST } from "@shared/components/NudgeSST";
+import { Ico } from "@shared/components/icons";
 import {
   injuryRepository, checkinRepository, sstRepository, isSstPreferredToday,
   type Injury, type Phase, type PainCheckin, type SstResult,
-} from "../../data/repositories";
+} from "@data/repositories";
 
 
 function avgZones(checkins: PainCheckin[]): HeatMap {

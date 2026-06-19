@@ -7,8 +7,8 @@
 // card, which media-element playback would.) Wake Lock keeps the screen on to avoid the OS
 // backgrounding the page mid-timer.
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { unlockAudio, scheduleBeep, type BeepHandle } from "../utils/sound";
-import { requestWakeLock, releaseWakeLock } from "../utils/wakeLock";
+import { unlockAudio, scheduleBeep, type BeepHandle } from "@shared/utils/sound";
+import { requestWakeLock, releaseWakeLock } from "@shared/utils/wakeLock";
 
 // `smooth` (default): update `progress` every frame for a fluid ring. Pass smooth=false
 // when only the integer seconds are shown — then `progress` only changes on start/finish.

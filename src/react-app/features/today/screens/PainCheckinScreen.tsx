@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
-import { localToday } from "../utils/timezone";
-import { useSync } from "../hooks/useSync";
-import { BodyFigure, type HeatMap } from "../components/BodyFigure";
+import { useAuth } from "@features/auth/AuthContext";
+import { localToday } from "@shared/utils/timezone";
+import { useSync } from "@shared/hooks/useSync";
+import { BodyFigure, type HeatMap } from "@shared/components/BodyFigure";
 import { ZoneRow } from "../components/ZoneRow";
-import { Ico } from "../components/icons";
-import { BackButton } from "../components/BackButton";
-import { ScreenNav } from "../components/ScreenNav";
-import { checkinRepository } from "../../data/repositories";
+import { Ico } from "@shared/components/icons";
+import { BackButton } from "@shared/components/BackButton";
+import { ScreenNav } from "@shared/components/ScreenNav";
+import { checkinRepository } from "@data/repositories";
 
 const ZONES: { key: keyof HeatMap; label: string }[] = [
   { key: "cuello", label: "Cuello" },

@@ -5,9 +5,9 @@
 import { memo, useSyncExternalStore } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowLineDown, ClockCounterClockwise, Palette, Trash } from "@phosphor-icons/react";
-import { Ico } from "./icons";
+import { Ico } from "@shared/components/icons";
 import { EditableNum } from "./EditableNum";
-import { PAIN_LABELS, bandBySlug, type SetRow, type PrevValue } from "../features/exerciseSets";
+import { PAIN_LABELS, bandBySlug, type SetRow, type PrevValue } from "../hooks/exerciseSets";
 
 export type EquipmentType = "none" | "weight" | "band";
 

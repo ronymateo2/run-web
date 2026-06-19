@@ -4,17 +4,17 @@
 // with a rest between sets — no tapping. On finish it logs the session as completed.
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
-import { localToday } from "../utils/timezone";
-import { useSync } from "../hooks/useSync";
-import { useCountdown, useCountdownSeconds } from "../features/useCountdown";
-import { DEFAULT_RPE } from "../features/exerciseSets";
-import { unlockAudio } from "../utils/sound";
-import { speak, cancelSpeech, numberToWords } from "../utils/speech";
-import { Ico } from "../components/icons";
-import { BackButton } from "../components/BackButton";
-import { ScreenNav } from "../components/ScreenNav";
-import { exerciseRepository, guidedPhases, type Exercise } from "../../data/repositories";
+import { useAuth } from "@features/auth/AuthContext";
+import { localToday } from "@shared/utils/timezone";
+import { useSync } from "@shared/hooks/useSync";
+import { useCountdown, useCountdownSeconds } from "../hooks/useCountdown";
+import { DEFAULT_RPE } from "../hooks/exerciseSets";
+import { unlockAudio } from "@shared/utils/sound";
+import { speak, cancelSpeech, numberToWords } from "@shared/utils/speech";
+import { Ico } from "@shared/components/icons";
+import { BackButton } from "@shared/components/BackButton";
+import { ScreenNav } from "@shared/components/ScreenNav";
+import { exerciseRepository, guidedPhases, type Exercise } from "@data/repositories";
 
 type Screen = "intro" | "ready" | "run" | "represt" | "done";
 

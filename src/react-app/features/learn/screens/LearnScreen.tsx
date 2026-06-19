@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
-import { learnQueryAll } from "../../db/learn-client";
-import { syncArticles, type Article } from "../../db/learn-sync";
-import { Ico } from "../components/icons";
+import { useAuth } from "@features/auth/AuthContext";
+import { learnQueryAll } from "@db/learn-client";
+import { syncArticles, type Article } from "@db/learn-sync";
+import { Ico } from "@shared/components/icons";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("es", { year: "numeric", month: "long", day: "numeric" });

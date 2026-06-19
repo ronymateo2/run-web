@@ -2,9 +2,9 @@
 // the screen renders only. Keeps the existing reload pattern: re-runs on mount and
 // whenever a sync lands (lastSyncAt).
 import { useState, useEffect, useCallback } from "react";
-import { useAuth } from "../auth/AuthContext";
-import { localToday } from "../utils/timezone";
-import { setsDoneMap } from "../components/ExerciseList";
+import { useAuth } from "@features/auth/AuthContext";
+import { localToday } from "@shared/utils/timezone";
+import { setsDoneMap } from "@shared/components/ExerciseList";
 import {
   injuryRepository,
   exerciseRepository,
@@ -21,7 +21,7 @@ import {
   type PainCheckin,
   type SstResult,
   type PromInstrument,
-} from "../../data/repositories";
+} from "@data/repositories";
 
 export interface FocusBlock {
   injury: Injury;

@@ -1,5 +1,5 @@
-import { Ico } from "./icons";
-import type { Exercise } from "../../data/repositories";
+import { Ico } from "@shared/components/icons";
+import type { Exercise } from "@data/repositories";
 
 // Protocol chips: constants across sets (hold target per rep, target RPE), so they
 // sit above the table instead of in each row. Renders nothing if neither applies.

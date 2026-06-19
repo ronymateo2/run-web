@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation, useNavigationType } from "react-router-dom";
 import { useAuth } from "./AuthContext";
-import { TabBar } from "../components/TabBar";
+import { TabBar } from "@shared/components/TabBar";
 
 const TABBAR_ROOTS = ["/today", "/body", "/path", "/learn", "/profile"];
 const NO_TABBAR_PREFIXES = ["/today/exercise", "/today/checkin", "/today/sst"];

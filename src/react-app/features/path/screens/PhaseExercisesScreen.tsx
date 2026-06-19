@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { useAuth } from "../auth/AuthContext";
-import { BackButton } from "../components/BackButton";
-import { ScreenNav } from "../components/ScreenNav";
-import { ExerciseList, setsDoneMap, countDone } from "../components/ExerciseList";
-import { Ico } from "../components/icons";
-import { injuryRepository, exerciseRepository, type Phase, type Exercise } from "../../data/repositories";
-import { localToday } from "../utils/timezone";
+import { useAuth } from "@features/auth/AuthContext";
+import { BackButton } from "@shared/components/BackButton";
+import { ScreenNav } from "@shared/components/ScreenNav";
+import { ExerciseList, setsDoneMap, countDone } from "@shared/components/ExerciseList";
+import { Ico } from "@shared/components/icons";
+import { injuryRepository, exerciseRepository, type Phase, type Exercise } from "@data/repositories";
+import { localToday } from "@shared/utils/timezone";
 
 // Mirrors PhaseJourneyScreen — keeps phase color continuity between the two screens.
 const PHASE_COLORS = ["var(--clay)", "var(--moss)", "var(--sun)", "#7B8FA1", "#B59A6A"];

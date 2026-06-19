@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Reorder, useDragControls } from "motion/react";
-import { useSync } from "../hooks/useSync";
-import { Ico } from "../components/icons";
-import { BackButton } from "../components/BackButton";
-import { ScreenNav } from "../components/ScreenNav";
-import { injuryRepository, exerciseRepository, type Phase, type Exercise } from "../../data/repositories";
+import { useSync } from "@shared/hooks/useSync";
+import { Ico } from "@shared/components/icons";
+import { BackButton } from "@shared/components/BackButton";
+import { ScreenNav } from "@shared/components/ScreenNav";
+import { injuryRepository, exerciseRepository, type Phase, type Exercise } from "@data/repositories";
 
 /** "3 × 10" / "3 × 30s" summary line, mirrors ExerciseEditScreen's measure model. */
 function summary(ex: Exercise): string {

@@ -1,7 +1,7 @@
 // Set-row model for the exercise-detail flow: the in-memory shape of a logged set
 // and the pure builders that derive rows from saved logs (today's session, last
 // session template, previous-session ghost values). No React, no I/O.
-import { type ExerciseLog } from "../../data/repositories";
+import { type ExerciseLog } from "@data/repositories";
 
 export const DEFAULT_RPE = 6;
 

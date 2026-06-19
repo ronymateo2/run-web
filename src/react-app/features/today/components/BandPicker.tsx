@@ -1,7 +1,7 @@
 // Bottom sheet to pick a resistance band color for a set. Lists the BANDS palette by
 // ascending resistance; tapping a swatch selects it and closes. Purely presentational.
-import { BottomSheet } from "./BottomSheet";
-import { BANDS } from "../features/exerciseSets";
+import { BottomSheet } from "@shared/components/BottomSheet";
+import { BANDS } from "../hooks/exerciseSets";
 
 export function BandPicker({
   selected,

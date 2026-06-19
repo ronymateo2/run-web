@@ -1,11 +1,11 @@
 import { useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AnimatePresence } from "motion/react";
-import { Ico } from "../components/icons";
-import { BackButton } from "../components/BackButton";
-import { ScreenNav } from "../components/ScreenNav";
+import { Ico } from "@shared/components/icons";
+import { BackButton } from "@shared/components/BackButton";
+import { ScreenNav } from "@shared/components/ScreenNav";
 import { VideoEmbed } from "../components/VideoEmbed";
-import { BottomSheet } from "../components/BottomSheet";
+import { BottomSheet } from "@shared/components/BottomSheet";
 import { ExerciseStatsSheet } from "../components/ExerciseStatsSheet";
 import { ExerciseFAB } from "../components/ExerciseFAB";
 import { SetCard } from "../components/SetCard";
@@ -16,10 +16,10 @@ import { ExerciseHeader } from "../components/ExerciseHeader";
 import { ProtocolChips } from "../components/ProtocolChips";
 import { SetProgressStrip } from "../components/SetProgressStrip";
 import { ExerciseFooter } from "../components/ExerciseFooter";
-import { useExerciseSession } from "../features/useExerciseSession";
-import { useExerciseTimer } from "../features/useExerciseTimer";
-import type { PrevValue } from "../features/exerciseSets";
-import { guidedPhases } from "../../data/repositories";
+import { useExerciseSession } from "../hooks/useExerciseSession";
+import { useExerciseTimer } from "../hooks/useExerciseTimer";
+import type { PrevValue } from "../hooks/exerciseSets";
+import { guidedPhases } from "@data/repositories";
 
 export function ExerciseDetailScreen() {
   const { id } = useParams<{ id: string }>();

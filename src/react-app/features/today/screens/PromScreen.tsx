@@ -1,18 +1,18 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
-import { localToday } from "../utils/timezone";
-import { useSync } from "../hooks/useSync";
-import { Ico } from "../components/icons";
-import { BackButton } from "../components/BackButton";
-import { ScreenNav } from "../components/ScreenNav";
+import { useAuth } from "@features/auth/AuthContext";
+import { localToday } from "@shared/utils/timezone";
+import { useSync } from "@shared/hooks/useSync";
+import { Ico } from "@shared/components/icons";
+import { BackButton } from "@shared/components/BackButton";
+import { ScreenNav } from "@shared/components/ScreenNav";
 import {
   injuryRepository,
   promRepository,
   scoreInstrument,
   instrumentsForInjury,
   type PromInstrument,
-} from "../../data/repositories";
+} from "@data/repositories";
 
 export function PromScreen() {
   const { instrumentId } = useParams<{ instrumentId: string }>();

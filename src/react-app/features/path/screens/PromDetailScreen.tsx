@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis } from "recharts";
-import { useAuth } from "../auth/AuthContext";
-import { BackButton } from "../components/BackButton";
-import { ScreenNav } from "../components/ScreenNav";
+import { useAuth } from "@features/auth/AuthContext";
+import { BackButton } from "@shared/components/BackButton";
+import { ScreenNav } from "@shared/components/ScreenNav";
 import {
   promRepository,
   exerciseRepository,
@@ -13,7 +13,7 @@ import {
   type PromInstrument,
   type PromResult,
   type WorstItem,
-} from "../../data/repositories";
+} from "@data/repositories";
 
 interface DetailData {
   inst: PromInstrument;

@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from "react";
-import { Ico } from "./icons";
-import type { DaySession } from "../../data/repositories";
+import { Ico } from "@shared/components/icons";
+import type { DaySession } from "@data/repositories";
 
 interface MonthCalendarProps {
   sessionsByDate: Map<string, DaySession[]>;

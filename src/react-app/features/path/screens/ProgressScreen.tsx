@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
-import { BackButton } from "../components/BackButton";
-import { ScreenNav } from "../components/ScreenNav";
-import { checkinRepository, sstRepository, promRepository, severityBand, promTrend, type PainCheckin, type SstResult, type PromInstrument, type PromResult } from "../../data/repositories";
-import { Ico } from "../components/icons";
+import { useAuth } from "@features/auth/AuthContext";
+import { BackButton } from "@shared/components/BackButton";
+import { ScreenNav } from "@shared/components/ScreenNav";
+import { checkinRepository, sstRepository, promRepository, severityBand, promTrend, type PainCheckin, type SstResult, type PromInstrument, type PromResult } from "@data/repositories";
+import { Ico } from "@shared/components/icons";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 
 const ZONE_COLORS: Record<string, string> = {

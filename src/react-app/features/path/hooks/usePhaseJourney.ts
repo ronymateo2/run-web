@@ -2,8 +2,8 @@
 // behind repositories, keeping the screen render-only. Mirrors the existing reload
 // pattern (re-run on mount and on sync) and fire-and-forget push after a mutation.
 import { useState, useEffect, useCallback } from "react";
-import { useAuth } from "../auth/AuthContext";
-import { useSync } from "../hooks/useSync";
+import { useAuth } from "@features/auth/AuthContext";
+import { useSync } from "@shared/hooks/useSync";
 import {
   injuryRepository,
   exerciseRepository,
@@ -13,7 +13,7 @@ import {
   type PhaseCriteria,
   type Exercise,
   type DaySession,
-} from "../../data/repositories";
+} from "@data/repositories";
 
 export interface PhaseJourneyData {
   phase: Phase;

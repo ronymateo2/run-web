@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Ico } from "./icons";
-import { BottomSheet } from "./BottomSheet";
-import { numberToWords } from "../utils/speech";
+import { Ico } from "@shared/components/icons";
+import { BottomSheet } from "@shared/components/BottomSheet";
+import { numberToWords } from "@shared/utils/speech";
 
 interface Props {
   content: string;

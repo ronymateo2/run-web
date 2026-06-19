@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { Ico } from "./icons";
-import type { HomeStats as Stats } from "../features/useTodayData";
+import { Ico } from "@shared/components/icons";
+import type { HomeStats as Stats } from "../hooks/useTodayData";
 
 /** Tiny pain sparkline — last 14 days, 0–10 domain. */
 function Spark({ values }: { values: number[] }) {

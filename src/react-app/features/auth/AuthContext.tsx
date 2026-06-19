@@ -1,8 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { GoogleOAuthProvider, GoogleLogin, googleLogout, type CredentialResponse } from "@react-oauth/google";
-import { userRepository } from "../../data/repositories";
-import { pullDelta, syncNow } from "../../data/sync";
-import { api } from "../../api/client";
+import { userRepository } from "@data/repositories";
+import { pullDelta, syncNow } from "@data/sync";
+import { api } from "@api/client";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
 const LS_KEY = "rurana_session";

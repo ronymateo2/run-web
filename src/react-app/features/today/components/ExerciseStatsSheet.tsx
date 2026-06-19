@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { BottomSheet } from "../components/BottomSheet";
-import { Ico } from "../components/icons";
-import { exerciseRepository, type Exercise, type ExerciseLog } from "../../data/repositories";
-import { useAuth } from "../auth/AuthContext";
+import { BottomSheet } from "@shared/components/BottomSheet";
+import { Ico } from "@shared/components/icons";
+import { exerciseRepository, type Exercise, type ExerciseLog } from "@data/repositories";
+import { useAuth } from "@features/auth/AuthContext";
 
 const SHOWN_SESSIONS = 8;
 

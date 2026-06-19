@@ -4,10 +4,10 @@
 // and persists uncompleted warmups as structural placeholders.
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
-import { useSync } from "../hooks/useSync";
-import { localToday } from "../utils/timezone";
-import { exerciseRepository, type Exercise } from "../../data/repositories";
+import { useAuth } from "@features/auth/AuthContext";
+import { useSync } from "@shared/hooks/useSync";
+import { localToday } from "@shared/utils/timezone";
+import { exerciseRepository, type Exercise } from "@data/repositories";
 import {
   type SetRow,
   type PrevValue,

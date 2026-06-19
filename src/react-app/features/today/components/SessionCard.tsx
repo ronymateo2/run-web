@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import { Ico } from "./icons";
-import { countDone } from "./ExerciseList";
-import type { Exercise, Phase } from "../../data/repositories";
+import { Ico } from "@shared/components/icons";
+import { countDone } from "@shared/components/ExerciseList";
+import type { Exercise, Phase } from "@data/repositories";
 
 /** Rough minutes for one exercise — mirrors ExerciseList's estimateMins. */
 function estimateMins(sets?: number | null, reps?: number | null, duration_s?: number | null): number {
