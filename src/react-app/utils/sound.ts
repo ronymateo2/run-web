@@ -38,44 +38,6 @@ export function unlockAudio(): void {
   if (c.state === "suspended") void c.resume();
 }
 
-// Decoded voice clips, keyed by name. Pre-rendered audio (ElevenLabs) plays through the
-// same AudioContext as the beeps, so one unlockAudio() tap covers both and a clip fired
-// from a timer callback (no gesture) still sounds — the gesture-loss bug that plagues the
-// Web Speech API can't happen here.
-const clips = new Map<string, AudioBuffer>();
-
-// Fetch + decode clips into the cache. Safe before any gesture (decode works while the
-// context is suspended). A failed fetch/decode leaves the clip unloaded so callers fall
-// back to Web Speech. Idempotent per name.
-export async function preloadClips(entries: { name: string; url: string }[]): Promise<void> {
-  const c = getCtx();
-  if (!c) return;
-  await Promise.all(entries.map(async ({ name, url }) => {
-    if (clips.has(name)) return;
-    try {
-      const res = await fetch(url);
-      if (!res.ok) return;
-      const buf = await c.decodeAudioData(await res.arrayBuffer());
-      clips.set(name, buf);
-    } catch { /* leave unloaded → caller falls back to speak() */ }
-  }));
-}
-
-// Play a preloaded clip now. Returns false if the clip isn't loaded (caller falls back).
-export function playClip(name: string): boolean {
-  const c = getCtx();
-  const buf = c ? clips.get(name) : undefined;
-  if (!c || !buf) return false;
-  if (c.state === "suspended") void c.resume();
-  clearSuspend(); // keep the clock running while the clip plays
-  const src = c.createBufferSource();
-  src.buffer = buf;
-  src.connect(c.destination);
-  src.start();
-  scheduleSuspend(c.currentTime + buf.duration);
-  return true;
-}
-
 export type BeepHandle = { cancel: () => void };
 
 // Schedule a short tone (or a few) starting `inSeconds` from now. Returns a handle to

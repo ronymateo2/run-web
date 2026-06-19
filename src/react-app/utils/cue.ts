@@ -1,11 +1,9 @@
-// Spoken cues for the time-based exercise flow. Prefers the Web Speech API: on iOS it plays
-// through the system speech channel, which IGNORES the hardware mute switch — users train
-// with the phone on silent and still hear the cue. Web Audio (the pre-rendered ElevenLabs
-// clip) instead OBEYS the mute switch, so it's only a fallback for browsers without speech
-// synthesis. primeSpeech() (called on screen mount) keeps the first speak() in-gesture so the
-// original "first play is silent" bug stays fixed.
-import { playClip, preloadClips } from "./sound";
-import { speak, speechSupported } from "./speech";
+// Spoken cues for the time-based exercise flow. Plays pre-rendered ElevenLabs MP3s through
+// an HTMLAudioElement — iOS routes media-element playback to the "playback" audio session,
+// which IGNORES the hardware mute switch (same path YouTube/Spotify use). Web Audio would
+// obey the mute switch, so we deliberately avoid it here. Web Speech is the fallback when a
+// clip is missing or playback is rejected (it also ignores the mute switch).
+import { speak } from "./speech";
 
 const CLIPS = {
   comienza:   { url: "/audio/comienza.mp3",   text: "Comienza" },
@@ -15,15 +13,47 @@ const CLIPS = {
 
 export type CueName = keyof typeof CLIPS;
 
-// Warm the clip cache only when speech synthesis is missing (the clips are a fallback).
-// Avoids fetching/decoding MP3s that the iOS/desktop speech path will never use.
+const elements = new Map<CueName, HTMLAudioElement>();
+
+// Create + preload one <audio> element per cue. Safe before a user gesture (loading the
+// media doesn't need one — only playback does). Idempotent.
 export function preloadCues(): void {
-  if (speechSupported()) return;
-  void preloadClips(Object.entries(CLIPS).map(([name, c]) => ({ name, url: c.url })));
+  if (typeof Audio === "undefined") return;
+  for (const [name, c] of Object.entries(CLIPS) as [CueName, (typeof CLIPS)[CueName]][]) {
+    if (elements.has(name)) continue;
+    const el = new Audio(c.url);
+    el.preload = "auto";
+    el.load();
+    elements.set(name, el);
+  }
 }
 
-// Play a cue: Web Speech (mute-switch-safe on iOS) when available, else the pre-rendered clip.
+// iOS gates HTMLMediaElement playback behind a user gesture per element. Call this from the
+// play tap so the cues fired later from the timer callback (Descanso/Completado, no gesture)
+// can still play. Plays each element at volume 0 to unlock it inaudibly, then resets.
+export function unlockCues(): void {
+  for (const el of elements.values()) {
+    // An element already playing (e.g. the in-gesture "comienza" cue) is self-unlocked;
+    // touching it would abort that playback via the deferred pause below.
+    if (!el.paused) continue;
+    el.volume = 0;
+    const p = el.play();
+    if (p) {
+      p.then(() => { el.pause(); el.currentTime = 0; el.volume = 1; })
+       .catch(() => { el.volume = 1; });
+    }
+  }
+}
+
+// Play a cue: the MP3 if its element is ready, otherwise Web Speech with the same words.
 export function cue(name: CueName): void {
-  if (speechSupported()) { speak(CLIPS[name].text); return; }
-  playClip(name);
+  const el = elements.get(name);
+  if (el) {
+    el.currentTime = 0;
+    el.volume = 1;
+    const p = el.play();
+    if (p) p.catch(() => speak(CLIPS[name].text)); // not unlocked / failed to load → fall back
+    return;
+  }
+  speak(CLIPS[name].text);
 }

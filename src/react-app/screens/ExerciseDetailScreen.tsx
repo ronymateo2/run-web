@@ -16,8 +16,7 @@ import { useExerciseSession } from "../features/useExerciseSession";
 import type { PrevValue } from "../features/exerciseSets";
 import { useCountdown } from "../features/useCountdown";
 import { cancelSpeech, primeSpeech } from "../utils/speech";
-import { cue, preloadCues } from "../utils/cue";
-import { unlockAudio } from "../utils/sound";
+import { cue, preloadCues, unlockCues } from "../utils/cue";
 import { guidedPhases } from "../../data/repositories";
 
 export function ExerciseDetailScreen() {
@@ -92,11 +91,12 @@ export function ExerciseDetailScreen() {
   const startTimer = useCallback((i: number) => {
     const dur = sets[i]?.value ?? exercise?.duration_s ?? 0;
     if (dur <= 0) return;
-    // Runs inside the play tap → unlock the shared AudioContext so later clips fired from
-    // the timer callback (Descanso/Completado, no gesture) still sound.
-    unlockAudio();
     setTimingIndex(i);
+    // Play "comienza" first (in-gesture → self-unlocks its element), THEN unlock the rest so
+    // the cues fired later from the timer callback (Descanso/Completado, no gesture) can play.
+    // Order matters: unlocking before this would abort the comienza playback.
     cue("comienza");
+    unlockCues();
     timer.start(dur, { count: 0 });
   }, [sets, exercise, timer.start]);
   const stopTimer = useCallback(() => {
