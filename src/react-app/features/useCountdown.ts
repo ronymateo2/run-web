@@ -8,7 +8,7 @@
 // the workout stays foreground. Wake Lock also avoids the OS backgrounding mid-timer.
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { unlockAudio } from "../utils/sound";
-import { preloadBeeps, unlockBeeps, playBeep } from "../utils/beep";
+import { preloadBeeps, unlockBeeps, playBeep, releaseBeeps } from "../utils/beep";
 import { requestWakeLock, releaseWakeLock } from "../utils/wakeLock";
 
 // `smooth` (default): update `progress` every frame for a fluid ring. Pass smooth=false
@@ -81,6 +81,7 @@ export function useCountdown(
   const stop = useCallback(() => {
     cancelRaf();
     beepOptsRef.current = undefined; // stopped before finish() → no beep
+    releaseBeeps();                  // dismiss the lock-screen now-playing card
     setRunning(false);
     void releaseWakeLock();
   }, []);
@@ -90,8 +91,11 @@ export function useCountdown(
   const start = useCallback((durationSec: number, beep?: { freq?: number; count?: number }) => {
     cancelRaf();
     firedRef.current = false; // arm finish() for this run
-    unlockAudio();  // keep the Web Audio fallback usable (beep clip missing)
-    unlockBeeps();  // unlock the beep <audio> elements while we're (often) in a gesture
+    const wantsBeep = (beep?.count ?? 2) > 0;
+    if (wantsBeep) {
+      unlockAudio();  // keep the Web Audio fallback usable (beep clip missing)
+      unlockBeeps();  // unlock the beep <audio> elements while we're (often) in a gesture
+    }
     beepOptsRef.current = beep; // played at finish()
     durMsRef.current = durationSec * 1000;
     endAtRef.current = performance.now() + durMsRef.current;

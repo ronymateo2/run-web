@@ -1,8 +1,14 @@
-// Spoken cues for the time-based exercise flow. Plays pre-rendered ElevenLabs MP3s through
-// an HTMLAudioElement — iOS routes media-element playback to the "playback" audio session,
+// Spoken cues for the time-based exercise flow. Plays pre-rendered MP3s through an
+// HTMLAudioElement — iOS routes media-element playback to the "playback" audio session,
 // which IGNORES the hardware mute switch (same path YouTube/Spotify use). Web Audio would
-// obey the mute switch, so we deliberately avoid it here. Web Speech is the fallback when a
-// clip is missing or playback is rejected (it also ignores the mute switch).
+// obey the mute switch, so we avoid it here. Web Speech is the fallback when a clip is
+// missing or playback is rejected (it also ignores the mute switch).
+//
+// A media element keeps the iOS lock-screen "now playing" card alive as long as it holds a
+// loaded source — setting playbackState alone doesn't dismiss it. releaseCues() detaches the
+// sources so the card disappears once the flow ends. We only release at terminal points (the
+// final cue, stop, unmount), never between repeating cues, so a reused element stays unlocked
+// for the no-gesture cues fired from the timer callback.
 import { speak } from "./speech";
 import { clearNowPlaying } from "./sound";
 
@@ -16,16 +22,18 @@ export type CueName = keyof typeof CLIPS;
 
 const elements = new Map<CueName, HTMLAudioElement>();
 
-// Create + preload one <audio> element per cue. Safe before a user gesture (loading the
-// media doesn't need one — only playback does). Idempotent.
+// Make sure the element has its source attached (releaseCues() detaches it).
+function ensureSrc(name: CueName, el: HTMLAudioElement): void {
+  if (!el.getAttribute("src")) el.src = CLIPS[name].url;
+}
+
+// Create + preload one <audio> element per cue. Safe before a user gesture.
 export function preloadCues(): void {
   if (typeof Audio === "undefined") return;
-  for (const [name, c] of Object.entries(CLIPS) as [CueName, (typeof CLIPS)[CueName]][]) {
+  for (const name of Object.keys(CLIPS) as CueName[]) {
     if (elements.has(name)) continue;
-    const el = new Audio(c.url);
+    const el = new Audio(CLIPS[name].url);
     el.preload = "auto";
-    // Drop the lock-screen now-playing card as soon as the clip finishes.
-    el.addEventListener("ended", clearNowPlaying);
     el.load();
     elements.set(name, el);
   }
@@ -35,10 +43,9 @@ export function preloadCues(): void {
 // play tap so the cues fired later from the timer callback (Descanso/Completado, no gesture)
 // can still play. Plays each element at volume 0 to unlock it inaudibly, then resets.
 export function unlockCues(): void {
-  for (const el of elements.values()) {
-    // An element already playing (e.g. the in-gesture "comienza" cue) is self-unlocked;
-    // touching it would abort that playback via the deferred pause below.
+  for (const [name, el] of elements) {
     if (!el.paused) continue;
+    ensureSrc(name, el);
     el.volume = 0;
     const p = el.play();
     if (p) {
@@ -48,14 +55,28 @@ export function unlockCues(): void {
   }
 }
 
-// Play a cue: the MP3 if its element is ready, otherwise Web Speech with the same words.
-export function cue(name: CueName): void {
+// Detach every cue's source so the iOS lock-screen now-playing card is dismissed. Call at
+// terminal points only (final cue ended, stop, unmount) — never between repeating cues.
+export function releaseCues(): void {
+  for (const el of elements.values()) {
+    el.pause();
+    el.removeAttribute("src");
+    el.load();
+  }
+  clearNowPlaying();
+}
+
+// Play a cue: the MP3 if its element is ready, otherwise Web Speech. Pass final=true for the
+// terminal cue (nothing plays after it) so the now-playing card is released once it ends.
+export function cue(name: CueName, final = false): void {
   const el = elements.get(name);
   if (el) {
+    ensureSrc(name, el);
     el.currentTime = 0;
     el.volume = 1;
+    if (final) el.addEventListener("ended", releaseCues, { once: true });
     const p = el.play();
-    if (p) p.catch(() => speak(CLIPS[name].text)); // not unlocked / failed to load → fall back
+    if (p) p.catch(() => speak(CLIPS[name].text)); // not unlocked / failed → fall back
     return;
   }
   speak(CLIPS[name].text);

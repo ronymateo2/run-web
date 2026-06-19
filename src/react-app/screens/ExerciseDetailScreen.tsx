@@ -16,8 +16,7 @@ import { useExerciseSession } from "../features/useExerciseSession";
 import type { PrevValue } from "../features/exerciseSets";
 import { useCountdown } from "../features/useCountdown";
 import { cancelSpeech, primeSpeech } from "../utils/speech";
-import { cue, preloadCues, unlockCues } from "../utils/cue";
-import { clearNowPlaying } from "../utils/sound";
+import { cue, preloadCues, unlockCues, releaseCues } from "../utils/cue";
 import { guidedPhases } from "../../data/repositories";
 
 export function ExerciseDetailScreen() {
@@ -82,7 +81,7 @@ export function ExerciseDetailScreen() {
         }
       }
       // No rest chaining left → say "done" only when no pending sets remain.
-      if (justFinished != null && nextPendingIndex(justFinished) == null) cue("completado");
+      if (justFinished != null && nextPendingIndex(justFinished) == null) cue("completado", true);
     },
   });
 
@@ -103,7 +102,7 @@ export function ExerciseDetailScreen() {
   const stopTimer = useCallback(() => {
     timer.stop();
     cancelSpeech();
-    clearNowPlaying();
+    releaseCues();
     setTimingIndex(null);
     setRestingIndex(null);
   }, [timer.stop]);
@@ -132,7 +131,7 @@ export function ExerciseDetailScreen() {
     return () => {
       timer.stop();
       cancelSpeech();
-      clearNowPlaying();
+      releaseCues();
       setTimingIndex(null);
       setRestingIndex(null);
     };
