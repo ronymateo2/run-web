@@ -1,11 +1,14 @@
 // Reusable, drift-free countdown for PWA timers. The remaining time is derived from a
 // fixed end timestamp (`endAt`) every frame — never accumulated tick-by-tick — so it
-// stays exact even when the JS thread janks. The completion beep is scheduled on the
-// Web Audio clock at start, so it fires precisely even if RAF gets throttled in the
-// background; the visual just catches up on the next visible frame. Wake Lock keeps the
-// screen on to avoid the OS backgrounding the page mid-timer.
+// stays exact even when the JS thread janks. The completion beep plays at finish() through
+// an HTMLAudioElement so it survives the iOS mute switch (Web Audio obeys it). Tradeoff vs
+// the old hardware-clock scheduling: the beep is tied to finish(), so if the app is
+// backgrounded exactly at the end it fires when the tab returns (the visibilitychange net
+// calls finish()) rather than on time — acceptable since Wake Lock keeps the screen on and
+// the workout stays foreground. Wake Lock also avoids the OS backgrounding mid-timer.
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { unlockAudio, scheduleBeep, type BeepHandle } from "../utils/sound";
+import { unlockAudio } from "../utils/sound";
+import { preloadBeeps, unlockBeeps, playBeep } from "../utils/beep";
 import { requestWakeLock, releaseWakeLock } from "../utils/wakeLock";
 
 // `smooth` (default): update `progress` every frame for a fluid ring. Pass smooth=false
@@ -41,7 +44,7 @@ export function useCountdown(
   const lastSecRef = useRef(-1); // last integer second pushed — gate notifications
   const rafRef = useRef<number | null>(null);
   const firedRef = useRef(false); // guards finish() to one onComplete per run (RAF vs visibilitychange race)
-  const beepRef = useRef<BeepHandle | null>(null);
+  const beepOptsRef = useRef<{ freq?: number; count?: number } | undefined>(undefined); // beep to play at finish()
   // Keep the latest callback without re-subscribing effects or re-creating start/stop.
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
@@ -55,7 +58,7 @@ export function useCountdown(
     if (firedRef.current) return; // already finished this run — ignore the second caller
     firedRef.current = true;
     cancelRaf();
-    beepRef.current = null; // already scheduled on the audio clock — let it ring
+    playBeep(beepOptsRef.current); // fire the completion beep (no-op when count<=0)
     setRunning(false);
     setSeconds(0);
     setProgress(1);
@@ -77,8 +80,7 @@ export function useCountdown(
 
   const stop = useCallback(() => {
     cancelRaf();
-    beepRef.current?.cancel();
-    beepRef.current = null;
+    beepOptsRef.current = undefined; // stopped before finish() → no beep
     setRunning(false);
     void releaseWakeLock();
   }, []);
@@ -87,12 +89,12 @@ export function useCountdown(
   // end of a rest vs the default tone at the end of a set). Passed straight to scheduleBeep.
   const start = useCallback((durationSec: number, beep?: { freq?: number; count?: number }) => {
     cancelRaf();
-    beepRef.current?.cancel();
     firedRef.current = false; // arm finish() for this run
-    unlockAudio();
+    unlockAudio();  // keep the Web Audio fallback usable (beep clip missing)
+    unlockBeeps();  // unlock the beep <audio> elements while we're (often) in a gesture
+    beepOptsRef.current = beep; // played at finish()
     durMsRef.current = durationSec * 1000;
     endAtRef.current = performance.now() + durMsRef.current;
-    beepRef.current = scheduleBeep(durationSec, beep);
     void requestWakeLock();
     setRunning(true);
     lastSecRef.current = durationSec;
@@ -115,7 +117,10 @@ export function useCountdown(
     return () => document.removeEventListener("visibilitychange", onVis);
   }, [running, finish, tick]);
 
-  // Cleanup on unmount: stop the loop, cancel the scheduled beep, release the lock.
+  // Preload the beep clips up front so the first completion plays without a fetch stall.
+  useEffect(() => { preloadBeeps(); }, []);
+
+  // Cleanup on unmount: stop the loop, release the lock.
   useEffect(() => stop, [stop]);
 
   return { progress, running, start, stop, subscribe, getSeconds };
