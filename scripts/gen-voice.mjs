@@ -19,10 +19,28 @@ if (!KEY || !VOICE_ID) {
 }
 
 // name → spoken text. Keep in sync with CLIPS in src/react-app/utils/cue.ts.
+// Spanish cardinals for the "Serie N" clips. Must match numberToWords() in
+// src/react-app/utils/speech.ts so the runtime keys line up.
+const SERIES_WORDS = [
+  "", "uno", "dos", "tres", "cuatro", "cinco", "seis",
+  "siete", "ocho", "nueve", "diez", "once", "doce",
+];
+const MAX_SERIES = 12;
+
+// name → spoken text. Keep the list-flow names in sync with CLIPS in cue.ts.
 const PHRASES = {
+  // Time-based list flow.
   comienza: "Comienza",
   descanso: "Descanso",
   completado: "Completado",
+  // Guided mode: fixed phrases (free-text rep cues stay on Web Speech).
+  aguanta: "Aguanta",
+  ...Object.fromEntries(
+    Array.from({ length: MAX_SERIES }, (_, i) => [
+      `serie-${i + 1}`,
+      `Serie ${SERIES_WORDS[i + 1]}. Prepárate.`,
+    ]),
+  ),
 };
 
 const outDir = join(dirname(fileURLToPath(import.meta.url)), "..", "public", "audio");
