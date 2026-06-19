@@ -38,17 +38,6 @@ export function unlockAudio(): void {
   if (c.state === "suspended") void c.resume();
 }
 
-// Tell the OS nothing is playing so the lock-screen "now playing" card left behind by our
-// short cue/beep clips (HTMLAudioElement playback registers a MediaSession on iOS) doesn't
-// linger after the clip ends. Call when a clip finishes and when leaving the timer screen.
-export function clearNowPlaying(): void {
-  if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
-  try {
-    navigator.mediaSession.playbackState = "none";
-    navigator.mediaSession.metadata = null;
-  } catch { /* noop */ }
-}
-
 export type BeepHandle = { cancel: () => void };
 
 // Schedule a short tone (or a few) starting `inSeconds` from now. Returns a handle to
