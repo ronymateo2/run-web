@@ -17,6 +17,7 @@ import type { PrevValue } from "../features/exerciseSets";
 import { useCountdown } from "../features/useCountdown";
 import { cancelSpeech, primeSpeech } from "../utils/speech";
 import { cue, preloadCues, unlockCues } from "../utils/cue";
+import { clearNowPlaying } from "../utils/sound";
 import { guidedPhases } from "../../data/repositories";
 
 export function ExerciseDetailScreen() {
@@ -102,6 +103,7 @@ export function ExerciseDetailScreen() {
   const stopTimer = useCallback(() => {
     timer.stop();
     cancelSpeech();
+    clearNowPlaying();
     setTimingIndex(null);
     setRestingIndex(null);
   }, [timer.stop]);
@@ -130,6 +132,7 @@ export function ExerciseDetailScreen() {
     return () => {
       timer.stop();
       cancelSpeech();
+      clearNowPlaying();
       setTimingIndex(null);
       setRestingIndex(null);
     };

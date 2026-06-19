@@ -17,7 +17,7 @@ import { dirname, join } from "node:path";
 
 const KEY = process.env.GEMINI_API_KEY;
 const VOICE = process.env.GEMINI_VOICE ?? "Kore";
-const MODEL = process.env.GEMINI_MODEL ?? "Gemini 3.1 Flash TTS";
+const MODEL = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-tts-preview";
 
 if (!KEY) {
   console.error("Set GEMINI_API_KEY (from Google AI Studio).");

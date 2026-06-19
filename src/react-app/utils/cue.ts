@@ -4,6 +4,7 @@
 // obey the mute switch, so we deliberately avoid it here. Web Speech is the fallback when a
 // clip is missing or playback is rejected (it also ignores the mute switch).
 import { speak } from "./speech";
+import { clearNowPlaying } from "./sound";
 
 const CLIPS = {
   comienza:   { url: "/audio/comienza.mp3",   text: "Comienza" },
@@ -23,6 +24,8 @@ export function preloadCues(): void {
     if (elements.has(name)) continue;
     const el = new Audio(c.url);
     el.preload = "auto";
+    // Drop the lock-screen now-playing card as soon as the clip finishes.
+    el.addEventListener("ended", clearNowPlaying);
     el.load();
     elements.set(name, el);
   }

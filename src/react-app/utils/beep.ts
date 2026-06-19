@@ -1,7 +1,7 @@
 // Completion beeps played through HTMLAudioElements so they survive the iOS mute switch
 // (Web Audio obeys it; media-element playback ignores it — same reason as the voice cues).
 // Falls back to the Web Audio oscillator if a matching clip is missing.
-import { scheduleBeep } from "./sound";
+import { scheduleBeep, clearNowPlaying } from "./sound";
 
 // freq×count → pre-rendered tone (see scripts/gen-beep.mjs). Keep in sync with the
 // scheduleBeep() call sites.
@@ -20,6 +20,7 @@ export function preloadBeeps(): void {
     if (els.has(k)) continue;
     const el = new Audio(url);
     el.preload = "auto";
+    el.addEventListener("ended", clearNowPlaying); // drop the lock-screen card when done
     el.load();
     els.set(k, el);
   }
