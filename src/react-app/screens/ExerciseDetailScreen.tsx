@@ -15,7 +15,9 @@ import { HowToSheet } from "../components/HowToSheet";
 import { useExerciseSession } from "../features/useExerciseSession";
 import type { PrevValue } from "../features/exerciseSets";
 import { useCountdown } from "../features/useCountdown";
-import { speak, cancelSpeech, primeSpeech } from "../utils/speech";
+import { cancelSpeech, primeSpeech } from "../utils/speech";
+import { cue, preloadCues } from "../utils/cue";
+import { unlockAudio } from "../utils/sound";
 import { guidedPhases } from "../../data/repositories";
 
 export function ExerciseDetailScreen() {
@@ -74,13 +76,13 @@ export function ExerciseDetailScreen() {
         if (next != null) {
           setRestingIndex(next);
           // Spoken cue instead of a beep; beep suppressed via count:0.
-          speak("Descanso");
+          cue("descanso");
           timer.start(rest, { count: 0 });
           return;
         }
       }
       // No rest chaining left → say "done" only when no pending sets remain.
-      if (justFinished != null && nextPendingIndex(justFinished) == null) speak("Completado");
+      if (justFinished != null && nextPendingIndex(justFinished) == null) cue("completado");
     },
   });
 
@@ -90,8 +92,11 @@ export function ExerciseDetailScreen() {
   const startTimer = useCallback((i: number) => {
     const dur = sets[i]?.value ?? exercise?.duration_s ?? 0;
     if (dur <= 0) return;
+    // Runs inside the play tap → unlock the shared AudioContext so later clips fired from
+    // the timer callback (Descanso/Completado, no gesture) still sound.
+    unlockAudio();
     setTimingIndex(i);
-    speak("Comienza");
+    cue("comienza");
     timer.start(dur, { count: 0 });
   }, [sets, exercise, timer.start]);
   const stopTimer = useCallback(() => {
@@ -118,8 +123,9 @@ export function ExerciseDetailScreen() {
   // Kill any running timer when the exercise changes so it can't release the wake lock
   // late or complete a stale set index on the newly loaded exercise.
   useEffect(() => {
-    // Warm the voice list so the first play's speak() runs synchronously inside the tap
-    // (deferred utterance loses the gesture → blocked silently on iOS/Safari).
+    // Pre-render cues (ElevenLabs clips) + warm the Web Speech voice list as fallback so
+    // the first play sounds even if a clip failed to load.
+    preloadCues();
     primeSpeech();
     return () => {
       timer.stop();

@@ -28,7 +28,7 @@ export default defineConfig({
 			workbox: {
 				skipWaiting: true,
 				clientsClaim: true,
-				globPatterns: ["**/*.{js,css,html,ico,png,svg,wasm}"],
+				globPatterns: ["**/*.{js,css,html,ico,png,svg,wasm,mp3}"],
 				runtimeCaching: [
 					{
 						urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
