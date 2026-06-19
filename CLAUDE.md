@@ -56,7 +56,7 @@ Screens and components NEVER touch SQLite/Drizzle directly. They go through the 
 - **GUARD queue-XOR-synced**: no write may set `synced=0`; the queue is the only push path. `synced` survives only as a column the pull marks 1 (vestigial).
 - **GUARD single-flight push**: `pushDelta` runs under Web Lock `rurana.sync.push` with `ifAvailable` — concurrent tabs skip instead of double-draining. Drain loops 500-row batches (`drainAll`) ordered by `created_at, rowid` (parents before children), `status='pending'` only; unknown entities stay queued (never dropped).
 - **Auto-sync**: AuthContext listens to `online` + `visibilitychange` → debounced (30s) `syncNow()`.
-- **Degraded storage**: worker exposes `isPersistent()`; `StorageWarning` banner (App.tsx) warns when SQLite fell back to `:memory:` (OPFS unavailable).
+- **Degraded storage**: worker exposes `isPersistent()`; `StorageWarning` banner (app/App.tsx) warns when SQLite fell back to `:memory:` (OPFS unavailable).
 - Backfill migrations: id 9 (checkins), id 10 (all other tables) move stranded `synced=0` rows into the queue. phase_criteria backfills BOTH channels (row + done).
 - `resetLocalCache` wipes synced tables + `metadata.last_pull_at` but NEVER `sync_queue` (pending mutations carry their own payloads; it pushes the queue first).
 
