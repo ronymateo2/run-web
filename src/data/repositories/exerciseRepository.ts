@@ -53,6 +53,13 @@ export const exerciseRepository = {
   ): Promise<number> {
     return q.getPhaseProgress(await getDrizzle(), phase, focusDaysJson, userId);
   },
+  async getPhaseProgressBulk(
+    phases: { id: string; week_start: number; week_end: number }[],
+    focusDaysByPhaseId: Map<string, string | null | undefined>,
+    userId: string,
+  ): Promise<Map<string, number>> {
+    return q.getPhaseProgressBulk(await getDrizzle(), phases, focusDaysByPhaseId, userId);
+  },
   async getSessionDates(userId: string): Promise<string[]> {
     return q.getSessionDates(await getDrizzle(), userId);
   },

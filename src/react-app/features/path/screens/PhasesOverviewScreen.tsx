@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { useAuth } from "@features/auth/AuthContext";
 import { Plant, Leaf, Flower, Tree, CaretUpDown, CaretDown } from "@phosphor-icons/react";
 import { Ico } from "@shared/components/icons";
-import { injuryRepository, exerciseRepository, effectiveFocusDays, type Injury, type Phase } from "@data/repositories";
+import { type Phase } from "@data/repositories";
+import { usePhasesOverviewData } from "../hooks/usePhasesOverviewData";
 
 const PHASE_ICONS = [
   (s?: number, c?: string) => <Plant  size={s ?? 18} weight="regular" color={c} />,
@@ -16,53 +16,14 @@ const PHASE_ICONS = [
 
 const MS_PER_WEEK = 7 * 24 * 3600 * 1000;
 
-interface PhaseWithProgress extends Phase {
-  progressPct: number;
-}
-
-interface InjuryData {
-  injury: Injury;
-  phases: PhaseWithProgress[];
-  current: Phase | null;
-  activityWeeks: Set<number>;
-}
-
 export function PhasesOverviewScreen() {
-  const { user, lastSyncAt } = useAuth();
   const navigate = useNavigate();
-  const [data, setData] = useState<InjuryData[] | null>(null);
+  const { data } = usePhasesOverviewData();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
-    let active = true;
-    (async () => {
-      const injuries = await injuryRepository.getActiveInjuries(user.id);
-      const sessionDates = await exerciseRepository.getSessionDates(user.id);
-      const result: InjuryData[] = await Promise.all(
-        injuries.map(async (inj) => {
-          const phases = await injuryRepository.getPhasesForInjury(inj.id);
-          const current = await injuryRepository.getCurrentPhase(inj);
-          const phasesWithProgress: PhaseWithProgress[] = await Promise.all(
-            phases.map(async (p) => {
-              const progressPct = await exerciseRepository.getPhaseProgress(p, effectiveFocusDays(p, inj), user.id);
-              return { ...p, progressPct };
-            })
-          );
-          const startedAt = inj.started_at ?? Date.now();
-          const activityWeeks = new Set(
-            sessionDates.map(d => Math.max(1, Math.floor((new Date(d + "T00:00:00").getTime() - startedAt) / MS_PER_WEEK) + 1))
-          );
-          return { injury: inj, phases: phasesWithProgress, current, activityWeeks };
-        })
-      );
-      if (active) {
-        setData(result);
-        setSelectedId(prev => prev ?? result[0]?.injury.id ?? null);
-      }
-    })();
-    return () => { active = false; };
-  }, [user, lastSyncAt]);
+    if (data) setSelectedId(prev => prev ?? data[0]?.injury.id ?? null);
+  }, [data]);
 
   const sel = data?.find(d => d.injury.id === (selectedId ?? data[0]?.injury.id)) ?? null;
 

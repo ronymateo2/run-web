@@ -229,6 +229,70 @@ export async function getPhaseProgress(
   return Math.min(100, Math.round((done / denom) * 100));
 }
 
+// Bulk variant of getPhaseProgress: progress for MANY phases in 2 round-trips total
+// (one IN-list scan of exercises, one IN-list join of the log rollup) instead of 2 per
+// phase. Same math as getPhaseProgress, grouped by phase_id in-process.
+//   focusDaysByPhaseId: phase_id → the effective focus_days JSON (caller resolves the
+//   phase-over-injury fallback via effectiveFocusDays).
+// Returns phase_id → progress %. Phases with no exercises / zero denom map to 0.
+export async function getPhaseProgressBulk(
+  db: DrizzleDb,
+  phases_: { id: string; week_start: number; week_end: number }[],
+  focusDaysByPhaseId: Map<string, string | null | undefined>,
+  userId: string,
+): Promise<Map<string, number>> {
+  const result = new Map<string, number>();
+  const phaseIds = phases_.map(p => p.id);
+  for (const id of phaseIds) result.set(id, 0);
+  if (phaseIds.length === 0) return result;
+
+  const exRows = await db.select({ id: exercises.id, sets: exercises.sets, phase_id: exercises.phase_id })
+    .from(exercises)
+    .where(and(inArray(exercises.phase_id, phaseIds), isNull(exercises.archived_at)));
+
+  // phase_id → (exercise_id → sets_required)
+  const requiredByPhase = new Map<string, Map<string, number>>();
+  for (const e of exRows) {
+    if (!e.phase_id) continue;
+    let m = requiredByPhase.get(e.phase_id);
+    if (!m) { m = new Map(); requiredByPhase.set(e.phase_id, m); }
+    m.set(e.id, e.sets ?? 1);
+  }
+
+  const logRows = await db.select({
+    exercise_id: logDayCounts.exercise_id,
+    sets: logDayCounts.sets,
+    phase_id: exercises.phase_id,
+  })
+    .from(logDayCounts)
+    .innerJoin(exercises, eq(logDayCounts.exercise_id, exercises.id))
+    .where(and(eq(logDayCounts.user_id, userId), inArray(exercises.phase_id, phaseIds), isNull(exercises.archived_at), gt(logDayCounts.sets, 0)));
+
+  // phase_id → Σ min(sets_done / sets_required, 1)
+  const doneByPhase = new Map<string, number>();
+  for (const r of logRows) {
+    if (!r.phase_id) continue;
+    const req = requiredByPhase.get(r.phase_id)?.get(r.exercise_id) ?? 1;
+    doneByPhase.set(r.phase_id, (doneByPhase.get(r.phase_id) ?? 0) + Math.min(r.sets / req, 1));
+  }
+
+  for (const p of phases_) {
+    const required = requiredByPhase.get(p.id);
+    if (!required || required.size === 0) continue;
+    const weeks = p.week_end - p.week_start + 1;
+    let focusDays = 0;
+    const fdJson = focusDaysByPhaseId.get(p.id);
+    try { focusDays = fdJson ? (JSON.parse(fdJson) as string[]).length : 0; }
+    catch { focusDays = 0; }
+    const denom = weeks * focusDays * required.size;
+    if (denom <= 0) continue;
+    const done = doneByPhase.get(p.id) ?? 0;
+    result.set(p.id, Math.min(100, Math.round((done / denom) * 100)));
+  }
+
+  return result;
+}
+
 export async function getSessionDates(db: DrizzleDb, userId: string): Promise<string[]> {
   const rows = await db
     .selectDistinct({ session_date: logDayCounts.session_date })

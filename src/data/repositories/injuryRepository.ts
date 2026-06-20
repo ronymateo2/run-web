@@ -27,6 +27,9 @@ export const injuryRepository = {
   async getPhasesForInjury(injuryId: string): Promise<Phase[]> {
     return q.getPhasesForInjury(await getDrizzle(), injuryId);
   },
+  async getPhasesForInjuries(injuryIds: string[]): Promise<Phase[]> {
+    return q.getPhasesForInjuries(await getDrizzle(), injuryIds);
+  },
   async getCurrentPhase(injury: Injury): Promise<Phase | null> {
     return q.getCurrentPhase(await getDrizzle(), injury);
   },

@@ -1,4 +1,4 @@
-import { eq, asc, and, isNull } from "drizzle-orm";
+import { eq, asc, and, isNull, inArray } from "drizzle-orm";
 import { injuries, phases, phaseCriteria } from "../schema";
 import type { DrizzleDb } from "../drizzle";
 import type { SqlStatement } from "../client";
@@ -30,6 +30,16 @@ export async function getPhaseById(db: DrizzleDb, id: string): Promise<Phase | n
 export async function getPhasesForInjury(db: DrizzleDb, injuryId: string): Promise<Phase[]> {
   return db.select().from(phases)
     .where(and(eq(phases.injury_id, injuryId), isNull(phases.deleted_at)))
+    .orderBy(asc(phases.phase_num));
+}
+
+// Bulk variant: every non-deleted phase across several injuries in ONE round-trip.
+// Caller groups by injury_id and resolves each injury's current phase in-process
+// (the current phase is already in this list — no extra getCurrentPhase query).
+export async function getPhasesForInjuries(db: DrizzleDb, injuryIds: string[]): Promise<Phase[]> {
+  if (injuryIds.length === 0) return [];
+  return db.select().from(phases)
+    .where(and(inArray(phases.injury_id, injuryIds), isNull(phases.deleted_at)))
     .orderBy(asc(phases.phase_num));
 }
 
