@@ -24,6 +24,11 @@ export const exerciseRepository = {
   async getExerciseById(id: string): Promise<Exercise | null> {
     return q.getExerciseById(await getDrizzle(), id);
   },
+  // One round-trip: the exercise + its whole phase. The caller splits the rows into the
+  // current exercise and the non-archived phase list. See q.getExerciseWithPhaseList.
+  async getExerciseWithPhaseList(id: string): Promise<Exercise[]> {
+    return q.getExerciseWithPhaseList(await getDrizzle(), id);
+  },
   async getTodayLogs(userId: string, date: string): Promise<ExerciseLog[]> {
     return q.getTodayLogs(await getDrizzle(), userId, date);
   },

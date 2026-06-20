@@ -56,18 +56,20 @@ export function useExerciseSession(id: string | undefined) {
     if (!id) return;
     let cancelled = false;
     (async () => {
-      const e = await exerciseRepository.getExerciseById(id);
+      // One worker round-trip: the exercise + its whole phase in a single SQL statement
+      // (subquery resolves the phase_id we don't know upfront). The rows include archived
+      // exercises so the current one still renders if archived, while the phase list the
+      // footer uses for "next" excludes them — same behavior as the old two-query flow.
+      const rows = await exerciseRepository.getExerciseWithPhaseList(id);
       if (cancelled) return;
+      const e = rows.find(x => x.id === id) ?? null;
       setExercise(e);
       if (!e) {
         setExerciseIds([]);
         setNextExercise(null);
         return;
       }
-      // Whole phase, in order — the next exercise is simply the one after this id,
-      // and "no next" means the session is done.
-      const phaseExercises = await exerciseRepository.getExercisesForPhase(e.phase_id);
-      if (cancelled) return;
+      const phaseExercises = rows.filter(x => !x.archived_at);
       setExerciseIds(phaseExercises.map(x => x.id));
       const idx = phaseExercises.findIndex(x => x.id === id);
       setNextExercise(idx >= 0 ? (phaseExercises[idx + 1] ?? null) : null);

@@ -1,4 +1,4 @@
-import { eq, and, isNull, isNotNull, gt, lt, desc } from "drizzle-orm";
+import { eq, and, isNull, isNotNull, gt, lt, desc, inArray } from "drizzle-orm";
 import { exercises, exerciseLogs, phases, logDayCounts } from "../schema";
 import type { DrizzleDb } from "../drizzle";
 import type { SqlStatement } from "../client";
@@ -82,6 +82,22 @@ export async function getArchivedExercisesForPhase(db: DrizzleDb, phaseId: strin
 export async function getExerciseById(db: DrizzleDb, id: string): Promise<Exercise | null> {
   const rows = await db.select().from(exercises).where(eq(exercises.id, id));
   return rows[0] ?? null;
+}
+
+// One round-trip: fetch the exercise by id AND every exercise in its phase in a single
+// SQL statement — the subquery resolves the phase_id the caller doesn't know upfront,
+// so the detail flow no longer pays two sequential worker IPCs. Returns ALL phase
+// exercises (archived included): the caller splits into the current exercise (shown
+// even if archived) and the non-archived phase list, preserving the old behavior where
+// getExerciseById ignored archived_at but getExercisesForPhase filtered it out.
+export async function getExerciseWithPhaseList(db: DrizzleDb, id: string): Promise<Exercise[]> {
+  const phaseSub = db.select({ phase_id: exercises.phase_id })
+    .from(exercises)
+    .where(eq(exercises.id, id))
+    .limit(1);
+  return db.select().from(exercises)
+    .where(inArray(exercises.phase_id, phaseSub))
+    .orderBy(exercises.sort_order);
 }
 
 export async function getTodayLogs(db: DrizzleDb, userId: string, date: string): Promise<ExerciseLog[]> {
