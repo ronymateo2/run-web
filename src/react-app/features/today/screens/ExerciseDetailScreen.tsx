@@ -4,22 +4,31 @@ import { AnimatePresence } from "motion/react";
 import { Ico } from "@shared/components/icons";
 import { BackButton } from "@shared/components/BackButton";
 import { ScreenNav } from "@shared/components/ScreenNav";
-import { VideoEmbed } from "../components/VideoEmbed";
-import { BottomSheet } from "@shared/components/BottomSheet";
-import { ExerciseStatsSheet } from "../components/ExerciseStatsSheet";
-import { ExerciseFAB } from "../components/ExerciseFAB";
-import { SetCard } from "../components/SetCard";
-import { BandPicker } from "../components/BandPicker";
-import { EditableNum } from "../components/EditableNum";
-import { HowToSheet } from "../components/HowToSheet";
+import { guidedPhases } from "@data/repositories";
 import { ExerciseHeader } from "../components/ExerciseHeader";
 import { ProtocolChips } from "../components/ProtocolChips";
 import { SetProgressStrip } from "../components/SetProgressStrip";
+import { SetCard } from "../components/SetCard";
 import { ExerciseFooter } from "../components/ExerciseFooter";
+import { ExerciseFAB } from "../components/ExerciseFAB";
+import { RpeEditorSheet } from "../components/RpeEditorSheet";
+import { VideoSheet } from "../components/VideoSheet";
+import { HowToSheet } from "../components/HowToSheet";
+import { ExerciseStatsSheet } from "../components/ExerciseStatsSheet";
+import { BandPicker } from "../components/BandPicker";
 import { useExerciseSession } from "../hooks/useExerciseSession";
 import { useExerciseTimer } from "../hooks/useExerciseTimer";
 import type { PrevValue } from "../hooks/exerciseSets";
-import { guidedPhases } from "@data/repositories";
+
+// Which modal sheet is open (mutually exclusive — only one at a time).
+type SheetKind = "video" | "howto" | "stats" | "rpe";
+
+// Shared style for the icon buttons in the nav (stats / edit). Same shape as the
+// inline style that was duplicated on each button before.
+const NAV_ICON_BTN: React.CSSProperties = {
+  background: "none", border: "none", cursor: "pointer", padding: 6,
+  display: "flex", alignItems: "center", justifyContent: "center",
+};
 
 export function ExerciseDetailScreen() {
   const { id } = useParams<{ id: string }>();
@@ -34,15 +43,13 @@ export function ExerciseDetailScreen() {
   const { timingIndex, restingIndex, startTimer, stopTimer, subscribe, getSeconds } =
     useExerciseTimer({ id, sets, exercise, isTimeBased, toggleCompleted });
 
-  const [videoOpen, setVideoOpen] = useState(false);
-  const [howToOpen, setHowToOpen] = useState(false);
-  const [statsOpen, setStatsOpen] = useState(false);
+  // Which modal sheet is open (null = all closed). Replaces four separate booleans so
+  // the open-sheet state has a single source of truth and can't stack by accident.
+  const [openSheet, setOpenSheet] = useState<SheetKind | null>(null);
   // Which set row is currently swiped open to reveal the delete action.
   const [swipedSet, setSwipedSet] = useState<string | null>(null);
   // Which set row's band picker is open (null = closed).
   const [bandPickerIdx, setBandPickerIdx] = useState<number | null>(null);
-  // Inline editor for the per-exercise target RPE (tap the chip).
-  const [rpeOpen, setRpeOpen] = useState(false);
 
   const equipmentType = exercise?.equipment_type ?? "none";
 
@@ -64,21 +71,15 @@ export function ExerciseDetailScreen() {
       <ScreenNav back={<BackButton fallbackPath="/today" color="var(--bone)" />}>
         <div style={{ flex: 1 }} />
         <button
-          onClick={() => setStatsOpen(true)}
-          style={{
-            background: "none", border: "none", cursor: "pointer", padding: 6,
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}
+          onClick={() => setOpenSheet("stats")}
+          style={NAV_ICON_BTN}
           aria-label="Ver estadísticas"
         >
           <Ico.chart s={20} c="var(--bone)" />
         </button>
         <button
           onClick={() => navigate(`/today/exercise/${id}/edit`)}
-          style={{
-            background: "none", border: "none", cursor: "pointer", padding: 6,
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}
+          style={NAV_ICON_BTN}
           aria-label="Editar ejercicio"
         >
           <Ico.pencil s={20} c="var(--bone)" />
@@ -95,13 +96,13 @@ export function ExerciseDetailScreen() {
               exercise={exercise}
               exerciseIds={exerciseIds}
               id={id}
-              onVideo={() => setVideoOpen(true)}
-              onHowTo={() => setHowToOpen(true)}
+              onVideo={() => setOpenSheet("video")}
+              onHowTo={() => setOpenSheet("howto")}
             />
             <ProtocolChips
               exercise={exercise}
               isTimeBased={isTimeBased}
-              onEditRpe={() => setRpeOpen(true)}
+              onEditRpe={() => setOpenSheet("rpe")}
             />
             <SetProgressStrip sets={sets} />
           </>
@@ -173,35 +174,36 @@ export function ExerciseDetailScreen() {
       />
 
       {/* Inline editor for the per-exercise target RPE */}
-      {rpeOpen && exercise && (
-        <BottomSheet variant="dark" onClose={() => setRpeOpen(false)}>
-          {() => (
-            <div style={{
-              padding: "8px 16px calc(28px + env(safe-area-inset-bottom, 0px))",
-              display: "flex", flexDirection: "column", alignItems: "center", gap: 16,
-            }}>
-              <div style={{
-                fontSize: 11, fontFamily: "var(--font-mono)", letterSpacing: "0.12em",
-                color: "rgba(245,240,232,0.55)", textTransform: "uppercase",
-              }}>
-                RPE objetivo
-              </div>
-              <EditableNum
-                value={exercise.target_rpe ?? 6}
-                min={1}
-                max={10}
-                completed
-                onChange={(v) => setTargetRpe(v)}
-                size={40}
-              />
-              <div style={{
-                fontSize: 12, color: "rgba(245,240,232,0.50)", textAlign: "center", maxWidth: 260,
-              }}>
-                Esfuerzo percibido (1–10) para todas las series de este ejercicio.
-              </div>
-            </div>
-          )}
-        </BottomSheet>
+      {openSheet === "rpe" && exercise && (
+        <RpeEditorSheet
+          value={exercise.target_rpe ?? 6}
+          onChange={setTargetRpe}
+          onClose={() => setOpenSheet(null)}
+        />
+      )}
+
+      {/* Video sheet */}
+      {openSheet === "video" && !!exercise?.video_url && (
+        <VideoSheet
+          url={exercise.video_url!}
+          onClose={() => setOpenSheet(null)}
+        />
+      )}
+
+      {/* How-to sheet */}
+      {openSheet === "howto" && !!exercise?.how_to && (
+        <HowToSheet
+          content={exercise.how_to}
+          onClose={() => setOpenSheet(null)}
+        />
+      )}
+
+      {/* Stats sheet */}
+      {openSheet === "stats" && exercise && (
+        <ExerciseStatsSheet
+          exercise={exercise}
+          onClose={() => setOpenSheet(null)}
+        />
       )}
 
       {/* Band picker for one set row */}
@@ -210,60 +212,6 @@ export function ExerciseDetailScreen() {
           selected={sets[bandPickerIdx].band}
           onSelect={(slug) => updateBand(bandPickerIdx, slug)}
           onClose={() => setBandPickerIdx(null)}
-        />
-      )}
-
-      {/* How-to sheet */}
-      {howToOpen && !!exercise?.how_to && (
-        <HowToSheet
-          content={exercise.how_to}
-          onClose={() => setHowToOpen(false)}
-        />
-      )}
-
-      {/* Video sheet */}
-      {videoOpen && !!exercise?.video_url && (
-        <BottomSheet variant="dark" size="video" onClose={() => setVideoOpen(false)}>
-          {(close) => (
-            <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-              <div style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "12px 16px", flexShrink: 0,
-              }}>
-                <span style={{
-                  fontSize: 11, fontFamily: "var(--font-mono)", letterSpacing: "0.12em",
-                  color: "rgba(245,240,232,0.55)",
-                }}>
-                  VIDEO
-                </span>
-                <button
-                  onClick={close}
-                  aria-label="Cerrar"
-                  style={{
-                    background: "none", border: "none", cursor: "pointer", padding: 4,
-                    display: "flex", alignItems: "center",
-                  }}
-                >
-                  <Ico.close s={20} c="rgba(245,240,232,0.70)" />
-                </button>
-              </div>
-              <div style={{
-                flex: 1,
-                minHeight: 0,
-                paddingBottom: "env(safe-area-inset-bottom, 0px)",
-              }}>
-                <VideoEmbed url={exercise.video_url!} variant="full" />
-              </div>
-            </div>
-          )}
-        </BottomSheet>
-      )}
-
-      {/* Stats sheet */}
-      {statsOpen && exercise && (
-        <ExerciseStatsSheet
-          exercise={exercise}
-          onClose={() => setStatsOpen(false)}
         />
       )}
     </div>
