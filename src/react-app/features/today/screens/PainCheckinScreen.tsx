@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@features/auth/AuthContext";
 import { localToday } from "@shared/utils/timezone";
@@ -28,6 +28,21 @@ export function PainCheckinScreen() {
   });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // Tap via pointer events: en un contenedor scrolleable (.screen overflow-y:auto +
+  // 100dvh) iOS reinterpreta el tap como scroll y cancela el click sintético. pointerup
+  // dispara confiable; la guarda de movimiento descarta los pan reales.
+  const tapStart = useRef<{ x: number; y: number } | null>(null);
+
+  function onTapDown(e: React.PointerEvent) {
+    tapStart.current = { x: e.clientX, y: e.clientY };
+  }
+  function onTapUp(e: React.PointerEvent) {
+    const start = tapStart.current;
+    tapStart.current = null;
+    if (!start || saving) return;
+    const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+    if (moved <= 12) void handleSave();
+  }
 
   function updateZone(key: keyof HeatMap, value: number) {
     setZones(prev => ({ ...prev, [key]: value }));
@@ -100,7 +115,8 @@ export function PainCheckinScreen() {
               {saveError}
             </div>
           )}
-          <button className="btn-pill" onClick={handleSave} disabled={saving}
+          <button className="btn-pill" onPointerDown={onTapDown} onPointerUp={onTapUp}
+            onPointerCancel={() => { tapStart.current = null; }} disabled={saving}
             style={{ opacity: saving ? 0.6 : 1 }}>
             {saving ? "Guardando…" : "Guardar check-in"} {!saving && <Ico.check s={16} c="#EDE6D6" />}
           </button>
