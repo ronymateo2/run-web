@@ -69,7 +69,7 @@ export function PainCheckinScreen() {
         zones,
         created_at: existing?.created_at ?? Date.now(),
       });
-     await push();
+      await push();
       navigate("/today", { replace: true });
     } catch (err) {
       console.error("[PainCheckin] save failed:", err);
