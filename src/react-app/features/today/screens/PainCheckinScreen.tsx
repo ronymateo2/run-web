@@ -53,6 +53,10 @@ export function PainCheckinScreen() {
       setSaveError("Sesión no disponible. Recarga la app.");
       return;
     }
+    if (Object.values(zones).every((v) => (v ?? 0) === 0)) {
+      setSaveError("Marca al menos una zona con dolor antes de guardar.");
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     try {
