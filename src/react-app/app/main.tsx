@@ -3,6 +3,10 @@ import { createRoot } from "react-dom/client";
 import { registerSW } from "virtual:pwa-register";
 import App from "./App";
 import { setRegistration } from "./pwa";
+import { installErrorOverlay } from "./error-overlay";
+
+// DEBUG: pinta errores async/globales en pantalla (mobile sin cable). Quitar luego.
+installErrorOverlay();
 
 // autoUpdate: cuando hay SW nuevo, skipWaiting + recarga sola.
 // El chequeo periódico (cada 60s) se quitó por batería: hacía fetch de sw.js
