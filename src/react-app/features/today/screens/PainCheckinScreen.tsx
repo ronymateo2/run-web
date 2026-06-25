@@ -26,24 +26,38 @@ export function PainCheckinScreen() {
   const [zones, setZones] = useState<HeatMap>({
     cuello: 0, ingleL: 0, caderaL: 0, pubis: 0, hombroI: 0, lumbar: 0,
   });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   function updateZone(key: keyof HeatMap, value: number) {
     setZones(prev => ({ ...prev, [key]: value }));
   }
 
   async function handleSave() {
-    if (!user) return;
-    const dateStr = localToday(user?.timezone);
-    const existing = await checkinRepository.getTodayCheckin(user.id, dateStr);
-    await checkinRepository.saveCheckin({
-      id: existing?.id ?? crypto.randomUUID(),
-      user_id: user.id,
-      date: dateStr,
-      zones,
-      created_at: existing?.created_at ?? Date.now(),
-    });
-    push();
-    navigate("/today", { replace: true });
+    if (!user) {
+      setSaveError("Sesión no disponible. Recarga la app.");
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const dateStr = localToday(user?.timezone);
+      const existing = await checkinRepository.getTodayCheckin(user.id, dateStr);
+      await checkinRepository.saveCheckin({
+        id: existing?.id ?? crypto.randomUUID(),
+        user_id: user.id,
+        date: dateStr,
+        zones,
+        created_at: existing?.created_at ?? Date.now(),
+      });
+      push();
+      navigate("/today", { replace: true });
+    } catch (err) {
+      console.error("[PainCheckin] save failed:", err);
+      // DEBUG: surface raw error on-screen for mobile (revert after capturing).
+      setSaveError(`DEBUG: ${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}`);
+      setSaving(false);
+    }
   }
 
   return (
@@ -81,8 +95,14 @@ export function PainCheckinScreen() {
         </div>
 
         <div style={{ marginTop: 24 }}>
-          <button className="btn-pill" onClick={handleSave}>
-            Guardar check-in <Ico.check s={16} c="#EDE6D6" />
+          {saveError && (
+            <div style={{ color: "var(--clay)", fontSize: 13, textAlign: "center", padding: "4px 0" }}>
+              {saveError}
+            </div>
+          )}
+          <button className="btn-pill" onClick={handleSave} disabled={saving}
+            style={{ opacity: saving ? 0.6 : 1 }}>
+            {saving ? "Guardando…" : "Guardar check-in"} {!saving && <Ico.check s={16} c="#EDE6D6" />}
           </button>
         </div>
       </div>
