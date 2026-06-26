@@ -24,14 +24,43 @@ import { ProfileScreen } from "@features/profile";
 import { RouteErrorFallback } from "@shared";
 
 // Lazy-loaded: pull in heavy deps (recharts, react-markdown) only when visited.
-const ProgressScreen = lazy(() =>
-  import("@features/path/screens/ProgressScreen").then((m) => ({ default: m.ProgressScreen })),
+// A new deploy rotates chunk hashes; a client holding a cached index.html (PWA)
+// requests the OLD chunk and gets a 404 → "Failed to fetch dynamically imported
+// module". Retry once, then force a single hard reload to fetch the fresh
+// index + chunks. The sessionStorage guard prevents a reload loop when the
+// failure is genuine (chunk really gone) rather than transient.
+function lazyWithReload<T extends { default: React.ComponentType<unknown> }>(
+  factory: () => Promise<T>,
+  key: string,
+) {
+  return lazy(async () => {
+    try {
+      return await factory();
+    } catch (err) {
+      const flag = `chunk-reload:${key}`;
+      if (!sessionStorage.getItem(flag)) {
+        sessionStorage.setItem(flag, "1");
+        window.location.reload();
+        // Reload pending; return a never-resolving promise so React doesn't
+        // surface the stale error before navigation tears down.
+        return new Promise<T>(() => {});
+      }
+      throw err;
+    }
+  });
+}
+
+const ProgressScreen = lazyWithReload(
+  () => import("@features/path/screens/ProgressScreen").then((m) => ({ default: m.ProgressScreen })),
+  "progress",
 );
-const PromDetailScreen = lazy(() =>
-  import("@features/path/screens/PromDetailScreen").then((m) => ({ default: m.PromDetailScreen })),
+const PromDetailScreen = lazyWithReload(
+  () => import("@features/path/screens/PromDetailScreen").then((m) => ({ default: m.PromDetailScreen })),
+  "prom-detail",
 );
-const LearnArticleScreen = lazy(() =>
-  import("@features/learn/screens/LearnArticleScreen").then((m) => ({ default: m.LearnArticleScreen })),
+const LearnArticleScreen = lazyWithReload(
+  () => import("@features/learn/screens/LearnArticleScreen").then((m) => ({ default: m.LearnArticleScreen })),
+  "learn-article",
 );
 
 const lazyScreen = (el: React.ReactNode) => <Suspense fallback={null}>{el}</Suspense>;
