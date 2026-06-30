@@ -110,6 +110,25 @@ export function HomeScreen() {
           )}
         </div>
 
+        {/* Breathing break — guided relaxation / active pause */}
+        <div
+          className="card mt-20 press row gap-12"
+          style={{ padding: 14, cursor: "pointer", alignItems: "center", WebkitTapHighlightColor: "transparent" }}
+          onClick={() => navigate("/today/breathe")}
+        >
+          <div className="center" style={{
+            width: 44, height: 44, borderRadius: 999, flexShrink: 0,
+            background: "var(--card-soft)", border: "1px solid var(--line)",
+          }}>
+            <Ico.wind s={22} c="var(--clay)" />
+          </div>
+          <div className="col" style={{ flex: 1 }}>
+            <div className="title-md serif" style={{ fontSize: 19, lineHeight: 1.1 }}>Pausa para respirar</div>
+            <div className="body-sm" style={{ marginTop: 2 }}>Respiración guiada para relajar.</div>
+          </div>
+          <Ico.chevR s={18} c="var(--faint)" />
+        </div>
+
         {/* Weekly quick tasks — surfaced above the (long) exercise list so they stay visible */}
         {/* 5SST nudge */}
         <NudgeSST state={sstState} lastScore={sstResult?.pain_score ?? undefined} preferred={sstDue} />

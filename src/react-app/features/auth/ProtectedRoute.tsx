@@ -3,7 +3,7 @@ import { useAuth } from "./AuthContext";
 import { TabBar } from "@shared/components/TabBar";
 
 const TABBAR_ROOTS = ["/today", "/body", "/path", "/learn", "/profile"];
-const NO_TABBAR_PREFIXES = ["/today/exercise", "/today/checkin", "/today/sst"];
+const NO_TABBAR_PREFIXES = ["/today/exercise", "/today/checkin", "/today/sst", "/today/breathe"];
 
 export function ProtectedRoute() {
   const { user, loading } = useAuth();

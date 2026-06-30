@@ -3,7 +3,7 @@ import {
   CaretRight, CaretLeft, CaretUp, CaretDown, X, Hand, Bell, Book, ChartBar,
   House, Person, Path, Lock, ArrowCounterClockwise,
   User, Globe, SignOut, Plus, TrashSimple, PencilSimple, Video, Timer,
-  DotsSixVertical, Archive, Presentation, SpeakerHigh, Stop,
+  DotsSixVertical, Archive, Presentation, SpeakerHigh, Stop, Wind,
 } from '@phosphor-icons/react';
 
 interface IcoProps { s?: number; c?: string; }
@@ -47,4 +47,5 @@ export const Ico = {
   timer:        (p?: IcoProps) => <Timer        size={sz(p, 16)} color={cl(p)} weight="regular" />,
   grip:    (p?: IcoProps) => <DotsSixVertical size={sz(p, 20)} color={cl(p)} weight="bold" />,
   archive: (p?: IcoProps) => <Archive size={sz(p, 16)} color={cl(p)} weight="regular" />,
+  wind:    (p?: IcoProps) => <Wind    size={sz(p, 22)} color={cl(p)} weight="regular" />,
 };

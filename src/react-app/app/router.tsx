@@ -10,6 +10,7 @@ import {
   SqueezeTestScreen,
   PromScreen,
 } from "@features/today";
+import { BreatheScreen } from "@features/breathe";
 import { CuerpoScreen } from "@features/body";
 import {
   PhasesOverviewScreen,
@@ -78,6 +79,7 @@ export const router = createBrowserRouter([
       { path: "/today/exercise/:id/edit", element: <ExerciseEditScreen /> },
       { path: "/today/exercise/:id/guided", element: <GuidedExerciseScreen /> },
       { path: "/today/sst", element: <SqueezeTestScreen /> },
+      { path: "/today/breathe", element: <BreatheScreen /> },
       { path: "/today/prom/:instrumentId", element: <PromScreen /> },
       { path: "/body", element: <CuerpoScreen /> },
       { path: "/path", element: <PhasesOverviewScreen /> },
