@@ -203,9 +203,11 @@ export function CuerpoScreen() {
                       </div>
                     </div>
                     <div className="row gap-12" style={{ alignItems: "center" }}>
-                      <span style={{ fontSize: 18, color: z.trendArrow === "↓" ? "var(--moss)" : z.trendArrow === "↑" ? "var(--clay)" : "var(--muted)" }}>
-                        {z.trendArrow}
-                      </span>
+                      {z.trendArrow === "↓"
+                        ? <Ico.trendDown c="var(--moss)" />
+                        : z.trendArrow === "↑"
+                        ? <Ico.trendUp c="var(--clay)" />
+                        : <Ico.trendFlat c="var(--muted)" />}
                       <div className="num serif" style={{ fontSize: 28, color: "var(--ink)", lineHeight: 1 }}>
                         {z.current.toFixed(1)}
                       </div>

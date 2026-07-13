@@ -4,6 +4,7 @@ import {
   House, Person, Path, Lock, ArrowCounterClockwise,
   User, Globe, SignOut, Plus, TrashSimple, PencilSimple, Video, Timer,
   DotsSixVertical, Archive, Presentation, SpeakerHigh, Stop, Wind,
+  TrendUp, TrendDown, Minus,
 } from '@phosphor-icons/react';
 
 interface IcoProps { s?: number; c?: string; }
@@ -48,4 +49,7 @@ export const Ico = {
   grip:    (p?: IcoProps) => <DotsSixVertical size={sz(p, 20)} color={cl(p)} weight="bold" />,
   archive: (p?: IcoProps) => <Archive size={sz(p, 16)} color={cl(p)} weight="regular" />,
   wind:    (p?: IcoProps) => <Wind    size={sz(p, 22)} color={cl(p)} weight="regular" />,
+  trendUp:   (p?: IcoProps) => <TrendUp   size={sz(p, 16)} color={cl(p)} weight="bold" />,
+  trendDown: (p?: IcoProps) => <TrendDown size={sz(p, 16)} color={cl(p)} weight="bold" />,
+  trendFlat: (p?: IcoProps) => <Minus     size={sz(p, 16)} color={cl(p)} weight="bold" />,
 };
