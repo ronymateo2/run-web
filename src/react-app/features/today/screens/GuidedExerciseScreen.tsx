@@ -10,7 +10,7 @@ import { useSync } from "@shared/hooks/useSync";
 import { useCountdown, useCountdownSeconds } from "../hooks/useCountdown";
 import { DEFAULT_RPE } from "../hooks/exerciseSets";
 import { unlockAudio } from "@shared/utils/sound";
-import { speak, cancelSpeech, numberToWords } from "@shared/utils/speech";
+import { speak, cancelSpeech, speechDone, numberToWords } from "@shared/utils/speech";
 import { Ico } from "@shared/components/icons";
 import { BackButton } from "@shared/components/BackButton";
 import { ScreenNav } from "@shared/components/ScreenNav";
@@ -48,6 +48,8 @@ export function GuidedExerciseScreen() {
   const [segKey, setSegKey] = useState(0);
   // Guard so the completion logging runs exactly once.
   const savedRef = useRef(false);
+  // Invalidates a pending speech-gated advance when the user stops/leaves mid-wait.
+  const advanceEpochRef = useRef(0);
 
   useEffect(() => {
     if (!id) return;
@@ -129,44 +131,51 @@ export function GuidedExerciseScreen() {
     smooth: false,
     onComplete: () => {
       setFlashKey(k => k + 1);
-      // The prep countdown ended → run the series' first rep.
-      if (screen === "ready") {
-        setScreen("run");
-        speakAndStart(1, 0);
-        return;
-      }
-      // The between-reps pause ended → start the next rep.
-      if (screen === "represt") {
-        const r = rep + 1;
-        setRep(r); setPhaseIdx(0); setScreen("run");
-        speakAndStart(r, 0);
-        return;
-      }
-      // A phase ended → next phase within the rep.
-      if (phaseIdx < phases.length - 1) {
-        const p = phaseIdx + 1;
-        setPhaseIdx(p);
-        speakAndStart(rep, p);
-        return;
-      }
-      // Last phase of the rep → pause between reps (or straight to the next rep).
-      if (rep < reps) {
-        if (repRestS > 0) {
-          setScreen("represt");
-          run(repRestS);
-        } else {
-          const r = rep + 1;
-          setRep(r); setPhaseIdx(0);
-          speakAndStart(r, 0);
+      // If the voice is still mid-phrase when the timer ends (cue/announcement longer than
+      // the programmed seconds), wait for it to finish before advancing — the next speak()
+      // would otherwise cut it off mid-word. Resolves immediately when the voice is idle.
+      const epoch = ++advanceEpochRef.current;
+      void speechDone().then(() => {
+        if (epoch !== advanceEpochRef.current) return; // stopped/left while waiting
+        // The prep countdown ended → run the series' first rep.
+        if (screen === "ready") {
+          setScreen("run");
+          speakAndStart(1, 0);
+          return;
         }
-        return;
-      }
-      // Last rep of the set → prep + next series (or finish).
-      if (set < sets) {
-        startSeries(set + 1);
-        return;
-      }
-      void finishSession();
+        // The between-reps pause ended → start the next rep.
+        if (screen === "represt") {
+          const r = rep + 1;
+          setRep(r); setPhaseIdx(0); setScreen("run");
+          speakAndStart(r, 0);
+          return;
+        }
+        // A phase ended → next phase within the rep.
+        if (phaseIdx < phases.length - 1) {
+          const p = phaseIdx + 1;
+          setPhaseIdx(p);
+          speakAndStart(rep, p);
+          return;
+        }
+        // Last phase of the rep → pause between reps (or straight to the next rep).
+        if (rep < reps) {
+          if (repRestS > 0) {
+            setScreen("represt");
+            run(repRestS);
+          } else {
+            const r = rep + 1;
+            setRep(r); setPhaseIdx(0);
+            speakAndStart(r, 0);
+          }
+          return;
+        }
+        // Last rep of the set → prep + next series (or finish).
+        if (set < sets) {
+          startSeries(set + 1);
+          return;
+        }
+        void finishSession();
+      });
     },
   });
 
@@ -174,7 +183,7 @@ export function GuidedExerciseScreen() {
 
   // Stop the timer + voice on unmount (no stray wake lock or speech after leaving).
   useEffect(() => {
-    return () => { timer.stop(); cancelSpeech(); };
+    return () => { advanceEpochRef.current++; timer.stop(); cancelSpeech(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -185,6 +194,7 @@ export function GuidedExerciseScreen() {
   }
 
   function stopAndExit() {
+    advanceEpochRef.current++;
     timer.stop();
     cancelSpeech();
     navigate(`/today/exercise/${id}`, { replace: true });

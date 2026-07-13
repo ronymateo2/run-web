@@ -81,6 +81,24 @@ function resolveEsVoice(): SpeechSynthesisVoice | undefined {
     ?? voices[0];
 }
 
+// Completion tracking for the current utterance: `speechDone()` resolves when it finishes
+// (end, error, cancel, or a length-based safety timeout for browsers that drop the end
+// event). Lets callers wait for the voice to finish instead of cutting it mid-word.
+let done: Promise<void> = Promise.resolve();
+let resolveDone: (() => void) | null = null;
+let doneTimer: number | null = null;
+
+function settleDone(): void {
+  if (doneTimer != null) { window.clearTimeout(doneTimer); doneTimer = null; }
+  resolveDone?.();
+  resolveDone = null;
+}
+
+// Resolves when whatever is currently being spoken finishes; immediately if idle.
+export function speechDone(): Promise<void> {
+  return done;
+}
+
 // Pending deferred-voice work from a speak() that's waiting on the async voice list. Cleared
 // by cancelSpeech() so a late voiceschanged/timeout can't speak after the screen is gone.
 let pendingVoiceTimer: number | null = null;
@@ -97,12 +115,19 @@ export function speak(text: string): void {
   const synth = window.speechSynthesis;
   clearPendingVoiceWork();
   synth.cancel();
+  settleDone(); // whatever was pending is cut — release its waiters
+  done = new Promise((res) => { resolveDone = res; });
+  // Safety net: some browsers drop the utterance end event (or the deferred voice never
+  // loads), so cap the wait relative to the text length instead of hanging forever.
+  doneTimer = window.setTimeout(settleDone, Math.min(2000 + text.length * 250, 15000));
 
   const utter = () => {
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "es-MX";
     u.rate = 0.95;
     u.pitch = 1.1;
+    u.onend = settleDone;
+    u.onerror = settleDone;
     const voice = resolveEsVoice();
     if (voice) u.voice = voice;
     synth.speak(u);
@@ -122,4 +147,5 @@ export function speak(text: string): void {
 export function cancelSpeech(): void {
   clearPendingVoiceWork();
   if (speechSupported()) window.speechSynthesis.cancel();
+  settleDone();
 }
