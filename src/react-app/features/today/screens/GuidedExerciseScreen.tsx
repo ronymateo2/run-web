@@ -2,7 +2,7 @@
 // All session logic (TTS cues, drift-free timer, phase→rep→set advance, completion logging)
 // lives in useGuidedPlayer; this screen only renders the current state.
 import type { ReactNode } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useCountdownSeconds } from "../hooks/useCountdown";
 import { useGuidedPlayer } from "../hooks/useGuidedPlayer";
 import { Ico } from "@shared/components/icons";
@@ -27,10 +27,19 @@ const KEYFRAMES = `
 export function GuidedExerciseScreen() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const player = useGuidedPlayer(id);
 
   const exitPath = `/today/exercise/${id}`;
-  const exit = () => navigate(exitPath, { replace: true });
+  // Entering guided PUSHES this screen on top of the detail, so leaving must POP it.
+  // Replacing left a second detail entry behind, and the detail's replace-nav to the next
+  // exercise then turned it into a trail of past exercises — so "Registrar" on the last one
+  // (navigate(-1)) jumped back to an earlier exercise instead of Today. Deep link / reload
+  // (no history) still falls back to replacing.
+  const exit = () => {
+    if (location.key === "default") navigate(exitPath, { replace: true });
+    else navigate(-1);
+  };
   const stopAndExit = () => { player.stop(); exit(); };
 
   const { exercise, phases, screen } = player;

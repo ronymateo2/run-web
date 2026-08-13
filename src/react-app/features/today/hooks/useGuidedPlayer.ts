@@ -7,7 +7,7 @@ import { useAuth } from "@features/auth/AuthContext";
 import { localToday } from "@shared/utils/timezone";
 import { useSync } from "@shared/hooks/useSync";
 import { unlockAudio } from "@shared/utils/sound";
-import { speak, cancelSpeech, speechDone, numberToWords } from "@shared/utils/speech";
+import { speak, cancelSpeech, speechDone, primeSpeech, numberToWords } from "@shared/utils/speech";
 import { exerciseRepository, guidedPhases, type Exercise } from "@data/repositories";
 import { useCountdown } from "./useCountdown";
 import { DEFAULT_RPE } from "./exerciseSets";
@@ -86,6 +86,9 @@ export function useGuidedPlayer(exerciseId: string | undefined) {
 
   async function finishSession() {
     setScreen("done");
+    // Every other transition announces itself; the end has to as well, or the last series
+    // just stops with a beep and no voice.
+    speak("Ejercicio completado.");
     if (savedRef.current || !user || !exercise) return;
     savedRef.current = true;
     const date = localToday(user.timezone);
@@ -176,8 +179,11 @@ export function useGuidedPlayer(exerciseId: string | undefined) {
     cancelSpeech();
   }
 
+  // Warm the voice list on mount so the first cue speaks synchronously inside the
+  // "Comenzar" tap (a deferred utterance loses the gesture → iOS blocks it silently).
   // Same cleanup on unmount (no stray wake lock or speech after leaving).
   useEffect(() => {
+    primeSpeech();
     return stop;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
