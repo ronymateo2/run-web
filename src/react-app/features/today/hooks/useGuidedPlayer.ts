@@ -48,6 +48,9 @@ export function useGuidedPlayer(exerciseId: string | undefined) {
   const prepS = exercise?.rest_s || PREP_DEFAULT_S;
   // Auto-pause between reps (0/null = no pause, reps run back-to-back).
   const repRestS = exercise?.rep_rest_s ?? 0;
+  // Time-based = duration_s with no reps (same test as useExerciseSession). For those,
+  // exercise_logs.reps_done holds SECONDS, not a rep count — see loggedValue below.
+  const isTimeBased = !!exercise?.duration_s && !exercise?.reps;
 
   // Start a countdown + arm the ring sweep for it (new segment = remounted circle).
   function run(dur: number, beep?: { freq?: number; count?: number }) {
@@ -94,13 +97,17 @@ export function useGuidedPlayer(exerciseId: string | undefined) {
     const date = localToday(user.timezone);
     const now = Date.now();
     const rpe = exercise.target_rpe ?? DEFAULT_RPE;
+    // reps_done is the set's "value" column: reps for rep exercises, seconds for
+    // time-based ones. Logging the rep count (1, since reps is null) on a time exercise
+    // made the detail screen rebuild the set at 1s instead of its configured duration.
+    const loggedValue = isTimeBased ? (exercise.duration_s ?? 0) : reps;
     for (let i = 0; i < sets; i++) {
       await exerciseRepository.saveExerciseLog({
         id: `${user.id}:${exercise.id}:${date}:${i}`,
         user_id: user.id,
         exercise_id: exercise.id,
         session_date: date,
-        reps_done: reps,
+        reps_done: loggedValue,
         pain_during: 0,
         rpe,
         load: null,
